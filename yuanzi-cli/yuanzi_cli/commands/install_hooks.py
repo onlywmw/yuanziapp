@@ -12,11 +12,23 @@ app = typer.Typer()
 
 
 def _find_repo_root(start: Path) -> Path | None:
-    """Walk upwards from `start` looking for .pre-commit-config.yaml."""
+    """Walk upwards from `start` looking for .pre-commit-config.yaml.
+
+    The climb is bounded (BUG-015): it stops at the first directory that
+    is a git repository root (contains `.git`) but has no config, and
+    never crosses the user's home directory.  Without those bounds the
+    search ran all the way to the filesystem root and could adopt an
+    unrelated ancestor's config, planting hooks into the wrong repo.
+    """
     current = start.resolve()
+    home = Path.home()
     for candidate in (current, *current.parents):
         if (candidate / ".pre-commit-config.yaml").exists():
             return candidate
+        if (candidate / ".git").exists():
+            return None  # repo boundary without config: do not escape it
+        if candidate == home:
+            return None  # never look above the user's home directory
     return None
 
 

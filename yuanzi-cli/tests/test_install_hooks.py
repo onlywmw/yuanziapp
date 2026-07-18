@@ -92,3 +92,34 @@ def test_install_hooks_install_failure(tmp_path, monkeypatch):
     result = runner.invoke(app, ["install-hooks", str(tmp_path)])
     assert result.exit_code == 2
     assert "pre-commit install failed" in result.output
+
+
+def test_find_repo_root_stops_at_git_boundary_bug015(tmp_path):
+    """BUG-015: the upward search must not escape a git repo without config.
+
+    An ancestor (outside the repo) owns a .pre-commit-config.yaml; the
+    unbounded search used to adopt it and plant hooks into that
+    unrelated repository. Hermetic: tmp_path only, no subprocess.
+    """
+    _config(tmp_path)  # config in the OUTER, unrelated directory
+    repo = tmp_path / "repo"
+    nested = repo / "a" / "b"
+    nested.mkdir(parents=True)
+    (repo / ".git").mkdir()  # repo boundary WITHOUT its own config
+
+    assert install_hooks._find_repo_root(nested) is None
+
+
+def test_find_repo_root_within_git_repo_bug015(tmp_path):
+    """BUG-015: bounding must not break the normal in-repo search.
+
+    Starting from a nested directory inside a repo that has both .git
+    and a config still resolves to the repo root.
+    """
+    repo = tmp_path / "repo"
+    nested = repo / "a" / "b"
+    nested.mkdir(parents=True)
+    (repo / ".git").mkdir()
+    _config(repo)
+
+    assert install_hooks._find_repo_root(nested) == repo
