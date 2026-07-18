@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import secrets
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -88,7 +89,7 @@ class Auth:
             raise HTTPException(status_code=401, detail="Missing Bearer token")
 
         env_token = os.environ.get(ENV_TOKEN)
-        if env_token and credentials.credentials == env_token:
+        if env_token and secrets.compare_digest(credentials.credentials, env_token):
             return {"role": ROLE_ADMIN, "subject": "env-token"}
 
         db_token = _lookup_db_token(self.conn, credentials.credentials)
