@@ -38,9 +38,9 @@
 | 1.2 | 创建标准化原子模板 | P0 | 1 天 | :heavy_check_mark: 已完成 | 1.1 | `yuanzi-atom-templates/` |
 | 1.3 | 制作示例原子 `com.example.sum` | P0 | 0.5 天 | :heavy_check_mark: 已完成 | 1.2 | 可运行示例 |
 | 1.4 | 示例原子在平板验证 | P0 | 0.5 天 | :heavy_check_mark: 已完成 | 1.3 | 测试报告 |
-| 1.5 | 实现 `yuanzi-cli init` | P0 | 2 天 | :white_circle: 未开始 | 1.2 | CLI 命令 |
-| 1.6 | 实现 `yuanzi-cli validate` | P0 | 1.5 天 | :white_circle: 未开始 | 1.5 | CLI 命令 |
-| 1.7 | 实现 `yuanzi-cli test` | P0 | 1.5 天 | :white_circle: 未开始 | 1.5 | CLI 命令 |
+| 1.5 | 实现 `yuanzi-cli init` | P0 | 2 天 | :heavy_check_mark: 已完成 | 1.2 | CLI 命令 |
+| 1.6 | 实现 `yuanzi-cli validate` | P0 | 1.5 天 | :heavy_check_mark: 已完成 | 1.5 | CLI 命令 |
+| 1.7 | 实现 `yuanzi-cli test` | P0 | 1.5 天 | :heavy_check_mark: 已完成 | 1.5 | CLI 命令 |
 | 1.8 | 实现 `yuanzi-cli build` | P1 | 1 天 | :white_circle: 未开始 | 1.7 | CLI 命令 |
 | 1.9 | 实现 `yuanzi-cli publish --dry-run` | P1 | 1 天 | :white_circle: 未开始 | 1.8 | CLI 命令 |
 
@@ -135,7 +135,7 @@
 
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| `yuanzi-cli init/validate/test` | P0 | :white_circle: 未开始 | 第一阶段核心，直接决定造原子体验 |
+| `yuanzi-cli init/validate/test` | P0 | :heavy_check_mark: 已完成 | 第一阶段核心，直接决定造原子体验 |
 | `yuanzi-config.yaml` + adb 同步 | P0 | :white_circle: 未开始 | Windows 开发机 ↔ 平板一键同步 |
 | pre-commit + 代码格式化 | P0 | :white_circle: 未开始 | 代码质量门禁 |
 | 修复原子分类误判 | P1 | :white_circle: 未开始 | 提升图谱分组准确性 |
