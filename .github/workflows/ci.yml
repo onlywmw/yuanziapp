@@ -50,7 +50,10 @@ jobs:
         run: python -m pytest yuanzi-cli/tests -q --tb=short
 
       - name: mcp-yuanzi-bridge tests
-        run: python -m pytest mcp-yuanzi-bridge/tests -q --tb=short
+        run: python -m pytest mcp-yuanzi-bridge/tests -q
+
+      - name: base-atoms tests
+        run: python -m pytest base-atoms/tests -q --tb=short
 
       # ---- example atom smoke tests (M3 3.5) ----
 

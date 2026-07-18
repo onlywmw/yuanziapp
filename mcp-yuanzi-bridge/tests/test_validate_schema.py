@@ -60,6 +60,19 @@ def test_probing_and_unreachable_are_valid_statuses():
         assert validate_atom(atom, SCHEMA) == []
 
 
+def test_schema_requires_author():
+    """REGISTERED_ATOM_RULES：author 是必填字段。"""
+    ownership = SCHEMA["properties"]["ownership"]
+    assert "author" in ownership.get("required", [])
+
+
+def test_atom_missing_author_fails():
+    atom = _valid_atom()
+    del atom["ownership"]["author"]
+    errors = validate_atom(atom, SCHEMA)
+    assert any("author" in e for e in errors)
+
+
 @pytest.mark.parametrize("index", range(61))
 def test_all_real_mcp_atoms_validate(index):
     """mcp_atoms.json 里的每一个原子都必须通过 schema 校验。"""
