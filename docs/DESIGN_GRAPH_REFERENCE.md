@@ -50,7 +50,6 @@ Obsidian                       Yuanzi
             Security      #E8A090 (rust_light)
             Document      #6B8E6B (sage)
             Web           #8B3A1E (clay_deep)
-  作者节点   #FFD700     金色, 菱形, 发光
   CENTER     #FFFFFF     纯白, 最大, 最亮
 
 连线:
@@ -147,7 +146,7 @@ Obsidian                       Yuanzi
 3. YUANZI 节点出现, 连线生长到 CENTER (200ms)
 4. 注册原子从 CENTER 扩散到各自位置 (400ms)
 5. 基础原子淡入, 在底层 (300ms)
-6. 作者节点最后出现, 金色微光 (200ms)
+6. 原子详情面板淡入, 显示作者信息 (200ms)
 
 总启动动画: ~1.6 秒
 ```
@@ -170,7 +169,7 @@ Obsidian                       Yuanzi
 2. 缩放到正常大小 (300ms)
 3. 沿曲线飞到力导向计算出的位置 (500ms)
 4. 相关连线生长 (200ms)
-5. 如果是某作者的新原子 → 作者节点闪烁一下
+5. 新原子节点的详情面板高亮显示作者署名
 ```
 
 ## 七、参考素材
