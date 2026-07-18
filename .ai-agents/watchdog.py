@@ -37,6 +37,7 @@ from config import SIGNALS
 
 # Locate gh.exe — not always in PATH on Windows
 _GH = "gh"
+_GH_TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
 import shutil as _shutil
 _found = _shutil.which("gh")
 if not _found:
@@ -49,6 +50,20 @@ if not _found:
             break
 else:
     _GH = _found
+
+# Get token once at startup
+if not _GH_TOKEN:
+    try:
+        _result = subprocess.run(
+            [_GH, "auth", "token"],
+            capture_output=True, text=True, encoding="utf-8", timeout=5
+        )
+        if _result.returncode == 0:
+            _GH_TOKEN = _result.stdout.strip()
+    except Exception:
+        pass
+
+_GH_ENV = {**os.environ, "GH_TOKEN": _GH_TOKEN, "GITHUB_TOKEN": _GH_TOKEN}
 
 
 def ts() -> str:
@@ -70,6 +85,7 @@ def _gh_json(*args: str) -> Any:
             text=True,
             encoding="utf-8",
             timeout=15,
+            env=_GH_ENV,
         )
         if result.returncode != 0:
             return None
