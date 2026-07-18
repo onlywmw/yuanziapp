@@ -71,7 +71,7 @@ rec(
     r3.get("success")
     and atom["description"] == "updated"
     and sum(1 for entry in logs if entry["action"] == "submit") == 2,
-    f"desc={atom['description']} submits={sum(1 for entry in logs if entry['action']=='submit')}",
+    f"desc={atom['description']} submits={sum(1 for entry in logs if entry['action'] == 'submit')}",
 )
 
 # TC-REG-004 approve -> registered
@@ -165,6 +165,6 @@ for tc, status, note in results:
     print(f"{tc} | {status} | {note}")
 fails = [t for t, s, _ in results if s == "FAIL"]
 print("=" * 70)
-print(f"TOTAL {len(results)}  PASS {len(results)-len(fails)}  FAIL {len(fails)}")
+print(f"TOTAL {len(results)}  PASS {len(results) - len(fails)}  FAIL {len(fails)}")
 if fails:
     print("FAILED:", ",".join(fails))

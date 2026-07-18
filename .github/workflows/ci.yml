@@ -27,6 +27,7 @@ jobs:
           pip install black ruff requests
           pip install -e yuanzi-cli[dev]
           pip install -r yuanzi-atom-templates/examples/com.example.sum/requirements.txt
+          pip install -r atoms/atom-template/requirements.txt
 
       - name: pip-audit (dependency vulnerabilities)
         run: |

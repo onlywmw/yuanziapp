@@ -113,8 +113,7 @@ def compute_signature(atom: Dict[str, Any]) -> str:
 
 
 def ensure_registry_schema(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        f"""
+    conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {REGISTRY_TABLE} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -143,10 +142,8 @@ def ensure_registry_schema(conn: sqlite3.Connection) -> None:
             review_comments TEXT,
             review_score REAL
         )
-        """
-    )
-    conn.execute(
-        f"""
+        """)
+    conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {AUDIT_TABLE} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT NOT NULL,
@@ -157,10 +154,8 @@ def ensure_registry_schema(conn: sqlite3.Connection) -> None:
             detail TEXT,
             created_at TEXT
         )
-        """
-    )
-    conn.execute(
-        f"""
+        """)
+    conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {VERSIONS_TABLE} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT NOT NULL,
@@ -181,8 +176,7 @@ def ensure_registry_schema(conn: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL,
             UNIQUE (atom_id, version)
         )
-        """
-    )
+        """)
     conn.commit()
 
 
