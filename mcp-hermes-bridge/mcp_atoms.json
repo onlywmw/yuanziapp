@@ -1,0 +1,931 @@
+[
+  {
+    "atom_id": "mcp.amazon-bedrock-agentcore",
+    "label": "Amazon Bedrock Agentcore",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-bedrock-agentcore",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-bedrock-agentcore/invoke"
+    ],
+    "description": "Model Context Protocol (MCP) server for Amazon Bedrock AgentCore — providing operational API tools that let AI coding agents manage AgentCore resources directly.",
+    "source_dir": "mcp-main\\src\\amazon-bedrock-agentcore-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-kendra-index",
+    "label": "Amazon Kendra Index",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-kendra-index",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-kendra-index/kendra_list_indexes_tool",
+      "mcp/amazon-kendra-index/kendra_query_tool"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Amazon Kendra. This MCP server allows you to use Kendra Indices as additional context for RAG.",
+    "source_dir": "mcp-main\\src\\amazon-kendra-index-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-keyspaces",
+    "label": "Amazon Keyspaces",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-keyspaces",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-keyspaces/list_keyspaces",
+      "mcp/amazon-keyspaces/list_tables",
+      "mcp/amazon-keyspaces/describe_keyspace",
+      "mcp/amazon-keyspaces/describe_table",
+      "mcp/amazon-keyspaces/execute_query",
+      "mcp/amazon-keyspaces/analyze_query_performance"
+    ],
+    "description": "An Amazon Keyspaces (for Apache Cassandra) MCP server for interacting with Amazon Keyspaces and Apache Cassandra.",
+    "source_dir": "mcp-main\\src\\amazon-keyspaces-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-mq",
+    "label": "Amazon Mq",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-mq",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-mq/create_broker",
+      "mcp/amazon-mq/create_configuration"
+    ],
+    "description": "A Model Context Protocol (MCP) server for Amazon MQ that enables generative AI models to manage RabbitMQ and ActiveMQ message brokers through MCP tools.",
+    "source_dir": "mcp-main\\src\\amazon-mq-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-neptune",
+    "label": "Amazon Neptune",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-neptune",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-neptune/get_status",
+      "mcp/amazon-neptune/get_schema",
+      "mcp/amazon-neptune/run_opencypher_query",
+      "mcp/amazon-neptune/run_gremlin_query"
+    ],
+    "description": "An Amazon Neptune MCP server that allows for fetching status, schema, and querying using openCypher and Gremlin for Neptune Database and openCypher for Neptune Analytics.",
+    "source_dir": "mcp-main\\src\\amazon-neptune-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-qbusiness-anonymous",
+    "label": "Amazon Qbusiness Anonymous",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-qbusiness-anonymous",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-qbusiness-anonymous/qbiz_local_query"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Amazon Q Business anonymous mode application. This is a simple MCP server for Amazon Q Business, and it supports Amazon Q Business application created using [anonymous mode access](https://docs.aws.amazon.com/amazonq/latest/qbusiness-ug/create-anon",
+    "source_dir": "mcp-main\\src\\amazon-qbusiness-anonymous-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-qindex",
+    "label": "Amazon Qindex",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-qindex",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-qindex/authorize_qindex",
+      "mcp/amazon-qindex/create_token_with_iam",
+      "mcp/amazon-qindex/assume_role_with_identity_context",
+      "mcp/amazon-qindex/search_relevant_content"
+    ],
+    "description": "The AWS Labs amazon-qindex MCP Server is a Model Context Protocol (MCP) server designed to facilitate integration with Amazon Q Business's [SearchRelevantContent API](https://docs.aws.amazon.com/amazonq/latest/qbusiness-ug/isv-calling-api-idc.html). While the server provides essential tools and func",
+    "source_dir": "mcp-main\\src\\amazon-qindex-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-sns-sqs",
+    "label": "Amazon Sns Sqs",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-sns-sqs",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-sns-sqs/invoke"
+    ],
+    "description": "A Model Context Protocol (MCP) server for Amazon SNS / SQS that enables generative AI models to manage SNS Topics and SQS Queues through MCP tools.",
+    "source_dir": "mcp-main\\src\\amazon-sns-sqs-mcp-server"
+  },
+  {
+    "atom_id": "mcp.amazon-translate",
+    "label": "Amazon Translate",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/amazon-translate",
+    "status": "declared",
+    "capabilities": [
+      "mcp/amazon-translate/translate_text",
+      "mcp/amazon-translate/detect_language",
+      "mcp/amazon-translate/validate_translation",
+      "mcp/amazon-translate/start_batch_translation",
+      "mcp/amazon-translate/get_translation_job",
+      "mcp/amazon-translate/list_translation_jobs",
+      "mcp/amazon-translate/list_terminologies",
+      "mcp/amazon-translate/create_terminology",
+      "mcp/amazon-translate/import_terminology",
+      "mcp/amazon-translate/get_terminology",
+      "mcp/amazon-translate/list_language_pairs",
+      "mcp/amazon-translate/get_language_metrics",
+      "mcp/amazon-translate/smart_translate_workflow",
+      "mcp/amazon-translate/managed_batch_translation_workflow",
+      "mcp/amazon-translate/trigger_batch_translation",
+      "mcp/amazon-translate/monitor_batch_translation",
+      "mcp/amazon-translate/analyze_batch_translation_errors",
+      "mcp/amazon-translate/list_active_workflows",
+      "mcp/amazon-translate/get_workflow_status"
+    ],
+    "description": "[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)",
+    "source_dir": "mcp-main\\src\\amazon-translate-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aurora-dsql",
+    "label": "Aurora Dsql",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aurora-dsql",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aurora-dsql/readonly_query",
+      "mcp/aurora-dsql/transact",
+      "mcp/aurora-dsql/get_schema",
+      "mcp/aurora-dsql/dsql_search_documentation",
+      "mcp/aurora-dsql/dsql_read_documentation",
+      "mcp/aurora-dsql/dsql_recommend",
+      "mcp/aurora-dsql/dsql_lint"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Aurora DSQL and corresponding AI rules that can be used for additional model steering while developing.",
+    "source_dir": "mcp-main\\src\\aurora-dsql-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-api",
+    "label": "Aws Api",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-api",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-api/invoke"
+    ],
+    "description": "The AWS API MCP Server enables AI assistants to interact with AWS services and resources through AWS CLI commands. It provides programmatic access to manage your AWS infrastructure while maintaining proper security controls.",
+    "source_dir": "mcp-main\\src\\aws-api-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-appsync",
+    "label": "Aws Appsync",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-appsync",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-appsync/invoke"
+    ],
+    "description": "A Model Context Protocol (MCP) server for AWS AppSync that enables AI assistants to manage and interact with backend APIs.",
+    "source_dir": "mcp-main\\src\\aws-appsync-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-bedrock-custom-model-import",
+    "label": "Aws Bedrock Custom Model Import",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-bedrock-custom-model-import",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-bedrock-custom-model-import/invoke"
+    ],
+    "description": "The Bedrock Custom Model Import Model Context Protocol (MCP) Server streamlines the process of importing custom models into Amazon Bedrock. It provides a comprehensive set of tools for managing model import jobs and imported models, enabling developers to efficiently integrate their custom models wi",
+    "source_dir": "mcp-main\\src\\aws-bedrock-custom-model-import-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-dataprocessing",
+    "label": "Aws Dataprocessing",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-dataprocessing",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-dataprocessing/invoke"
+    ],
+    "description": "The AWS DataProcessing MCP server provides AI code assistants with comprehensive data processing tools and real-time pipeline visibility across AWS Glue and Amazon EMR-EC2. This integration equips large language models (LLMs) with essential data engineering capabilities and contextual awareness, ena",
+    "source_dir": "mcp-main\\src\\aws-dataprocessing-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-documentation",
+    "label": "Aws Documentation",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-documentation",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-documentation/invoke"
+    ],
+    "description": "Model Context Protocol (MCP) server for AWS Documentation",
+    "source_dir": "mcp-main\\src\\aws-documentation-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-for-sap-management",
+    "label": "Aws For Sap Management",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-for-sap-management",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-for-sap-management/invoke"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for AWS Systems Manager for SAP. This server enables AI agents to manage SAP applications registered with AWS Systems Manager for SAP, run configuration checks, and schedule recurring operations via Amazon EventBridge Scheduler.",
+    "source_dir": "mcp-main\\src\\aws-for-sap-management-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-healthomics",
+    "label": "Aws Healthomics",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-healthomics",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-healthomics/invoke"
+    ],
+    "description": "A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to AWS HealthOmics services for genomic workflow management, execution, and analysis.",
+    "source_dir": "mcp-main\\src\\aws-healthomics-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-iac",
+    "label": "Aws Iac",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-iac",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-iac/validate_cloudformation_template",
+      "mcp/aws-iac/check_cloudformation_template_compliance",
+      "mcp/aws-iac/troubleshoot_cloudformation_deployment",
+      "mcp/aws-iac/get_cloudformation_pre_deploy_validation_instructions",
+      "mcp/aws-iac/search_cdk_documentation",
+      "mcp/aws-iac/search_cloudformation_documentation",
+      "mcp/aws-iac/search_cdk_samples_and_constructs",
+      "mcp/aws-iac/cdk_best_practices"
+    ],
+    "description": "Get started with this MCP server for creating and troubleshooting AWS infrastructure as code. Tools include CloudFormation template validation, compliance checking, deployment troubleshooting, CloudFormation documentation search, AWS CDK documentation search with official CDK knowledge bases, CDK co",
+    "source_dir": "mcp-main\\src\\aws-iac-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-iot-sitewise",
+    "label": "Aws Iot Sitewise",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-iot-sitewise",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-iot-sitewise/invoke"
+    ],
+    "description": "A comprehensive MCP (Model Context Protocol) server that provides full AWS IoT SiteWise functionality for industrial IoT asset management, data ingestion, monitoring, and analytics. This server enables AI assistants to interact with AWS IoT SiteWise through a rich set of tools and prompts.",
+    "source_dir": "mcp-main\\src\\aws-iot-sitewise-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-knowledge",
+    "label": "Aws Knowledge",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-knowledge",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-knowledge/invoke"
+    ],
+    "description": "A fully managed remote MCP server that provides up-to-date documentation, code samples, agent skills, knowledge about the regional availability of AWS APIs and CloudFormation resources, and other official AWS content.",
+    "source_dir": "mcp-main\\src\\aws-knowledge-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-location",
+    "label": "Aws Location",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-location",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-location/search_places",
+      "mcp/aws-location/get_place",
+      "mcp/aws-location/reverse_geocode",
+      "mcp/aws-location/geocode",
+      "mcp/aws-location/search_nearby",
+      "mcp/aws-location/search_places_open_now",
+      "mcp/aws-location/calculate_route",
+      "mcp/aws-location/optimize_waypoints"
+    ],
+    "description": "Model Context Protocol (MCP) server for Amazon Location Service",
+    "source_dir": "mcp-main\\src\\aws-location-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-network",
+    "label": "Aws Network",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-network",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-network/invoke"
+    ],
+    "description": "A Model Context Protocol (MCP) server providing comprehensive tools for troubleshooting and analyzing AWS core networking services including Cloud WAN, Transit Gateway, VPC, Network Firewall, and VPN connections.",
+    "source_dir": "mcp-main\\src\\aws-network-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-pricing",
+    "label": "Aws Pricing",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-pricing",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-pricing/analyze_cdk_project_wrapper",
+      "mcp/aws-pricing/analyze_terraform_project_wrapper",
+      "mcp/aws-pricing/get_pricing",
+      "mcp/aws-pricing/get_bedrock_patterns",
+      "mcp/aws-pricing/generate_cost_report_wrapper",
+      "mcp/aws-pricing/get_pricing_service_codes",
+      "mcp/aws-pricing/get_pricing_service_attributes",
+      "mcp/aws-pricing/get_pricing_attribute_values",
+      "mcp/aws-pricing/get_price_list_urls"
+    ],
+    "description": "MCP server for accessing real-time AWS pricing information and providing cost analysis capabilities",
+    "source_dir": "mcp-main\\src\\aws-pricing-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-serverless",
+    "label": "Aws Serverless",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-serverless",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-serverless/invoke"
+    ],
+    "description": "The AWS Serverless Model Context Protocol (MCP) Server is an open-source tool that combines AI assistance with serverless expertise to streamline how developers build serverless applications. It provides contextual guidance specific to serverless development, helping developers make informed decisio",
+    "source_dir": "mcp-main\\src\\aws-serverless-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-support",
+    "label": "Aws Support",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-support",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-support/create_support_case",
+      "mcp/aws-support/describe_support_cases",
+      "mcp/aws-support/describe_severity_levels",
+      "mcp/aws-support/add_communication_to_case",
+      "mcp/aws-support/resolve_support_case",
+      "mcp/aws-support/describe_services",
+      "mcp/aws-support/describe_communications",
+      "mcp/aws-support/describe_supported_languages",
+      "mcp/aws-support/describe_create_case_options",
+      "mcp/aws-support/add_attachments_to_set",
+      "mcp/aws-support/describe_attachment"
+    ],
+    "description": "A Model Context Protocol (MCP) server implementation for interacting with the AWS Support API. This server enables AI assistants to create and manage AWS support cases programmatically.",
+    "source_dir": "mcp-main\\src\\aws-support-mcp-server"
+  },
+  {
+    "atom_id": "mcp.aws-transform",
+    "label": "Aws Transform",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/aws-transform",
+    "status": "declared",
+    "capabilities": [
+      "mcp/aws-transform/invoke"
+    ],
+    "description": "[![PyPI Downloads](https://static.pepy.tech/personalized-badge/awslabs-aws-transform-mcp-server?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/awslabs-aws-transform-mcp-server) [![PyPI Downloads/month](https://static.pepy.t",
+    "source_dir": "mcp-main\\src\\aws-transform-mcp-server"
+  },
+  {
+    "atom_id": "mcp.bedrock-kb-retrieval",
+    "label": "Bedrock Kb Retrieval",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/bedrock-kb-retrieval",
+    "status": "declared",
+    "capabilities": [
+      "mcp/bedrock-kb-retrieval/list_knowledge_bases_tool",
+      "mcp/bedrock-kb-retrieval/query_knowledge_bases_tool"
+    ],
+    "description": "MCP server for accessing Amazon Bedrock Knowledge Bases",
+    "source_dir": "mcp-main\\src\\bedrock-kb-retrieval-mcp-server"
+  },
+  {
+    "atom_id": "mcp.billing-cost-management",
+    "label": "Billing Cost Management",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/billing-cost-management",
+    "status": "declared",
+    "capabilities": [
+      "mcp/billing-cost-management/invoke"
+    ],
+    "description": "MCP server for accessing AWS Billing and Cost Management capabilities.",
+    "source_dir": "mcp-main\\src\\billing-cost-management-mcp-server"
+  },
+  {
+    "atom_id": "mcp.ccapi",
+    "label": "Ccapi",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/ccapi",
+    "status": "declared",
+    "capabilities": [
+      "mcp/ccapi/get_resource_schema_information",
+      "mcp/ccapi/list_resources",
+      "mcp/ccapi/generate_infrastructure_code",
+      "mcp/ccapi/explain",
+      "mcp/ccapi/get_resource",
+      "mcp/ccapi/update_resource",
+      "mcp/ccapi/create_resource",
+      "mcp/ccapi/delete_resource",
+      "mcp/ccapi/get_resource_request_status",
+      "mcp/ccapi/run_checkov",
+      "mcp/ccapi/create_template",
+      "mcp/ccapi/check_environment_variables",
+      "mcp/ccapi/get_aws_session_info",
+      "mcp/ccapi/get_aws_account_info"
+    ],
+    "description": "> **⚠️ DEPRECATION NOTICE**: This server is deprecated and will no longer receive updates. Please migrate to the [AWS IAC MCP Server](https://github.com/awslabs/mcp/tree/main/src/aws-iac-mcp-server), which provides infrastructure-as-code authoring with CloudFormation and CDK documentation, template ",
+    "source_dir": "mcp-main\\src\\ccapi-mcp-server"
+  },
+  {
+    "atom_id": "mcp.cloudtrail",
+    "label": "Cloudtrail",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/cloudtrail",
+    "status": "declared",
+    "capabilities": [
+      "mcp/cloudtrail/invoke"
+    ],
+    "description": "This AWS Labs Model Context Protocol (MCP) server for CloudTrail enables your AI agents to query AWS account activity for security investigations, compliance auditing, and operational troubleshooting. It provides comprehensive access to CloudTrail events and CloudTrail Lake analytics, allowing agent",
+    "source_dir": "mcp-main\\src\\cloudtrail-mcp-server"
+  },
+  {
+    "atom_id": "mcp.cloudwatch-applicationsignals",
+    "label": "Cloudwatch Applicationsignals",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/cloudwatch-applicationsignals",
+    "status": "declared",
+    "capabilities": [
+      "mcp/cloudwatch-applicationsignals/audit_services",
+      "mcp/cloudwatch-applicationsignals/audit_slos",
+      "mcp/cloudwatch-applicationsignals/audit_service_operations",
+      "mcp/cloudwatch-applicationsignals/analyze_canary_failures",
+      "mcp/cloudwatch-applicationsignals/list_canaries"
+    ],
+    "description": "An MCP (Model Context Protocol) server that provides comprehensive tools for monitoring and analyzing AWS services using [AWS Application Signals](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Application-Signals.html).",
+    "source_dir": "mcp-main\\src\\cloudwatch-applicationsignals-mcp-server"
+  },
+  {
+    "atom_id": "mcp.cloudwatch",
+    "label": "Cloudwatch",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/cloudwatch",
+    "status": "declared",
+    "capabilities": [
+      "mcp/cloudwatch/invoke"
+    ],
+    "description": "This AWS Labs Model Context Protocol (MCP) server for CloudWatch enables your troubleshooting agents to use CloudWatch data to do AI-powered root cause analysis and provide recommendations. It offers comprehensive observability tools that simplify monitoring, reduce context switching, and help teams",
+    "source_dir": "mcp-main\\src\\cloudwatch-mcp-server"
+  },
+  {
+    "atom_id": "mcp.document-loader",
+    "label": "Document Loader",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/document-loader",
+    "status": "declared",
+    "capabilities": [
+      "mcp/document-loader/read_document",
+      "mcp/document-loader/read_image",
+      "mcp/document-loader/extract_slides_as_images"
+    ],
+    "description": "Model Context Protocol (MCP) server for document parsing and content extraction",
+    "source_dir": "mcp-main\\src\\document-loader-mcp-server"
+  },
+  {
+    "atom_id": "mcp.documentdb",
+    "label": "Documentdb",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/documentdb",
+    "status": "declared",
+    "capabilities": [
+      "mcp/documentdb/invoke"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for AWS DocumentDB that enables AI assistants to interact with DocumentDB databases.",
+    "source_dir": "mcp-main\\src\\documentdb-mcp-server"
+  },
+  {
+    "atom_id": "mcp.dynamodb",
+    "label": "Dynamodb",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/dynamodb",
+    "status": "declared",
+    "capabilities": [
+      "mcp/dynamodb/invoke"
+    ],
+    "description": "The official developer experience MCP Server for Amazon DynamoDB. This server provides DynamoDB expert design guidance and data modeling assistance.",
+    "source_dir": "mcp-main\\src\\dynamodb-mcp-server"
+  },
+  {
+    "atom_id": "mcp.ecs",
+    "label": "Ecs",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/ecs",
+    "status": "declared",
+    "capabilities": [
+      "mcp/ecs/invoke"
+    ],
+    "description": "[![PyPI version](https://img.shields.io/pypi/v/awslabs.ecs-mcp-server.svg)](https://pypi.org/project/awslabs.ecs-mcp-server/)",
+    "source_dir": "mcp-main\\src\\ecs-mcp-server"
+  },
+  {
+    "atom_id": "mcp.eks",
+    "label": "Eks",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/eks",
+    "status": "declared",
+    "capabilities": [
+      "mcp/eks/invoke"
+    ],
+    "description": "The Amazon EKS MCP server provides AI code assistants with resource management tools and real-time cluster state visibility. This provides large language models (LLMs) with essential tooling and contextual awareness, enabling AI code assistants to streamline application development through tailored ",
+    "source_dir": "mcp-main\\src\\eks-mcp-server"
+  },
+  {
+    "atom_id": "mcp.elasticache",
+    "label": "Elasticache",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/elasticache",
+    "status": "declared",
+    "capabilities": [
+      "mcp/elasticache/invoke"
+    ],
+    "description": "The official MCP Server for interacting with AWS ElastiCache control plane. In order to interact with your data in ElastiCache Serverless caches and self-designed clusters use the [Valkey MCP Server](https://github.com/awslabs/mcp/blob/main/src/valkey-mcp-server) or the [Memcached MCP Server](https:",
+    "source_dir": "mcp-main\\src\\elasticache-mcp-server"
+  },
+  {
+    "atom_id": "mcp.finch",
+    "label": "Finch",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/finch",
+    "status": "declared",
+    "capabilities": [
+      "mcp/finch/finch_build_container_image",
+      "mcp/finch/finch_push_image",
+      "mcp/finch/finch_create_ecr_repo"
+    ],
+    "description": "A Model Context Protocol (MCP) server for Finch that enables generative AI models to build and push container images through finch cli leveraged MCP tools.",
+    "source_dir": "mcp-main\\src\\finch-mcp-server"
+  },
+  {
+    "atom_id": "mcp.healthimaging",
+    "label": "Healthimaging",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/healthimaging",
+    "status": "declared",
+    "capabilities": [
+      "mcp/healthimaging/invoke"
+    ],
+    "description": "The AWS HealthImaging MCP Server enables AI assistants to interact with AWS HealthImaging services through the Model Context Protocol (MCP). It provides comprehensive medical imaging data lifecycle management with **39 specialized tools** for DICOM operations, datastore management, and advanced medi",
+    "source_dir": "mcp-main\\src\\healthimaging-mcp-server"
+  },
+  {
+    "atom_id": "mcp.healthlake",
+    "label": "Healthlake",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/healthlake",
+    "status": "declared",
+    "capabilities": [
+      "mcp/healthlake/invoke"
+    ],
+    "description": "A Model Context Protocol (MCP) server for AWS HealthLake FHIR operations. Provides 11 tools for comprehensive FHIR resource management with automatic datastore discovery.",
+    "source_dir": "mcp-main\\src\\healthlake-mcp-server"
+  },
+  {
+    "atom_id": "mcp.iam",
+    "label": "Iam",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/iam",
+    "status": "declared",
+    "capabilities": [
+      "mcp/iam/list_users",
+      "mcp/iam/get_user",
+      "mcp/iam/create_user",
+      "mcp/iam/delete_user",
+      "mcp/iam/list_roles",
+      "mcp/iam/create_role",
+      "mcp/iam/list_policies",
+      "mcp/iam/get_managed_policy_document",
+      "mcp/iam/attach_user_policy",
+      "mcp/iam/detach_user_policy",
+      "mcp/iam/create_access_key",
+      "mcp/iam/delete_access_key",
+      "mcp/iam/simulate_principal_policy",
+      "mcp/iam/list_groups",
+      "mcp/iam/get_group",
+      "mcp/iam/create_group",
+      "mcp/iam/delete_group",
+      "mcp/iam/add_user_to_group",
+      "mcp/iam/remove_user_from_group",
+      "mcp/iam/attach_group_policy",
+      "mcp/iam/detach_group_policy",
+      "mcp/iam/put_user_policy",
+      "mcp/iam/get_user_policy",
+      "mcp/iam/delete_user_policy",
+      "mcp/iam/put_role_policy",
+      "mcp/iam/get_role_policy",
+      "mcp/iam/delete_role_policy",
+      "mcp/iam/list_user_policies",
+      "mcp/iam/list_role_policies"
+    ],
+    "description": "A Model Context Protocol (MCP) server for comprehensive AWS Identity and Access Management (IAM) operations. This server provides AI assistants with the ability to manage IAM users, roles, policies, and permissions while following security best practices.",
+    "source_dir": "mcp-main\\src\\iam-mcp-server"
+  },
+  {
+    "atom_id": "mcp.lambda-tool",
+    "label": "Lambda Tool",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/lambda-tool",
+    "status": "declared",
+    "capabilities": [
+      "mcp/lambda-tool/invoke"
+    ],
+    "description": "A Model Context Protocol (MCP) server for AWS Lambda to select and run Lambda function as MCP tools without code changes.",
+    "source_dir": "mcp-main\\src\\lambda-tool-mcp-server"
+  },
+  {
+    "atom_id": "mcp.memcached",
+    "label": "Memcached",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/memcached",
+    "status": "declared",
+    "capabilities": [
+      "mcp/memcached/invoke"
+    ],
+    "description": "MCP server for interacting with Amazon ElastiCache Memcached through a secure and reliable connection",
+    "source_dir": "mcp-main\\src\\memcached-mcp-server"
+  },
+  {
+    "atom_id": "mcp.mssql",
+    "label": "Mssql",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/mssql",
+    "status": "declared",
+    "capabilities": [
+      "mcp/mssql/run_query",
+      "mcp/mssql/get_table_schema",
+      "mcp/mssql/connect_to_database",
+      "mcp/mssql/is_database_connected",
+      "mcp/mssql/get_database_connection_info"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Microsoft SQL Server on AWS RDS.",
+    "source_dir": "mcp-main\\src\\mssql-mcp-server"
+  },
+  {
+    "atom_id": "mcp.mysql",
+    "label": "Mysql",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/mysql",
+    "status": "declared",
+    "capabilities": [
+      "mcp/mysql/run_query",
+      "mcp/mysql/get_table_schema",
+      "mcp/mysql/connect_to_database",
+      "mcp/mysql/is_database_connected",
+      "mcp/mysql/get_database_connection_info",
+      "mcp/mysql/create_cluster",
+      "mcp/mysql/get_job_status"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Aurora MySQL",
+    "source_dir": "mcp-main\\src\\mysql-mcp-server"
+  },
+  {
+    "atom_id": "mcp.openapi",
+    "label": "Openapi",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/openapi",
+    "status": "declared",
+    "capabilities": [
+      "mcp/openapi/invoke"
+    ],
+    "description": "This project is a server that dynamically creates Model Context Protocol (MCP) tools and resources from OpenAPI specifications. It allows Large Language Models (LLMs) to interact with APIs through the Model Context Protocol.",
+    "source_dir": "mcp-main\\src\\openapi-mcp-server"
+  },
+  {
+    "atom_id": "mcp.oracle",
+    "label": "Oracle",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/oracle",
+    "status": "declared",
+    "capabilities": [
+      "mcp/oracle/run_query",
+      "mcp/oracle/get_table_schema",
+      "mcp/oracle/connect_to_database",
+      "mcp/oracle/is_database_connected",
+      "mcp/oracle/get_database_connection_info"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Oracle Database on AWS RDS.",
+    "source_dir": "mcp-main\\src\\oracle-mcp-server"
+  },
+  {
+    "atom_id": "mcp.postgres",
+    "label": "Postgres",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/postgres",
+    "status": "declared",
+    "capabilities": [
+      "mcp/postgres/run_query",
+      "mcp/postgres/get_table_schema",
+      "mcp/postgres/connect_to_database",
+      "mcp/postgres/is_database_connected",
+      "mcp/postgres/get_database_connection_info",
+      "mcp/postgres/create_cluster",
+      "mcp/postgres/get_job_status"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Aurora Postgres",
+    "source_dir": "mcp-main\\src\\postgres-mcp-server"
+  },
+  {
+    "atom_id": "mcp.prometheus",
+    "label": "Prometheus",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/prometheus",
+    "status": "declared",
+    "capabilities": [
+      "mcp/prometheus/execute_query",
+      "mcp/prometheus/execute_range_query",
+      "mcp/prometheus/list_metrics",
+      "mcp/prometheus/get_server_info",
+      "mcp/prometheus/get_available_workspaces"
+    ],
+    "description": "The Prometheus MCP Server provides a robust interface for interacting with AWS Managed Prometheus, enabling users to execute PromQL queries, list metrics, and retrieve server information with AWS SigV4 authentication support.",
+    "source_dir": "mcp-main\\src\\prometheus-mcp-server"
+  },
+  {
+    "atom_id": "mcp.redshift",
+    "label": "Redshift",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/redshift",
+    "status": "declared",
+    "capabilities": [
+      "mcp/redshift/list_clusters_tool",
+      "mcp/redshift/list_databases_tool",
+      "mcp/redshift/list_schemas_tool",
+      "mcp/redshift/list_tables_tool",
+      "mcp/redshift/list_columns_tool",
+      "mcp/redshift/execute_query_tool"
+    ],
+    "description": "Model Context Protocol (MCP) server for Amazon Redshift.",
+    "source_dir": "mcp-main\\src\\redshift-mcp-server"
+  },
+  {
+    "atom_id": "mcp.roda",
+    "label": "Roda",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/roda",
+    "status": "declared",
+    "capabilities": [
+      "mcp/roda/search_datasets",
+      "mcp/roda/list_datasets",
+      "mcp/roda/get_dataset_details",
+      "mcp/roda/discover_by_organization",
+      "mcp/roda/discover_by_license",
+      "mcp/roda/find_related_datasets",
+      "mcp/roda/get_knowledge_base_stats",
+      "mcp/roda/preview_dataset",
+      "mcp/roda/sample_dataset",
+      "mcp/roda/search_stac_endpoints"
+    ],
+    "description": "Model Context Protocol (MCP) server for discovering and exploring datasets from the [Registry of Open Data on AWS (RODA)](https://registry.opendata.aws/). The Registry hosts hundreds of publicly available datasets including climate data, genomics, satellite imagery, and more on Amazon Simple Storage",
+    "source_dir": "mcp-main\\src\\roda-mcp-server"
+  },
+  {
+    "atom_id": "mcp.s3-tables",
+    "label": "S3 Tables",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/s3-tables",
+    "status": "declared",
+    "capabilities": [
+      "mcp/s3-tables/invoke"
+    ],
+    "description": "> ## ⚠️ IMPORTANT: YOU ARE RESPONSIBLE FOR YOUR AGENTS > > You are solely responsible for the actions and permissions of agents using the MCP server. > > - By default, the MCP server operates in **read-only mode**.",
+    "source_dir": "mcp-main\\src\\s3-tables-mcp-server"
+  },
+  {
+    "atom_id": "mcp.sagemaker-ai",
+    "label": "Sagemaker Ai",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/sagemaker-ai",
+    "status": "declared",
+    "capabilities": [
+      "mcp/sagemaker-ai/invoke"
+    ],
+    "description": "The Amazon SageMaker AI MCP server provides agents with tools to enable high-performance, low-cost AI/ML model development. Currently, this server includes tools for managing SageMaker HyperPod clusters.",
+    "source_dir": "mcp-main\\src\\sagemaker-ai-mcp-server"
+  },
+  {
+    "atom_id": "mcp.sagemaker-unified-studio-spark-troubleshooting",
+    "label": "Sagemaker Unified Studio Spark Troubleshooting",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/sagemaker-unified-studio-spark-troubleshooting",
+    "status": "declared",
+    "capabilities": [
+      "mcp/sagemaker-unified-studio-spark-troubleshooting/invoke"
+    ],
+    "description": "A fully managed remote MCP server that provides specialized tools for troubleshooting Apache Spark applications on Amazon EMR, AWS Glue, and Amazon SageMaker Notebooks. This server simplifies the troubleshooting process through conversational AI capabilities, automated workload analysis, and intelli",
+    "source_dir": "mcp-main\\src\\sagemaker-unified-studio-spark-troubleshooting-mcp-server"
+  },
+  {
+    "atom_id": "mcp.sagemaker-unified-studio-spark-upgrade",
+    "label": "Sagemaker Unified Studio Spark Upgrade",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/sagemaker-unified-studio-spark-upgrade",
+    "status": "declared",
+    "capabilities": [
+      "mcp/sagemaker-unified-studio-spark-upgrade/invoke"
+    ],
+    "description": "A fully managed remote MCP server that provides specialized tools and guidance for upgrading Apache Spark applications on Amazon EMR. This server accelerates Spark version upgrades through automated analysis, code transformation, and validation capabilities.",
+    "source_dir": "mcp-main\\src\\sagemaker-unified-studio-spark-upgrade-mcp-server"
+  },
+  {
+    "atom_id": "mcp.security-agent",
+    "label": "Security Agent",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/security-agent",
+    "status": "declared",
+    "capabilities": [
+      "mcp/security-agent/setup_check",
+      "mcp/security-agent/setup",
+      "mcp/security-agent/start_security_scan",
+      "mcp/security-agent/start_diff_scan",
+      "mcp/security-agent/start_threat_model_review",
+      "mcp/security-agent/get_scan_status",
+      "mcp/security-agent/get_scan_findings",
+      "mcp/security-agent/list_scans",
+      "mcp/security-agent/stop_scan",
+      "mcp/security-agent/call_api",
+      "mcp/security-agent/get_api_guide"
+    ],
+    "description": "[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)",
+    "source_dir": "mcp-main\\src\\security-agent-mcp-server"
+  },
+  {
+    "atom_id": "mcp.stepfunctions-tool",
+    "label": "Stepfunctions Tool",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/stepfunctions-tool",
+    "status": "declared",
+    "capabilities": [
+      "mcp/stepfunctions-tool/invoke"
+    ],
+    "description": "A Model Context Protocol (MCP) server for AWS Step Functions to select and run state machines as MCP tools without code changes.",
+    "source_dir": "mcp-main\\src\\stepfunctions-tool-mcp-server"
+  },
+  {
+    "atom_id": "mcp.timestream-for-influxdb",
+    "label": "Timestream For Influxdb",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/timestream-for-influxdb",
+    "status": "declared",
+    "capabilities": [
+      "mcp/timestream-for-influxdb/create_db_cluster",
+      "mcp/timestream-for-influxdb/create_db_instance",
+      "mcp/timestream-for-influxdb/list_db_instances_for_cluster",
+      "mcp/timestream-for-influxdb/list_db_instances",
+      "mcp/timestream-for-influxdb/list_db_clusters",
+      "mcp/timestream-for-influxdb/get_db_parameter_group",
+      "mcp/timestream-for-influxdb/get_db_instance",
+      "mcp/timestream-for-influxdb/get_db_cluster",
+      "mcp/timestream-for-influxdb/delete_db_instance",
+      "mcp/timestream-for-influxdb/delete_db_cluster",
+      "mcp/timestream-for-influxdb/list_db_parameter_groups",
+      "mcp/timestream-for-influxdb/list_tags_for_resource",
+      "mcp/timestream-for-influxdb/tag_resource",
+      "mcp/timestream-for-influxdb/untag_resource",
+      "mcp/timestream-for-influxdb/update_db_cluster",
+      "mcp/timestream-for-influxdb/update_db_instance",
+      "mcp/timestream-for-influxdb/list_db_instances_by_status",
+      "mcp/timestream-for-influxdb/list_db_clusters_by_status",
+      "mcp/timestream-for-influxdb/create_db_parameter_group",
+      "mcp/timestream-for-influxdb/influxdb_write_points",
+      "mcp/timestream-for-influxdb/influxdb_write_line_protocol",
+      "mcp/timestream-for-influxdb/influxdb_query",
+      "mcp/timestream-for-influxdb/influxdb_list_buckets",
+      "mcp/timestream-for-influxdb/influxdb_create_bucket",
+      "mcp/timestream-for-influxdb/influxdb_list_orgs",
+      "mcp/timestream-for-influxdb/influxdb_create_org"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Timestream for InfluxDB. This server provides tools to interact with AWS Timestream for InfluxDB APIs, allowing you to create and manage database instances, clusters, parameter groups, and more. It also includes tools to interact with InfluxDB's wr",
+    "source_dir": "mcp-main\\src\\timestream-for-influxdb-mcp-server"
+  },
+  {
+    "atom_id": "mcp.valkey",
+    "label": "Valkey",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/valkey",
+    "status": "declared",
+    "capabilities": [
+      "mcp/valkey/invoke"
+    ],
+    "description": "An AWS Labs Model Context Protocol (MCP) server for Amazon ElastiCache [Valkey](https://valkey.io/) datastores.",
+    "source_dir": "mcp-main\\src\\valkey-mcp-server"
+  },
+  {
+    "atom_id": "mcp.well-architected-security",
+    "label": "Well Architected Security",
+    "atom_type": "mcp-server",
+    "endpoint": "http://127.0.0.1:0/well-architected-security",
+    "status": "declared",
+    "capabilities": [
+      "mcp/well-architected-security/check_security_services",
+      "mcp/well-architected-security/get_security_findings",
+      "mcp/well-architected-security/get_stored_security_context",
+      "mcp/well-architected-security/check_storage_encryption_tool",
+      "mcp/well-architected-security/list_services_in_region_tool",
+      "mcp/well-architected-security/check_network_security_tool"
+    ],
+    "description": "[![PyPI version](https://img.shields.io/pypi/v/awslabs.well-architected-security-mcp-server.svg)](https://pypi.org/project/awslabs.well-architected-security-mcp-server/)",
+    "source_dir": "mcp-main\\src\\well-architected-security-mcp-server"
+  }
+]

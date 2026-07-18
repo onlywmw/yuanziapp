@@ -1,0 +1,1 @@
+"""Sum atom kernel package."""

@@ -1,0 +1,16 @@
+id: {{cookiecutter.atom_id}}
+version: 0.1.0
+name: {{cookiecutter.name}}
+description: {{cookiecutter.description}}
+type: {{cookiecutter.type}}
+kernel_type: {{cookiecutter.kernel_type}}
+author: {{cookiecutter.author}}
+license: {{cookiecutter.license}}
+dependencies: []
+tags: []
+runtime:
+  interface: std-atom-http-v1
+  port: {{cookiecutter.port}}
+  host: 0.0.0.0
+  state: stateless
+  execution: sync
