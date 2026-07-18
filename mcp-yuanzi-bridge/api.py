@@ -16,6 +16,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from embeddings import search_functions
 from fastapi import FastAPI, HTTPException, Query
 from migrations import migrate
 from pydantic import BaseModel
@@ -154,6 +155,36 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
         if not get_atom(conn, atom_id):
             raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
         return resolve_dependencies(conn, atom_id)
+
+    @app.get("/search")
+    def search(
+        q: str,
+        limit: int = 10,
+        provider: str = "mock",
+        model: Optional[str] = None,
+        min_score: float = 0.0,
+    ) -> Dict[str, Any]:
+        """语义搜索原子功能（M5 任务 5.2）。
+
+        provider=mock 离线可用；provider=openai 需要
+        EMBEDDING_API_BASE / EMBEDDING_API_KEY / EMBEDDING_MODEL。
+        """
+        from embeddings import get_provider
+
+        try:
+            prov = get_provider(provider)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        results = search_functions(
+            conn, q, prov, limit=limit, model=model, min_score=min_score
+        )
+        return {
+            "query": q,
+            "provider": prov.name,
+            "model": model or prov.model,
+            "count": len(results),
+            "results": results,
+        }
 
     @app.get("/audit")
     def audit(atom_id: Optional[str] = Query(None)) -> List[Dict[str, Any]]:

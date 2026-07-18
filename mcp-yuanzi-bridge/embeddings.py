@@ -197,3 +197,64 @@ def list_function_embeddings(
     query += " ORDER BY atom_id, function_name"
     rows = conn.execute(query, params).fetchall()
     return [dict(row) for row in rows]
+
+
+def cosine_similarity(a: List[float], b: List[float]) -> float:
+    """余弦相似度。假定向量已归一化时退化为点积（仍做完整计算保证正确）。"""
+    if len(a) != len(b) or not a:
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if not norm_a or not norm_b:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def search_functions(
+    conn: sqlite3.Connection,
+    query: str,
+    provider: Any,
+    limit: int = 10,
+    model: str | None = None,
+    min_score: float = 0.0,
+) -> List[Dict[str, Any]]:
+    """语义搜索：把 query 编码后与库中函数向量做余弦相似度排序。
+
+    返回按分数降序的前 limit 条，含 atom 名称/状态/分类信息。
+    维度不匹配的向量（不同 provider 混存）自动跳过。
+    """
+    query_vector = provider.embed([query])[0]
+    model = model or provider.model
+
+    rows = conn.execute(
+        f"SELECT atom_id, function_name, text, vector_json "
+        f"FROM {EMBEDDINGS_TABLE} WHERE model = ?",
+        (model,),
+    ).fetchall()
+
+    scored: List[Dict[str, Any]] = []
+    for atom_id, function_name, text, vector_json in rows:
+        vector = json.loads(vector_json)
+        if len(vector) != len(query_vector):
+            continue
+        score = cosine_similarity(query_vector, vector)
+        if score >= min_score:
+            scored.append(
+                {
+                    "atom_id": atom_id,
+                    "function_name": function_name,
+                    "text": text,
+                    "score": round(score, 6),
+                }
+            )
+    scored.sort(key=lambda item: item["score"], reverse=True)
+
+    results: List[Dict[str, Any]] = []
+    for item in scored[:limit]:
+        atom = get_atom(conn, item["atom_id"]) or {}
+        item["atom_name"] = atom.get("name", "")
+        item["status"] = atom.get("lifecycle", {}).get("status", "")
+        item["category"] = atom.get("classification", {}).get("category", "")
+        results.append(item)
+    return results

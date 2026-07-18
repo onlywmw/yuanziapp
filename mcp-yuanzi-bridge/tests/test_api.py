@@ -135,3 +135,35 @@ def test_dependencies_endpoint(client):
     deps = client.get("/atoms/com.example.child/dependencies").json()
     assert deps["ok"]
     assert deps["order"] == ["com.example.base", "com.example.child"]
+
+
+def test_search_endpoint(tmp_path):
+    """/search 全链路：提交原子 -> embed -> 查询排序。"""
+    import sqlite3 as _s
+
+    from embeddings import MockEmbeddingProvider, embed_atom_functions
+
+    db = tmp_path / "search-api.db"
+    with TestClient(create_app(db)) as c:
+        c.post("/atoms", json=_atom("com.example.math", functions=("sum",)))
+        c.post("/atoms", json=_atom("com.example.fs", functions=("read_file",)))
+
+        conn = _s.connect(str(db))
+        conn.row_factory = _s.Row
+        embed_atom_functions(conn, "com.example.math", MockEmbeddingProvider())
+        embed_atom_functions(conn, "com.example.fs", MockEmbeddingProvider())
+        conn.close()
+
+        r = c.get("/search", params={"q": "add numbers"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["count"] >= 1
+        assert body["results"][0]["function_name"] == "sum"
+
+        empty = c.get("/search", params={"q": "x", "model": "no-such-model"})
+        assert empty.json()["count"] == 0
+
+
+def test_search_endpoint_bad_provider(client):
+    r = client.get("/search", params={"q": "x", "provider": "wat"})
+    assert r.status_code == 400

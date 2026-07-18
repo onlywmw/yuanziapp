@@ -103,7 +103,7 @@
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
 | 5.1 | function embedding 生成 | P0 | 3 天 | :white_circle: 未开始 | 4.3 | embedding 表 |
-| 5.2 | 语义搜索 API | P0 | 2 天 | :white_circle: 未开始 | 5.1 | `/search` 端点 |
+| 5.2 | 语义搜索 API | P0 | 2 天 | :heavy_check_mark: 已完成 | 5.1 | `/search` 端点 |
 | 5.3 | 原子组合推荐 | P1 | 3 天 | :white_circle: 未开始 | 5.2 | 组合算法 |
 | 5.4 | Widget MCP 集成搜索 | P1 | 2 天 | :white_circle: 未开始 | 5.2 | UI 搜索入口 |
 
