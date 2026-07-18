@@ -456,5 +456,7 @@ def test_probe_dns_rebinding_pinned(conn, monkeypatch):
     result = probe_atom(conn, "com.example.probe")
 
     assert result["ok"]
-    assert len(calls) >= 2  # 确认确实发生了二次解析
-    assert seen["ip"] == "127.0.0.1"  # 翻转后的 10.0.0.5 从未被使用
+    # 请求期二次解析确实发生，但被钉在已验证的回环结果上
+    assert seen["ip"] == "127.0.0.1"
+    # 翻转函数只在校验时被消费一次，10.0.0.5 从未生效
+    assert calls == ["127.0.0.1"]

@@ -7,12 +7,16 @@
 
 from __future__ import annotations
 
+import concurrent.futures
+import contextlib
 import hashlib
 import ipaddress
 import json
+import logging
 import os
 import socket
 import sqlite3
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -20,7 +24,7 @@ import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 REGISTRY_TABLE = "atom_registry"
 AUDIT_TABLE = "atom_audit_log"
@@ -488,26 +492,97 @@ def _allowed_probe_networks() -> List[Any]:
     networks = []
     for item in raw.split(","):
         item = item.strip()
-        if item:
+        if not item:
+            continue
+        try:
             networks.append(ipaddress.ip_network(item))
+        except ValueError:
+            # BUG-033：畸形项跳过并告警，不让一条脏配置拖垮整个 probe
+            logging.warning(
+                "Ignoring malformed YUANZI_PROBE_ALLOWED_CIDR entry: %r", item
+            )
     return networks
 
 
-def _probe_address_error(url: str) -> Optional[str]:
-    """检查探测目标地址是否在允许网段内；返回 None 表示允许。"""
+def _resolve_host(host: str, timeout: float) -> List[Any]:
+    """带时限的 getaddrinfo（BUG-033）。
+
+    系统 DNS 解析自身没有超时，可能阻塞数十秒，probe 的 timeout 管不到
+    这一层。用单线程池执行并限时等待；超时后不再 join 工作线程——
+    getaddrinfo 不可中断，线程会泄漏到解析结束才回收，代价已接受。
+    """
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = pool.submit(socket.getaddrinfo, host, None)
+    try:
+        return future.result(timeout=timeout)
+    finally:
+        pool.shutdown(wait=False)
+
+
+def _probe_address_error(url: str, timeout: float) -> Tuple[Optional[str], List[Any]]:
+    """检查探测目标地址是否在允许网段内。
+
+    返回 (错误信息, 已验证的解析结果)；错误信息为 None 表示允许。
+    解析结果供调用方做 DNS 钉扎（BUG-033 防重绑定 TOCTOU）。
+    """
     host = urllib.parse.urlparse(url).hostname
     if not host:
-        return "missing host"
+        return "missing host", []
     try:
-        infos = socket.getaddrinfo(host, None)
+        infos = _resolve_host(host, timeout)
+    except concurrent.futures.TimeoutError:
+        return f"dns_timeout: resolving host {host} exceeded {timeout}s", []
     except socket.gaierror:
-        return f"cannot resolve host: {host}"
+        return f"cannot resolve host: {host}", []
     networks = _allowed_probe_networks()
+    if not networks:
+        # BUG-033 fail-closed：env 已设置但无一条合法网段时宁可全拒，
+        # 绝不因配置错误退化为放行
+        return "no valid CIDRs in YUANZI_PROBE_ALLOWED_CIDR; refusing to probe", []
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
         if not any(ip in network for network in networks):
-            return f"address {ip} outside allowed CIDRs (YUANZI_PROBE_ALLOWED_CIDR)"
-    return None
+            return (
+                f"address {ip} outside allowed CIDRs (YUANZI_PROBE_ALLOWED_CIDR)",
+                [],
+            )
+    return None, infos
+
+
+# BUG-033：串行化「CIDR 校验 + 探测请求」临界区。_pinned_dns 靠
+# monkeypatch 进程级的 socket.getaddrinfo 实现，并发探测必须排队，
+# 避免钉扎互相串扰。
+_PROBE_DNS_LOCK = threading.Lock()
+
+
+@contextlib.contextmanager
+def _pinned_dns(host: str, infos: List[Any]):
+    """请求期间把 socket.getaddrinfo 钉在已验证的解析结果上（BUG-033）。
+
+    否则 urlopen 内部会再次解析：攻击者控制的 DNS 可在校验时返回回环
+    地址、建连时返回内网地址（DNS 重绑定），绕过 CIDR 检查。钉扎只
+    覆盖同一 host；其他 host（如代理）委托原函数。http/https 语义
+    （含 TLS SNI 与证书校验）不受影响。
+    """
+    original = socket.getaddrinfo
+
+    def _pinned(h, port, *args, **kwargs):
+        if h != host:
+            return original(h, port, *args, **kwargs)
+        # 按请求方要求的 socktype 过滤（http.client 用 SOCK_STREAM）；
+        # 过滤结果仍是已验证地址集合的子集
+        socktype = kwargs.get("type", args[1] if len(args) > 1 else 0)
+        if socktype:
+            matched = [info for info in infos if info[1] == socktype]
+            if matched:
+                return matched
+        return infos
+
+    socket.getaddrinfo = _pinned
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original
 
 
 def probe_atom(
@@ -613,45 +688,50 @@ def probe_atom(
             "new_status": new_status,
         }
 
-    # M6.5b：目标地址 CIDR 限制（默认仅回环）
-    address_error = _probe_address_error(url)
-    if address_error:
-        new_status = _persist("blocked_address", ok=None)
-        return {
-            "success": False,
-            "atom_id": atom_id,
-            "error": "blocked_address",
-            "message": f"Refusing to probe address: {address_error}",
-            "old_status": old_status,
-            "new_status": new_status,
-        }
+    # M6.5b：目标地址 CIDR 限制（默认仅回环）。
+    # BUG-033：校验与请求落在同一临界区，配合 DNS 钉扎防重绑定 TOCTOU。
+    with _PROBE_DNS_LOCK:
+        address_error, resolved_infos = _probe_address_error(url, timeout)
+        if address_error:
+            new_status = _persist("blocked_address", ok=None)
+            return {
+                "success": False,
+                "atom_id": atom_id,
+                "error": "blocked_address",
+                "message": f"Refusing to probe address: {address_error}",
+                "old_status": old_status,
+                "new_status": new_status,
+            }
 
-    # BUG-017 两阶段：先把可探测原子标记为 probing（静默，不记审计）
-    if old_status in _PROBEABLE_STATUSES and old_status != "probing":
-        lifecycle["status"] = "probing"
-        lifecycle["updated_at"] = now_iso()
-        conn.execute(
-            f"UPDATE {REGISTRY_TABLE} SET lifecycle_json = ? WHERE atom_id = ?",
-            (json.dumps(lifecycle, ensure_ascii=False), atom_id),
-        )
-        conn.commit()
+        # BUG-017 两阶段：先把可探测原子标记为 probing（静默，不记审计）
+        if old_status in _PROBEABLE_STATUSES and old_status != "probing":
+            lifecycle["status"] = "probing"
+            lifecycle["updated_at"] = now_iso()
+            conn.execute(
+                f"UPDATE {REGISTRY_TABLE} SET lifecycle_json = ? WHERE atom_id = ?",
+                (json.dumps(lifecycle, ensure_ascii=False), atom_id),
+            )
+            conn.commit()
 
-    started = time.monotonic()
-    detail = ""
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
-            code = resp.status
-        ok = 200 <= code < 300
-        probe_status = "ok" if ok else f"http_{code}"
-    except urllib.error.HTTPError as exc:
-        ok = False
-        probe_status = f"http_{exc.code}"
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        ok = False
-        probe_status = "connection_error"
-        reason = getattr(exc, "reason", exc)
-        detail = str(reason)
-    latency_ms = round((time.monotonic() - started) * 1000, 1)
+        started = time.monotonic()
+        detail = ""
+        try:
+            # 已验证的解析结果在请求期间钉住，防止二次解析被 DNS 翻转
+            host = urllib.parse.urlparse(url).hostname or ""
+            with _pinned_dns(host, resolved_infos):
+                with urllib.request.urlopen(url, timeout=timeout) as resp:
+                    code = resp.status
+            ok = 200 <= code < 300
+            probe_status = "ok" if ok else f"http_{code}"
+        except urllib.error.HTTPError as exc:
+            ok = False
+            probe_status = f"http_{exc.code}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            ok = False
+            probe_status = "connection_error"
+            reason = getattr(exc, "reason", exc)
+            detail = str(reason)
+        latency_ms = round((time.monotonic() - started) * 1000, 1)
 
     new_status = _persist(probe_status, ok, latency_ms, detail)
     return {
