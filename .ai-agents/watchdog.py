@@ -92,11 +92,16 @@ def scan_for_signals(issue: Dict[str, Any]) -> List[str]:
     return found
 
 
+def _safe(text: str) -> str:
+    """Strip emoji and non-ASCII from text for Windows terminal safety."""
+    return text.encode("ascii", errors="replace").decode("ascii")
+
+
 def render_issue_card(issue: Dict[str, Any], signals: List[str]) -> None:
     """Print a compact issue card to the terminal."""
     num = issue["number"]
-    title = issue["title"][:70]
-    labels = [lb["name"] for lb in issue.get("labels", [])]
+    title = _safe(issue["title"][:70])
+    labels = [_safe(lb["name"]) for lb in issue.get("labels", [])]
 
     label_str = " ".join(f"[{lb}]" for lb in labels) if labels else color("[no labels]", 90)
 
@@ -116,9 +121,9 @@ def render_issue_card(issue: Dict[str, Any], signals: List[str]) -> None:
     if comments and isinstance(comments, list) and len(comments) > 0:
         last = comments[-1]
         if isinstance(last, dict):
-            author = last.get("author", {}).get("login", "?")
-            body = last.get("body", "")[:100].replace("\n", " ")
-            print(f"    {color(f'@{author}', 92)}: {body}")
+            author = _safe(str(last.get("author", {}).get("login", "?")))
+            body = _safe(last.get("body", "")[:100].replace("\n", " "))
+            print(f"    @{author}: {body}")
     elif isinstance(comments, int) and comments > 0:
         print(f"    {color(f'({comments} comments)', 90)}")
 
