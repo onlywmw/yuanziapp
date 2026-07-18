@@ -1,63 +1,57 @@
 # Yuanzi Bug 注册表
 
-> 来源: Audit #1 (689ad4e) + Audit #2 (689ad4e..1a61a86)
-> 更新: 2026-07-18
+> **所有者**: QA / Audit（2026-07-18 起由 Audit 维护）
+> **性质**: 风险视图与裁决备案。**执行级状态以 `qa/tests/docs/templates/BUG-TRACKING-TEMPLATE.csv` 为唯一事实来源**（ground truth 原则）。
+> 原始备案: Audit #1 (689ad4e) + Audit #2 (689ad4e..1a61a86)
 
 ---
 
-## P0 — 安全漏洞（必须立即修复）
+## 当前状态总览（2026-07-18 Audit 第三轮实证刷新）
 
-| BUG | 描述 | 攻击向量 | 状态 |
-|-----|------|----------|------|
-| BUG-025 | REST API 14 路由零认证，含 5 个写路由。任何可达端口的调用方可自审自批、改状态、回滚 | OWASP A01: Broken Access Control | Open |
-| BUG-020 | probe 对注册表中的任意 URL 发起真实 HTTP 请求，无 scheme/地址校验。不可信注册数据 = 内网扫描器 | SSRF + 内网探测 | Open |
-| BUG-007 | atom-file-read 无路径校验，可读取任意文件 | 任意文件读取 | Open |
-| BUG-008 | atom-http-get 无 URL 校验，可请求内网地址 | SSRF | Open |
+| 级别 | 总数 | Fixed | Open | 说明 |
+|------|------|-------|------|------|
+| P0 | 3 | 3 | 0 | BUG-007/008/020 全部闭环（020 为最低要求 + 残留跟踪） |
+| P1 | 10 | 9 | 1 | **BUG-025（API 零鉴权）唯一 Open 阻断项**，验收标准已备 |
+| P2 | 14 | 12 | 2 | BUG-028（契约违约）/ BUG-031（契约 1.9 脱节）Open |
+| P3 | 4 | 4 | 0 | — |
+| **合计** | **31** | **28** | **3** | 另 BUG-011 为 Fixed (partial) |
 
----
+## Open 缺陷清单（权威）
 
-## P1 — 致命逻辑错误（阻塞合并）
+| BUG | 级别 | 描述 | 放行路径 | 指派 |
+|-----|------|------|----------|------|
+| BUG-025 | P1 | api.py 14 路由零鉴权，含 5 个写路由（自审自批通道） | `qa/tests/docs/BUG-025-ACCEPTANCE-CRITERIA.md` 14 检查点全过 + Audit 第三轮实证 | Eng（M6 设计已就绪） |
+| BUG-028 | P1 | M5 实现 GET /search 违反 Arch 两份 POST 契约（DESIGN_M5 §4.1 + 契约注册表 §3）；BM25 降级等设计要素缺失 | Arch 裁决契约权威归属后对齐齐一 | **Arch** |
+| BUG-031 | P2 | 契约 1.9（probe_atom）与实现五处脱节 + CIDR 条款超前未标注 | 契约文本按现行实现语义修订，超前条款标注目标版本 | **Arch** |
 
-| BUG | 文件 | 症状 | 状态 |
-|-----|------|------|------|
-| BUG-014 | registry.py | `probe_atom` 遇 `file://` scheme 崩溃（TypeError: '<=' not supported between 'int' and 'NoneType'）。`probe_atoms` 批量循环无隔离，一行坏数据中断整个批量 | Open |
-| BUG-016 | registry.py | `content_hash` 只写内存不落库。同能力不同 atom_id 仍注册成功。能力去重形同虚设 | Open |
-| BUG-023 | 多文件 | Schema/契约漂移：`003_atom_versions.sql` 无 `changelog` 列 → `OperationalError`。`resolve_dependencies` 契约键名变更 → 6 个测试 KeyError。`migrations/__init__.py` 重写破坏框架契约 | Open |
-| BUG-024 | registry.py | `1a61a86` 将 `probe_atom` 回退为功能桩：不更新 lifecycle、不写 runtime_json 探测字段、不写审计、无 `success` 键 → 9 个测试失败 | Open |
-| BUG-015 | yuanzi-cli | `install-hooks` 的 `_find_repo_root` 向上搜索无边界。负路径测试未 stub subprocess → 在祖先含 `.pre-commit-config.yaml` 的机器上真实执行 pip install | Open |
+## 已关闭缺陷索引
 
----
+BUG-001~019、021~024、026、027、029、030 共 28 条已 Fixed（BUG-011 为 partial，BUG-020 为最低要求）。
+逐条修复证据、验证人、验证日期见 `qa/tests/docs/templates/BUG-TRACKING-TEMPLATE.csv`。
 
-## P2 — 规范/质量问题（需排期）
+## 严重度分级说明（分歧备案）
 
-| BUG | 描述 |
-|-----|------|
-| BUG-017 | `probing` 状态为死代码——无任何路径设置该状态，与状态机声明不符 |
-| BUG-018 | probe 的 `not_found`/`no_endpoint` 分支不写审计，与提交说明矛盾 |
-| BUG-019 | probe 绕过 `set_atom_status` 状态机：实测发生流转表不允许的 `offline→unreachable` |
-| BUG-021 | probe CLI 恒 exit 0、串行执行、`--json` 无汇总，无法用于监控告警 |
-| BUG-022 | 每次探测写一条审计，定时探测将刷爆审计表 |
-| BUG-026 | `ensure_registry_schema` 公共契约静默改变——调用方不知道 Schema 已变 |
-| BUG-027 | `probe_atoms` 签名变更未同步 CLI |
+- **BUG-020**：执行跟踪表定 P2（利用前提为"不可信注册数据"，当前单用户 Termux 场景可能性低）；Arch 在 M6 威胁模型中定 P0（按设计前瞻性）。分歧已记录，不影响修复事实：scheme 白名单已实证，CIDR 限制随 M6.5b 落地。
+- BUG-014/015/016 在本表原始备案为 P1，与执行跟踪表一致。
 
 ---
 
-## 统计
+## 裁决记录
 
-| 级别 | 数量 | 
-|------|------|
-| P0 安全 | 4 |
-| P1 阻塞 | 5 |
-| P2 规范 | 7 |
-| **总计** | **16** |
+### 裁决 2026-07-18-01：probe 目标 127.0.0.0/8 —— 契约 1.9 vs BUG-020 原裁决
 
-## 30 个测试失败分布
+**问题**：契约注册表 §1.9 写"目标地址仅允许 127.0.0.0/8 (可配置)"，是否与 BUG-020 原裁决冲突？
 
-| 测试文件 | 失败数 | 关联 BUG |
-|----------|--------|----------|
-| test_versions | 5 | BUG-023 |
-| test_dependencies | 6 | BUG-023 |
-| test_probe | 9 | BUG-024 |
-| test_migrations | 6 | BUG-023 |
-| test_api | 3 | BUG-023 |
-| test_validate_schema | 1 | BUG-026 |
+**裁决：不冲突，二者是同一决策链的不同环节。**
+
+1. BUG-020 原裁决（复检 @968cf54）：scheme 白名单已落地 → VERIFIED（最低要求）；私网 IP 过滤未实现，**显式延期移交 M6/gateway 决策**，Issue #1 留 ⚠️ 跟踪。
+2. M6 设计 §3.3（4a7a903）做出该决策：默认仅 127.0.0.0/8 + ::1，其余拒绝，`YUANZI_PROBE_ALLOWED_CIDR` 可配置。
+3. 契约 1.9（6669533）把该决策编入权威契约——"仅允许 127.0.0.0/8 **(可配置)**"是"默认仅回环 + 配置开口"，**不是写死**。
+
+**结论**：契约 1.9 的安全条款是 BUG-020 延期项的落地凭证。BUG-020 关闭路径 = scheme 白名单（已验）+ CIDR 实现（M6.5b，待验），在 M6.5b 落地前维持 "Fixed（最低要求）+ ⚠️ 残留跟踪"。
+
+**附带发现**：契约 1.9 的功能语义（输出键、ok 定义、审计、失败阈值、版本标注）与修复后实现五处脱节，已立案 **BUG-031** 并指派 Arch。
+
+---
+
+> 原始快照（Audit #2 时刻，16 条全 Open、30 测试失败分布）已被本刷新版取代；历史文本见 git 历史（`git log -- docs/BUG_REGISTRY.md`）。
