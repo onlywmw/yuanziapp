@@ -1,6 +1,7 @@
 package com.nous.widgetmcp
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Intent
@@ -76,7 +77,85 @@ class MainActivity : Activity() {
             onNodeClick = { node -> onGraphNodeClick(node) }
         }
         loadGraphFromYuanzi()
-        return graphView
+        return FrameLayout(this).apply {
+            addView(graphView)
+            addView(buildSearchBar())
+        }
+    }
+
+    // ==================== 搜索入口（M5 任务 5.4） ====================
+
+    private fun buildSearchBar(): View {
+        val input = EditText(this).apply {
+            hint = "搜索原子功能…"
+            inputType = InputType.TYPE_CLASS_TEXT
+            maxLines = 1
+            layoutParams = LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+            )
+        }
+        val button = Button(this).apply { text = "搜索" }
+        val doSearch = {
+            input.clearFocus()
+            performAtomSearch(input.text.toString())
+        }
+        button.setOnClickListener { doSearch() }
+        input.setOnEditorActionListener { _, _, _ -> doSearch(); true }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(24, 24, 24, 8)
+            setBackgroundColor(0xCCFFFFFF.toInt())
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP
+            )
+            addView(input)
+            addView(button)
+        }
+    }
+
+    private fun performAtomSearch(query: String) {
+        val q = query.trim()
+        if (q.isEmpty()) return
+        Thread {
+            val result = YuanziApi.searchAtoms(q)
+            runOnUiThread {
+                result
+                    .onSuccess { showSearchResults(q, it) }
+                    .onFailure {
+                        Toast.makeText(this, "搜索失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                    }
+            }
+        }.start()
+    }
+
+    private fun showSearchResults(
+        query: String,
+        results: List<com.nous.widgetmcp.yuanzi.YuanziSearchResult>
+    ) {
+        if (results.isEmpty()) {
+            Toast.makeText(this, "没有匹配「$query」的原子功能", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val items = results.map {
+            "${it.atomName} · ${it.functionName}  (%.2f)\n${it.atomId} · ${it.category}"
+                .format(it.score)
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("搜索：$query")
+            .setItems(items) { _, which ->
+                val hit = results[which]
+                val node = graphView.findNode(hit.atomId)
+                if (node != null) {
+                    onGraphNodeClick(node)
+                } else {
+                    Toast.makeText(this, "${hit.atomId}\n图中暂无该节点", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("关闭", null)
+            .show()
     }
 
     private fun loadGraphFromYuanzi() {

@@ -7,6 +7,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.Proxy
 import java.net.URL
+import java.net.URLEncoder
 import java.nio.charset.Charset
 
 /**
@@ -79,6 +80,21 @@ object YuanziApi {
             }
             Result.success(GraphTopology(nodeList, edgeList))
         }
+    }
+
+    /** 语义搜索原子功能（M5 任务 5.4），对应注册中心 GET /search。 */
+    fun searchAtoms(query: String, limit: Int = 10): Result<List<YuanziSearchResult>> = withConnection(
+        "/search?q=" + URLEncoder.encode(query, "UTF-8") + "&limit=" + limit,
+        "GET"
+    ) { conn ->
+        val body = conn.inputStream.bufferedReader().readText()
+        val json = JSONObject(body)
+        val results = json.optJSONArray("results") ?: JSONArray()
+        val list = mutableListOf<YuanziSearchResult>()
+        for (i in 0 until results.length()) {
+            list.add(YuanziSearchResult.fromJson(results.getJSONObject(i)))
+        }
+        Result.success(list)
     }
 
     fun pollCommand(): Result<BrowserCommand?> = withConnection("/agent/command/poll", "GET") { conn ->

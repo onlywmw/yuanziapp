@@ -93,6 +93,9 @@ class GraphView @JvmOverloads constructor(
         invalidate()
     }
 
+    /** 按节点 id 查找（搜索定位用，M5 任务 5.4）。 */
+    fun findNode(id: String): GraphNode? = nodeMap[id]
+
     private fun resetLayout() {
         centerX = width / 2f
         centerY = height / 2f
