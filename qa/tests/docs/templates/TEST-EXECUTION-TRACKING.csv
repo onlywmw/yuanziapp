@@ -100,3 +100,4 @@ TC-REV-022,Review,P1,M4 六项交付物独立复核 @9a1bbbc,,,Completed,Execute
 TC-REV-023,Review,P1,M4 跟踪完整性核查,,,Completed,Executed,BUG-032,2026-07-18,Kimi-Audit,PROJECT_PLAN 4.2~4.5 与里程碑行未回填 → BUG-032,
 TC-REV-024,Review,P1,CIDR 实现代码级审查（9a1bbbc）,,,Completed,Executed,BUG-033,2026-07-18,Kimi-Audit,全解析 IP 严格校验、fail-closed 正确；三条加固备注 → BUG-033；BUG-020 残留闭环,
 TC-REV-025,Review,P1,CLEANUP_PLAN.md 事实核查（4fef75e）,,,Completed,Executed,,2026-07-18,Kimi-Audit,计划方向正确可执行，但三处依据过时（两文件已无 INSERT/CREATE、ensure 已精简）、两处数字错误（3≠24 个测试；预期基线 277→263）；register_mcp_atoms 已清理属实；277 passed 实证,
+TC-REV-026,Review,P1,PR #9 清理执行回归复核,,,Completed,Pass,,2026-07-18,Kimi-Audit,diff 范围精确（4删1增，82+/679-）；263 passed 与预测基线一致；test_atoms_view 4用例合格（含 Widget wire 格式断言）；零残留引用；CI 3.10/3.12 双绿 mergeable。判决：Approve 可合并,
