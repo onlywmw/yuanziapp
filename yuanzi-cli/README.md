@@ -61,6 +61,16 @@ yuanzi test --no-validate
 yuanzi test -- -v -k kernel
 ```
 
+### `yuanzi install-hooks [path]`
+
+为仓库安装 pre-commit 钩子。从 `path` 向上查找 `.pre-commit-config.yaml`，
+安装 pre-commit 包并注册 git 钩子。
+
+```bash
+# 在仓库内任意目录执行
+yuanzi install-hooks
+```
+
 ## 开发
 
 ```bash

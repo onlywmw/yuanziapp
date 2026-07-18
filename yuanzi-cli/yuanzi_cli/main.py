@@ -9,6 +9,7 @@ import typer
 
 from yuanzi_cli import __version__
 from yuanzi_cli.commands.init import run_init
+from yuanzi_cli.commands.install_hooks import run_install_hooks
 from yuanzi_cli.commands.test import run_test
 from yuanzi_cli.commands.validate import run_validate
 
@@ -72,6 +73,16 @@ def test(
 ) -> None:
     """Run an atom's pytest suite."""
     run_test(path, validate_first, fast, pytest_args)
+
+
+@app.command(name="install-hooks")
+def install_hooks(
+    path: Path = typer.Argument(
+        Path("."), help="Directory to start searching for the repository root"
+    ),
+) -> None:
+    """Install pre-commit and register the repository's git hooks."""
+    run_install_hooks(path)
 
 
 if __name__ == "__main__":

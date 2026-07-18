@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from typer.testing import CliRunner
 from yuanzi_cli.main import app
 
 runner = CliRunner()
 
+EXAMPLE_SUM = (
+    Path(__file__).resolve().parents[2]
+    / "yuanzi-atom-templates"
+    / "examples"
+    / "com.example.sum"
+)
+
 
 def test_validate_example_sum():
-    result = runner.invoke(
-        app, ["validate", "../yuanzi-atom-templates/examples/com.example.sum"]
-    )
+    result = runner.invoke(app, ["validate", str(EXAMPLE_SUM)])
     assert result.exit_code == 0, result.output
     assert "com.example.sum@0.1.0" in result.output
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -32,37 +33,172 @@ LEDGER_DIR = Path(__file__).resolve().parent
 DB_PATH = Path("/data/data/com.termux/files/home/yuanzi-data/agent.db")
 
 
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+# 按优先级排列：命中前面的类别后不再继续判断。
+# 关键词按完整词（token）匹配，避免 "details" 里的 "ai"、
+# "report" 里的 "repo"、"login" 里的 "log" 这类子串误判。
+CATEGORY_KEYWORDS: List[tuple] = [
+    (
+        "Security",
+        {"security", "kms", "vault", "vulnerability", "threat"},
+    ),
+    (
+        "Database",
+        {
+            "database",
+            "db",
+            "sql",
+            "sqlite",
+            "postgres",
+            "postgresql",
+            "mysql",
+            "mssql",
+            "oracle",
+            "redis",
+            "dynamodb",
+            "mongodb",
+            "documentdb",
+            "keyspaces",
+            "neptune",
+            "timestream",
+            "influxdb",
+            "valkey",
+            "memcached",
+            "elasticache",
+            "aurora",
+            "redshift",
+        },
+    ),
+    (
+        "Document & Data",
+        {
+            "document",
+            "documents",
+            "documentation",
+            "pdf",
+            "doc",
+            "docx",
+            "file",
+            "files",
+            "text",
+            "markdown",
+            "csv",
+            "json",
+            "excel",
+            "spreadsheet",
+            "dataset",
+            "datasets",
+        },
+    ),
+    (
+        "Web & Browser",
+        {
+            "browser",
+            "web",
+            "http",
+            "https",
+            "url",
+            "fetch",
+            "api",
+            "openapi",
+            "scrape",
+            "crawl",
+        },
+    ),
+    (
+        "Cloud & Storage",
+        {
+            "cloud",
+            "aws",
+            "azure",
+            "gcp",
+            "s3",
+            "storage",
+            "ec2",
+            "ecs",
+            "eks",
+            "lambda",
+            "cloudwatch",
+            "cloudtrail",
+            "appsync",
+            "container",
+            "ecr",
+            "docker",
+            "cloudformation",
+            "terraform",
+            "pricing",
+            "billing",
+            "location",
+            "geocode",
+        },
+    ),
+    (
+        "AI & Model",
+        {
+            "ai",
+            "llm",
+            "openai",
+            "claude",
+            "deepseek",
+            "embedding",
+            "embeddings",
+            "image",
+            "model",
+            "sagemaker",
+            "bedrock",
+            "kendra",
+        },
+    ),
+    (
+        "Version Control",
+        {"git", "github", "gitlab", "version", "repo", "repository", "commit"},
+    ),
+    (
+        "Communication",
+        {
+            "slack",
+            "telegram",
+            "email",
+            "mail",
+            "discord",
+            "message",
+            "messages",
+            "notify",
+            "notification",
+            "sns",
+            "sqs",
+            "mq",
+        },
+    ),
+    (
+        "Observability",
+        {
+            "monitor",
+            "monitoring",
+            "log",
+            "logs",
+            "logging",
+            "metric",
+            "metrics",
+            "observability",
+            "prometheus",
+            "grafana",
+            "tracing",
+            "alert",
+            "alerts",
+        },
+    ),
+]
+
+
 def guess_category(atom_id: str, functions: List[Dict[str, Any]]) -> str:
-    name_lower = atom_id.lower()
-    func_names = " ".join(f.get("name", "").lower() for f in functions)
-    text = f"{name_lower} {func_names}"
-    if any(
-        k in text
-        for k in ["document", "pdf", "doc", "file", "text", "markdown", "csv", "json"]
-    ):
-        return "Document & Data"
-    if any(
-        k in text for k in ["browser", "web", "http", "url", "search", "fetch", "api"]
-    ):
-        return "Web & Browser"
-    if any(
-        k in text
-        for k in ["ai", "llm", "openai", "claude", "deepseek", "embedding", "image"]
-    ):
-        return "AI & Model"
-    if any(k in text for k in ["database", "db", "sql", "sqlite", "postgres", "redis"]):
-        return "Database"
-    if any(k in text for k in ["git", "github", "gitlab", "version", "repo"]):
-        return "Version Control"
-    if any(
-        k in text
-        for k in ["slack", "telegram", "email", "discord", "message", "notify"]
-    ):
-        return "Communication"
-    if any(k in text for k in ["cloud", "aws", "azure", "gcp", "s3", "storage"]):
-        return "Cloud & Storage"
-    if any(k in text for k in ["monitor", "log", "metric", "observability"]):
-        return "Observability"
+    tokens = set(_TOKEN_RE.findall(atom_id.lower()))
+    for f in functions:
+        tokens.update(_TOKEN_RE.findall(f.get("name", "").lower()))
+    for category, keywords in CATEGORY_KEYWORDS:
+        if tokens & keywords:
+            return category
     return "Integration"
 
 

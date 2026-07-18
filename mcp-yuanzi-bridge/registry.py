@@ -49,14 +49,17 @@ def _canonical_json(obj: Any) -> str:
 
 
 def compute_signature(atom: Dict[str, Any]) -> str:
-    """基于核心身份与能力计算去重指纹。
+    """基于核心能力计算去重指纹（不含 atom_id 等身份字段）。
 
     指纹包含：
-    - atom_id
     - 提供的功能名称集合
     - 原子架构类型与运行时
     - 依赖的原子集合
     - 接口规范
+
+    注意：atom_id / name / version / description 不参与指纹，
+    这样能力完全相同的重复注册（即使换了 atom_id）才会被检出。
+    返回完整的 sha256 hex（64 字符）。
     """
     purpose = atom.get("purpose", {})
     functions = sorted(
@@ -66,7 +69,6 @@ def compute_signature(atom: Dict[str, Any]) -> str:
     deps = sorted(set(arch.get("dependencies", [])))
 
     sig_payload = {
-        "atom_id": atom.get("atom_id", ""),
         "functions": functions,
         "type": arch.get("type", ""),
         "runtime": arch.get("runtime", ""),
@@ -74,7 +76,7 @@ def compute_signature(atom: Dict[str, Any]) -> str:
         "dependencies": deps,
     }
     raw = _canonical_json(sig_payload)
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def ensure_registry_schema(conn: sqlite3.Connection) -> None:

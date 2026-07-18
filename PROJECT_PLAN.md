@@ -79,9 +79,9 @@
 | 3.1 | 配置 black / ruff / mypy | P0 | 1 天 | :heavy_check_mark: 已完成 | 无 | 配置文件 |
 | 3.2 | 配置 pytest 测试框架 | P0 | 1 天 | :heavy_check_mark: 已完成 | 无 | `tests/` 结构 |
 | 3.3 | 配置 pre-commit 钩子 | P0 | 1 天 | :heavy_check_mark: 已完成 | 3.1, 3.2 | `.pre-commit-config.yaml` |
-| 3.4 | 实现 `yuanzi install-hooks` | P1 | 0.5 天 | :white_circle: 未开始 | 3.3 | CLI 命令 |
+| 3.4 | 实现 `yuanzi install-hooks` | P1 | 0.5 天 | :heavy_check_mark: 已完成 | 3.3 | CLI 命令 |
 | 3.5 | 原子 smoke test 规范 | P1 | 1 天 | :white_circle: 未开始 | 3.2 | 测试规范 |
-| 3.6 | GitHub Actions CI 初版 | P2 | 2 天 | :white_circle: 未开始 | 3.3 | `.github/workflows/ci.yml` |
+| 3.6 | GitHub Actions CI 初版 | P2 | 2 天 | :heavy_check_mark: 已完成 | 3.3 | `.github/workflows/ci.yml` |
 
 ---
 
@@ -94,7 +94,7 @@
 | 4.3 | REST API（FastAPI） | P0 | 3 天 | :white_circle: 未开始 | 4.2 | `api.py` |
 | 4.4 | 健康探针系统 | P1 | 2 天 | :white_circle: 未开始 | 4.3 | probe 服务 |
 | 4.5 | 依赖图解析 | P1 | 2 天 | :white_circle: 未开始 | 4.2 | `resolve_dependencies()` |
-| 4.6 | 修复分类误判 | P1 | 1 天 | :white_circle: 未开始 | 无 | 更新后的分类 |
+| 4.6 | 修复分类误判 | P1 | 1 天 | :heavy_check_mark: 已完成 | 无 | 更新后的分类 |
 
 ---
 
@@ -137,10 +137,10 @@
 |------|--------|------|------|
 | `yuanzi-cli init/validate/test` | P0 | :heavy_check_mark: 已完成 | 第一阶段核心，直接决定造原子体验 |
 | pre-commit + 代码格式化 | P0 | :heavy_check_mark: 已完成 | 代码质量门禁 |
-| `yuanzi install-hooks` CLI 命令 | P1 | :white_circle: 未开始 | 把钩子安装收进 yuanzi-cli |
-| GitHub Actions CI 初版 | P2 | :white_circle: 未开始 | 提交时自动跑检查 |
+| `yuanzi install-hooks` CLI 命令 | P1 | :heavy_check_mark: 已完成 | 把钩子安装收进 yuanzi-cli |
+| GitHub Actions CI 初版 | P2 | :heavy_check_mark: 已完成 | 提交时自动跑检查 |
 | pre-commit + 代码格式化 | P0 | :white_circle: 未开始 | 代码质量门禁 |
-| 修复原子分类误判 | P1 | :white_circle: 未开始 | 提升图谱分组准确性 |
+| 修复原子分类误判 | P1 | :heavy_check_mark: 已完成 | 提升图谱分组准确性 |
 
 ---
 
