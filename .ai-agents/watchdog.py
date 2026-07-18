@@ -151,20 +151,52 @@ def main() -> None:
     repo = os.environ.get("YUANZI_REPO", "onlywmw/yuanziapp")
     interval = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 3
 
+    # Startup self-check
+    try:
+        result = subprocess.run(
+            ["gh", "--version"], capture_output=True, text=True,
+            encoding="utf-8", timeout=5
+        )
+        if result.returncode != 0:
+            print(f"ERROR: gh CLI not working — {result.stderr.strip()}")
+            print("Make sure GitHub CLI is installed: winget install GitHub.cli")
+            return
+    except FileNotFoundError:
+        print("ERROR: 'gh' command not found in PATH")
+        print("Make sure GitHub CLI is installed and in your PATH")
+        print("Download: https://cli.github.com")
+        return
+    except Exception as e:
+        print(f"ERROR: gh CLI check failed — {e}")
+        return
+
     print("+----------------------------------+")
     print("|  Yuanzi Agent Team - Live Feed  |")
     print("+----------------------------------+")
-    print(f"  Repository: {color(repo, 92)}")
+    print(f"  Repository: {repo}")
     print(f"  Polling:    every {interval}s")
     print(f"  Started:    {ts()}")
-    print(f"  {color('Ctrl+C to stop', 90)}")
+    print(f"  Ctrl+C to stop")
     print()
 
     seen_updates: Dict[int, str] = {}  # issue_number → last updatedAt
+    first_scan = True
 
     try:
         while True:
+            if first_scan:
+                print(f"[{ts()}] Scanning GitHub Issues...", end="", flush=True)
+
             issues = fetch_recent_issues(repo)
+
+            if first_scan:
+                print(f"\r[{ts()}] Found {len(issues)} open issue(s)      ")
+                first_scan = False
+
+            if issues is None:
+                print(f"\r[{ts()}] ERROR: Failed to fetch issues — retrying...", end="")
+                time.sleep(interval)
+                continue
 
             new_activity = False
             for issue in issues:
