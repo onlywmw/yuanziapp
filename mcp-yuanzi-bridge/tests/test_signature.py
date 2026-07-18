@@ -116,7 +116,7 @@ def test_duplicate_content_blocked_across_atom_ids(conn):
     assert submit_atom(conn, _reg_atom("com.qa.alpha"))["success"]
     result = submit_atom(conn, _reg_atom("com.qa.beta"))
     assert not result["success"]
-    assert result["error"] == "duplicate_content"
+    assert result["error"] == "duplicate_signature"
     assert "com.qa.alpha" in result["message"]
 
 

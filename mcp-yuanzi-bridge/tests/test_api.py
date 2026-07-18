@@ -80,7 +80,7 @@ def test_versions_and_rollback_via_api(client):
     client.post("/atoms", json=_atom(version="1.1.0", functions=("sum", "sum_many")))
 
     versions = client.get("/atoms/com.example.sum/versions").json()
-    assert [v["version"] for v in versions] == ["1.0.0", "1.1.0"]
+    assert [v["version"] for v in versions] == ["1.1.0", "1.0.0"]  # 契约 1.6: DESC
 
     detail = client.get("/atoms/com.example.sum/versions/1.0.0").json()
     assert [f["name"] for f in detail["purpose"]["functions"]] == ["sum"]
