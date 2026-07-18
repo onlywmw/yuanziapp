@@ -1,4 +1,7 @@
-"""Tests for the FastAPI registry API (TestClient, HTTP 探测打桩)."""
+"""Tests for the FastAPI registry API (TestClient, HTTP 探测打桩).
+
+BUG-025：API 已加 Bearer 认证，既有用例统一在有效 admin token 下运行（AC-14）。
+"""
 
 from __future__ import annotations
 
@@ -7,6 +10,8 @@ import urllib.error
 import pytest
 from api import create_app
 from fastapi.testclient import TestClient
+
+ADMIN_TOKEN = "test-admin-token"
 
 
 def _atom(atom_id="com.example.sum", version="1.0.0", functions=("sum",)):
@@ -28,10 +33,21 @@ def _atom(atom_id="com.example.sum", version="1.0.0", functions=("sum",)):
 
 
 @pytest.fixture()
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("YUANZI_API_TOKEN", ADMIN_TOKEN)
     app = create_app(tmp_path / "api-test.db")
     with TestClient(app) as c:
+        c.headers["Authorization"] = f"Bearer {ADMIN_TOKEN}"
         yield c
+
+
+def test_missing_token_rejected(tmp_path, monkeypatch):
+    """显式保留：无 token → 401（BUG-025 / AC-01）。"""
+    monkeypatch.setenv("YUANZI_API_TOKEN", ADMIN_TOKEN)
+    with TestClient(create_app(tmp_path / "api-test.db")) as c:
+        r = c.get("/atoms")
+        assert r.status_code == 401
+        assert "Missing Bearer token" in r.json()["detail"]
 
 
 def test_health_and_empty_stats(client):
