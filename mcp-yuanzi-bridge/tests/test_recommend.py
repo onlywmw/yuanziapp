@@ -103,3 +103,10 @@ def test_recommend_limit(conn):
         submit_atom(conn, _atom(f"com.example.extra{i}", category="Database"))
     recs = recommend_for_atom(conn, "com.example.base", limit=3)
     assert len(recs) == 3
+
+
+def test_recommend_negative_limit_returns_empty(conn):
+    """M5 review: 负 limit 会被切片解释为"去掉尾部"，必须按空结果处理。"""
+    for i in range(3):
+        submit_atom(conn, _atom(f"com.example.extra{i}", category="Database"))
+    assert recommend_for_atom(conn, "com.example.base", limit=-1) == []

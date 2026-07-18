@@ -88,3 +88,19 @@ def test_search_empty_db():
     migrate(c)
     assert search_functions(c, "x", MockEmbeddingProvider()) == []
     c.close()
+
+
+def test_search_negative_limit_returns_empty(conn):
+    """M5 review: 负 limit 会被 Python 切片解释为"去掉尾部 N 条"，
+    静默返回结果；必须按空结果处理。"""
+    assert (
+        search_functions(conn, "add numbers", MockEmbeddingProvider(), limit=-1) == []
+    )
+
+
+def test_search_zero_vector_query_no_crash(conn):
+    """M5 review: 查询无任何 [a-z0-9] token 时 mock 产生零向量，
+    余弦必须安全返回 0 分而不是除零崩溃。"""
+    results = search_functions(conn, "！！！", MockEmbeddingProvider())
+    assert isinstance(results, list)
+    assert all(r["score"] == 0.0 for r in results)

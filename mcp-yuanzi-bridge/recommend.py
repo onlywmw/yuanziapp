@@ -40,6 +40,8 @@ def recommend_for_atom(
     atom = get_atom(conn, atom_id)
     if not atom:
         raise ValueError(f"Atom '{atom_id}' not found")
+    if limit <= 0:
+        return []
 
     scores: Dict[str, float] = {}
     reasons: Dict[str, List[str]] = {}

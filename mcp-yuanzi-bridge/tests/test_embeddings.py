@@ -116,6 +116,50 @@ def test_same_function_two_models_coexist(conn):
     assert {r["model"] for r in rows} == {"hash-bow-v1", "hash-bow-v2"}
 
 
+def test_embed_removes_stale_function_rows(conn):
+    """M5 review: 原子升级后函数被删除，重新 embed 必须清理旧函数的行，
+    否则 search 仍能搜到已不存在的函数。"""
+    submit_atom(conn, _atom())
+    provider = MockEmbeddingProvider()
+    embed_atom_functions(conn, "com.example.sum", provider)
+
+    updated = _atom(functions=("sum",))
+    updated["version"] = "1.1.0"
+    submit_atom(conn, updated)
+    embed_atom_functions(conn, "com.example.sum", provider)
+
+    rows = list_function_embeddings(conn, atom_id="com.example.sum")
+    assert [r["function_name"] for r in rows] == ["sum"]
+
+
+def test_embed_clears_rows_when_functions_removed(conn):
+    """M5 review: 原子功能清空后，旧 embedding 行也应一并清除。"""
+    submit_atom(conn, _atom())
+    provider = MockEmbeddingProvider()
+    embed_atom_functions(conn, "com.example.sum", provider)
+
+    updated = _atom(functions=())
+    updated["version"] = "1.1.0"
+    submit_atom(conn, updated)
+    count = embed_atom_functions(conn, "com.example.sum", provider)
+
+    assert count == 0
+    assert list_function_embeddings(conn, atom_id="com.example.sum") == []
+
+
+def test_embed_provider_vector_count_mismatch_raises(conn):
+    """M5 review: provider 返回的向量数与请求文本数不一致时，
+    zip 静默截断会导致 count 虚高、数据缺失，必须显式报错。"""
+
+    class ShortProvider(MockEmbeddingProvider):
+        def embed(self, texts):
+            return super().embed(texts)[:1]
+
+    submit_atom(conn, _atom())
+    with pytest.raises(ValueError, match="vector"):
+        embed_atom_functions(conn, "com.example.sum", ShortProvider())
+
+
 def test_function_text():
     assert function_text({"name": "sum", "description": "adds"}) == "sum: adds"
     assert function_text({"name": "sum"}) == "sum"

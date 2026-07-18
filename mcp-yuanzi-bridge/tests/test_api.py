@@ -169,6 +169,45 @@ def test_search_endpoint_bad_provider(client):
     assert r.status_code == 400
 
 
+def test_search_endpoint_negative_limit(tmp_path):
+    """M5 review: 负 limit 不应借切片语义返回结果。"""
+    import sqlite3 as _s
+
+    from embeddings import MockEmbeddingProvider, embed_atom_functions
+
+    db = tmp_path / "search-neg-limit.db"
+    with TestClient(create_app(db)) as c:
+        c.post("/atoms", json=_atom("com.example.math", functions=("sum",)))
+        c.post("/atoms", json=_atom("com.example.fs", functions=("read_file",)))
+        c.post("/atoms", json=_atom("com.example.net", functions=("http_get",)))
+
+        conn = _s.connect(str(db))
+        conn.row_factory = _s.Row
+        for aid in ("com.example.math", "com.example.fs", "com.example.net"):
+            embed_atom_functions(conn, aid, MockEmbeddingProvider())
+        conn.close()
+
+        r = c.get("/search", params={"q": "x", "limit": -1})
+        assert r.status_code == 200
+        assert r.json()["count"] == 0
+
+
+def test_recommendations_endpoint_negative_limit(client):
+    """M5 review: 负 limit 不应借切片语义返回结果。"""
+    client.post("/atoms", json=_atom("com.example.base", functions=("base_fn",)))
+    for name, fn in (
+        ("com.example.child", "child_fn"),
+        ("com.example.child2", "child_fn2"),
+    ):
+        child = _atom(name, functions=(fn,))
+        child["architecture"]["dependencies"] = ["com.example.base"]
+        client.post("/atoms", json=child)
+
+    r = client.get("/atoms/com.example.base/recommendations", params={"limit": -1})
+    assert r.status_code == 200
+    assert r.json()["recommendations"] == []
+
+
 def test_recommendations_and_combination_endpoints(client):
     client.post("/atoms", json=_atom("com.example.base", functions=("base_fn",)))
     child = _atom("com.example.child", functions=("child_fn",))
