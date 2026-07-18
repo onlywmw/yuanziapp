@@ -102,15 +102,13 @@ def discover_migrations() -> List[Tuple[int, str, Path]]:
 
 def ensure_tracking_table(conn: sqlite3.Connection) -> None:
     """Create the schema_migrations table if it does not exist."""
-    conn.execute(
-        f"""
+    conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {MIGRATIONS_TABLE} (
             version     INTEGER PRIMARY KEY,
             description TEXT,
             applied_at  TEXT NOT NULL
         )
-    """
-    )
+    """)
     conn.commit()
 
 
