@@ -23,7 +23,7 @@
 | M1 | 原子开发基础设施就绪 | 2026-07-25 | :heavy_check_mark: 已完成 |
 | M2 | 部署与配置管理就绪 | 2026-08-01 | :heavy_check_mark: 已完成 |
 | M3 | 测试与质量门禁就绪 | 2026-08-08 | :heavy_check_mark: 已完成 |
-| M4 | 注册中心服务化 | 2026-08-22 | :construction: 进行中 |
+| M4 | 注册中心服务化 | 2026-08-22 | :heavy_check_mark: 已完成 |
 | M5 | 能力搜索与匹配 | 2026-09-05 | :white_circle: 未开始 |
 | M6 | 安全与多租户 | 2026-09-19 | :white_circle: 未开始 |
 | M7 | 原子市场与工作流 | 2026-10-10 | :white_circle: 未开始 |
@@ -91,9 +91,9 @@
 |------|------|--------|----------|------|------|--------|
 | 4.1 | Schema 迁移系统 | P0 | 2 天 | :heavy_check_mark: 已完成 | 无 | `migrations/` |
 | 4.2 | 原子版本化表 | P0 | 2 天 | :heavy_check_mark: 已完成 | 4.1 | `atom_versions` |
-| 4.3 | REST API（FastAPI） | P0 | 3 天 | :white_circle: 未开始 | 4.2 | `api.py` |
-| 4.4 | 健康探针系统 | P1 | 2 天 | :white_circle: 未开始 | 4.3 | probe 服务 |
-| 4.5 | 依赖图解析 | P1 | 2 天 | :white_circle: 未开始 | 4.2 | `resolve_dependencies()` |
+| 4.3 | REST API（FastAPI） | P0 | 3 天 | :heavy_check_mark: 已完成 | 4.2 | `api.py` |
+| 4.4 | 健康探针系统 | P1 | 2 天 | :heavy_check_mark: 已完成 | 4.3 | probe 服务 |
+| 4.5 | 依赖图解析 | P1 | 2 天 | :heavy_check_mark: 已完成 | 4.2 | `resolve_dependencies()` |
 | 4.6 | 修复分类误判 | P1 | 1 天 | :heavy_check_mark: 已完成 | 无 | 更新后的分类 |
 
 ---
