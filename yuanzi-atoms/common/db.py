@@ -22,8 +22,7 @@ def init_db() -> None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             source TEXT NOT NULL,
@@ -33,11 +32,9 @@ def init_db() -> None:
             status TEXT NOT NULL DEFAULT 'pending',
             created_at TEXT NOT NULL
         )
-        """
-    )
+        """)
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS capability_bindings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tool_id TEXT UNIQUE NOT NULL,
@@ -47,11 +44,9 @@ def init_db() -> None:
             output_schema TEXT DEFAULT '{}',
             enabled INTEGER NOT NULL DEFAULT 1
         )
-        """
-    )
+        """)
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS atoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -63,8 +58,7 @@ def init_db() -> None:
             updated_at TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
-        """
-    )
+        """)
 
     conn.commit()
     conn.close()
@@ -130,13 +124,11 @@ def poll_pending_browser_command() -> Optional[Dict[str, Any]]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT * FROM events
         WHERE status = 'pending' AND tool_id LIKE 'browser/%'
         ORDER BY created_at ASC LIMIT 1
-        """
-    )
+        """)
     row = cursor.fetchone()
     if not row:
         conn.close()

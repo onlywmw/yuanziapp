@@ -11,7 +11,6 @@ import hashlib
 import json
 import logging
 import sqlite3
-import time
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
@@ -530,9 +529,7 @@ def dump_registry(
 # ============================================================
 
 
-def list_atom_versions(
-    conn: sqlite3.Connection, atom_id: str
-) -> List[Dict[str, Any]]:
+def list_atom_versions(conn: sqlite3.Connection, atom_id: str) -> List[Dict[str, Any]]:
     """Return all recorded versions for an atom, newest first."""
     rows = conn.execute(
         f"""SELECT version, signature_hash, content_hash, changelog,
@@ -587,27 +584,33 @@ def rollback_atom(
         "name": snapshot["name"],
         "version": snapshot["version"],
         "description": snapshot["description"],
-        "purpose": json.loads(snapshot["purpose_json"])
-        if snapshot["purpose_json"]
-        else {},
-        "architecture": json.loads(snapshot["architecture_json"])
-        if snapshot["architecture_json"]
-        else {},
-        "ownership": json.loads(snapshot["ownership_json"])
-        if snapshot["ownership_json"]
-        else {},
-        "classification": json.loads(snapshot["classification_json"])
-        if snapshot["classification_json"]
-        else {},
-        "compliance": json.loads(snapshot["compliance_json"])
-        if snapshot["compliance_json"]
-        else {},
-        "quality": json.loads(snapshot["quality_json"])
-        if snapshot["quality_json"]
-        else {},
-        "runtime": json.loads(snapshot["runtime_json"])
-        if snapshot["runtime_json"]
-        else {},
+        "purpose": (
+            json.loads(snapshot["purpose_json"]) if snapshot["purpose_json"] else {}
+        ),
+        "architecture": (
+            json.loads(snapshot["architecture_json"])
+            if snapshot["architecture_json"]
+            else {}
+        ),
+        "ownership": (
+            json.loads(snapshot["ownership_json"]) if snapshot["ownership_json"] else {}
+        ),
+        "classification": (
+            json.loads(snapshot["classification_json"])
+            if snapshot["classification_json"]
+            else {}
+        ),
+        "compliance": (
+            json.loads(snapshot["compliance_json"])
+            if snapshot["compliance_json"]
+            else {}
+        ),
+        "quality": (
+            json.loads(snapshot["quality_json"]) if snapshot["quality_json"] else {}
+        ),
+        "runtime": (
+            json.loads(snapshot["runtime_json"]) if snapshot["runtime_json"] else {}
+        ),
         "lifecycle": {"status": "registered"},
     }
 
@@ -616,8 +619,13 @@ def rollback_atom(
 
     result = _insert_or_update(conn, atom, signature, actor)
     _audit(
-        conn, atom_id, "rollback", None, "registered", actor,
-        f"rolled back to version {version}"
+        conn,
+        atom_id,
+        "rollback",
+        None,
+        "registered",
+        actor,
+        f"rolled back to version {version}",
     )
     result["success"] = True
     return result
@@ -681,10 +689,7 @@ def probe_atoms(
     """Health-check atoms (all or filtered by status)."""
     atoms = list_atoms(conn, status=status)
     atom_ids = [a["atom_id"] for a in atoms]
-    return [
-        probe_atom(conn, aid, timeout=timeout, actor=actor)
-        for aid in atom_ids
-    ]
+    return [probe_atom(conn, aid, timeout=timeout, actor=actor) for aid in atom_ids]
 
 
 # ============================================================
@@ -692,9 +697,7 @@ def probe_atoms(
 # ============================================================
 
 
-def resolve_dependencies(
-    conn: sqlite3.Connection, atom_id: str
-) -> Dict[str, Any]:
+def resolve_dependencies(conn: sqlite3.Connection, atom_id: str) -> Dict[str, Any]:
     """Resolve the dependency tree for an atom (topological order, one level).
 
     Returns ``ok`` for compatibility with probe/API callers.

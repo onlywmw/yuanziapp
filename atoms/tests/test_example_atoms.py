@@ -4,10 +4,10 @@ Uses importlib to load each atom's core.py as a uniquely-named module
 so Python's import cache doesn't make all ``import core`` resolve to the same module.
 """
 
+import importlib.util
 import os
 import sys
 import tempfile
-import importlib.util
 from pathlib import Path
 
 import pytest
@@ -100,9 +100,7 @@ class TestAtomStringSplit:
         assert result["data"]["parts"] == ["hello", "world", "foo"]
 
     def test_maxsplit(self, core):
-        result = core.handler(
-            {"text": "a,b,c,d", "delimiter": ",", "maxsplit": 2}
-        )
+        result = core.handler({"text": "a,b,c,d", "delimiter": ",", "maxsplit": 2})
         assert result["status"] == "success"
         assert result["data"]["parts"] == ["a", "b", "c,d"]
 
@@ -244,7 +242,5 @@ class TestAtomHttpGet:
 
     def test_default_timeout(self, core):
         """Handler should not crash even with unreachable URL."""
-        result = core.handler(
-            {"url": "http://192.0.2.1", "timeout": 1}
-        )
+        result = core.handler({"url": "http://192.0.2.1", "timeout": 1})
         assert result["status"] in ("error", "success")

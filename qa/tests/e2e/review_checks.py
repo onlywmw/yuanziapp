@@ -1,9 +1,9 @@
 """Review verification: dedup scenario, probe edge cases (file://, no_endpoint audit)."""
+
 from __future__ import annotations
 
 import sqlite3
 import sys
-import urllib.error
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
@@ -20,10 +20,16 @@ def fresh():
 
 def mk(atom_id, fn=("f1",)):
     return {
-        "atom_id": atom_id, "name": "A", "description": "d",
+        "atom_id": atom_id,
+        "name": "A",
+        "description": "d",
         "purpose": {"functions": [{"name": f} for f in fn]},
-        "architecture": {"type": "skill", "runtime": "python",
-                         "interface": "i", "dependencies": []},
+        "architecture": {
+            "type": "skill",
+            "runtime": "python",
+            "interface": "i",
+            "dependencies": [],
+        },
         "ownership": {},
     }
 
@@ -38,15 +44,23 @@ b = registry.get_atom(c, "com.qa.beta")
 sa, sb = a["signature"], b["signature"]
 print("content_hash equal:", sa["content_hash"] == sb["content_hash"])
 print("full signature equal:", sa["hash"] == sb["hash"])
-dup = c.execute(
-    "SELECT content_grp, COUNT(*) FROM (SELECT json_extract(signature_json,'$.content_hash') AS content_grp FROM atom_registry) GROUP BY content_grp HAVING COUNT(*)>1"
-).fetchall() if c.execute("SELECT name FROM pragma_table_info('atom_registry') WHERE name='signature_json'").fetchone() else "no signature_json column"
+dup = (
+    c.execute(
+        "SELECT content_grp, COUNT(*) FROM (SELECT json_extract(signature_json,'$.content_hash') AS content_grp FROM atom_registry) GROUP BY content_grp HAVING COUNT(*)>1"
+    ).fetchall()
+    if c.execute(
+        "SELECT name FROM pragma_table_info('atom_registry') WHERE name='signature_json'"
+    ).fetchone()
+    else "no signature_json column"
+)
 print("content-level duplicate detection query:", dup)
 
 print()
 print("== 2. probe_atom with file:// scheme ==")
 c2 = fresh()
-registry.submit_atom(c2, {**mk("com.qa.file"), "runtime": {"health_url": "file:///C:/Windows/win.ini"}})
+registry.submit_atom(
+    c2, {**mk("com.qa.file"), "runtime": {"health_url": "file:///C:/Windows/win.ini"}}
+)
 registry.review_atom(c2, "com.qa.file", True)
 try:
     r = registry.probe_atom(c2, "com.qa.file")
@@ -58,10 +72,12 @@ print()
 print("== 3. probe_atom with ftp:// scheme ==")
 try:
     r = registry.probe_atom(c2, "com.qa.file")  # same atom still file://
-except Exception as e:
+except Exception:
     pass
 c3 = fresh()
-registry.submit_atom(c3, {**mk("com.qa.ftp"), "runtime": {"health_url": "ftp://example.invalid/x"}})
+registry.submit_atom(
+    c3, {**mk("com.qa.ftp"), "runtime": {"health_url": "ftp://example.invalid/x"}}
+)
 registry.review_atom(c3, "com.qa.ftp", True)
 try:
     r = registry.probe_atom(c3, "com.qa.ftp")
@@ -76,13 +92,21 @@ registry.submit_atom(c4, {**mk("com.qa.noep"), "runtime": {}})
 registry.review_atom(c4, "com.qa.noep", True)
 r = registry.probe_atom(c4, "com.qa.noep")
 audits = registry.get_audit_log(c4, "com.qa.noep")
-print("probe result:", r.get("error"), "| audit actions:", [a["action"] for a in audits])
+print(
+    "probe result:", r.get("error"), "| audit actions:", [a["action"] for a in audits]
+)
 
 print()
 print("== 5. offline -> probe fail -> unreachable (state machine consistency) ==")
 c5 = fresh()
-registry.submit_atom(c5, {**mk("com.qa.off"), "runtime": {"health_url": "http://127.0.0.1:1/x"}})
+registry.submit_atom(
+    c5, {**mk("com.qa.off"), "runtime": {"health_url": "http://127.0.0.1:1/x"}}
+)
 registry.review_atom(c5, "com.qa.off", True)
 registry.set_atom_status(c5, "com.qa.off", "offline")
 r = registry.probe_atom(c5, "com.qa.off", timeout=0.5)
-print("offline probe-fail ->", r["new_status"], "| allowed in set_atom_status table? offline->unreachable not listed")
+print(
+    "offline probe-fail ->",
+    r["new_status"],
+    "| allowed in set_atom_status table? offline->unreachable not listed",
+)

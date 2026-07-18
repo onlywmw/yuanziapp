@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import logging
 import re
+import sqlite3
 from pathlib import Path
 from typing import List, Optional, Tuple
-import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ _MIGRATIONS_DIR = Path(__file__).parent
 # ============================================================
 # public functional API — used by api.py and tests
 # ============================================================
+
 
 def migrate(conn: sqlite3.Connection) -> List[int]:
     """Apply all pending migrations, return list of newly-applied versions."""
@@ -47,9 +48,7 @@ def migrate(conn: sqlite3.Connection) -> List[int]:
 def current_version(conn: sqlite3.Connection) -> int:
     """Return the latest applied migration version, or 0 if none."""
     ensure_tracking_table(conn)
-    row = conn.execute(
-        f"SELECT MAX(version) FROM {MIGRATIONS_TABLE}"
-    ).fetchone()
+    row = conn.execute(f"SELECT MAX(version) FROM {MIGRATIONS_TABLE}").fetchone()
     return row[0] if row[0] is not None else 0
 
 
@@ -98,9 +97,8 @@ def ensure_tracking_table(conn: sqlite3.Connection) -> None:
 # internal helpers
 # ============================================================
 
-def _apply_sql_file(
-    conn: sqlite3.Connection, version: int, path: Path
-) -> None:
+
+def _apply_sql_file(conn: sqlite3.Connection, version: int, path: Path) -> None:
     """Execute a .sql migration file and record it."""
     from datetime import datetime, timezone
 
@@ -118,6 +116,7 @@ def _apply_sql_file(
 # ============================================================
 # MigrationRunner — wraps the functional API for registry.py
 # ============================================================
+
 
 class MigrationRunner:
     """Wraps ``migrate()`` for use by ``registry.ensure_registry_schema()``."""
