@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 暖纸 Warm Paper · 列表行底: paper 底色 + 10dp 圆角 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#F7F4EE"/>
+    <corners android:radius="10dp"/>
+</shape>

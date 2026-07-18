@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 暖纸 Warm Paper · tag pill(glass 变体): 与 tag_bg 同规范 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#F5E7DE"/>
+    <corners android:radius="999dp"/>
+    <stroke android:width="0.5dp" android:color="#1AB85C38"/>
+</shape>

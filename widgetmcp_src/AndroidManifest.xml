@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.nous.widgetmcp">
+
+    <!-- 网络与本地回环 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 前台服务与后台轮询 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
+
+    <application
+        android:name=".WidgetMCPApp"
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:label="组件 MCP"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.WidgetMCP"
+        android:usesCleartextTraffic="true">
+
+        <!-- Main activity: 配置组件与 Hermes 连接 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="组件 MCP">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 内置浏览器 Activity -->
+        <activity
+            android:name=".browser.BrowserActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:launchMode="singleTask"
+            android:label="浏览器" />
+
+        <!-- MCP HTTP server 前台服务 -->
+        <service
+            android:name=".McpService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!-- Hermes 中枢同步前台服务 -->
+        <service
+            android:name=".hermes.HermesSyncService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!-- 桌面 Widget Provider -->
+        <receiver
+            android:name=".widget.McpWidgetProvider"
+            android:exported="false"
+            android:label="组件 MCP">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.nous.widgetmcp.action.WIDGET_CLICK" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mcp_widget_info" />
+        </receiver>
+
+        <!-- Hermes 轮询 AlarmManager 触发器 -->
+        <receiver
+            android:name=".hermes.HermesPollReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.nous.widgetmcp.action.HERMES_POLL" />
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>

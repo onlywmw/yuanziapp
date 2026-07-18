@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">组件 MCP</string>
+    <string name="widget_card_list">卡片列表</string>
+    <string name="widget_card_list_desc">卡片列表组件 — 显示多张原子卡片</string>
+    <string name="widget_single_card">单张卡片</string>
+    <string name="widget_single_card_desc">单张卡片 — 显示一张原子卡片</string>
+    <string name="mcp_status">MCP 服务端</string>
+    <string name="start_server">启动服务</string>
+    <string name="stop_server">停止服务</string>
+    <string name="port">端口</string>
+    <string name="widget_balance_desc">余额监控</string>
+</resources>

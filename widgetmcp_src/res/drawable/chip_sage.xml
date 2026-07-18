@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 暖纸 Warm Paper · 状态 chip 正常: sage 浅底 pill(配深字 #5F7355) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#EEF3EA"/>
+    <corners android:radius="999dp"/>
+    <stroke android:width="0.5dp" android:color="#1A5F7355"/>
+</shape>

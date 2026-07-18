@@ -67,3 +67,9 @@ mcp-main/
 
 # Obsidian / local notes
 *.md.bak
+
+# Android build artifacts
+widgetmcp_src/android.jar
+widgetmcp_src/libs/*.jar
+*.apk
+*.dex

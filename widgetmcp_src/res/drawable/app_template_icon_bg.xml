@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 模板卡左侧色块：clay 浅底 10dp 圆角（内放首字，文字 clay 深） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F5E7DE" />
+    <corners android:radius="10dp" />
+</shape>

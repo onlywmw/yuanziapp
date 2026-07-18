@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4x2 卡片列表 — 暖纸 Warm Paper · 白玻璃 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root_click_area"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg_glass"
+    android:padding="14dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <TextView android:id="@+id/widget_title" android:layout_width="wrap_content"
+        android:layout_height="wrap_content" android:text="收件箱" android:textColor="#2E2A26"
+        android:textSize="16sp" android:textStyle="bold"/>
+    <TextView android:id="@+id/widget_count" android:layout_width="wrap_content"
+        android:layout_height="wrap_content" android:text="0 条" android:textColor="#8C8378"
+        android:textSize="11sp" android:layout_marginTop="2dp"/>
+
+    <LinearLayout android:id="@+id/cards_container" android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical"
+        android:layout_marginTop="8dp"/>
+</LinearLayout>

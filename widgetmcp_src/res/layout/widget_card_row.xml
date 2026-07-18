@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 列表行 — 暖纸 Warm Paper · paper 底圆角行 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:background="@drawable/widget_row_bg"
+    android:paddingLeft="10dp" android:paddingRight="10dp"
+    android:paddingTop="8dp" android:paddingBottom="8dp"
+    android:layout_marginBottom="6dp">
+    <TextView android:id="@+id/row_title" android:layout_width="0dp"
+        android:layout_height="wrap_content" android:layout_weight="1"
+        android:textColor="#2E2A26" android:textSize="13sp" android:maxLines="1"
+        android:ellipsize="end"/>
+    <TextView android:id="@+id/row_time" android:layout_width="wrap_content"
+        android:layout_height="wrap_content" android:textColor="#B4AB9E"
+        android:textSize="11sp" android:layout_marginStart="8dp"/>
+</LinearLayout>

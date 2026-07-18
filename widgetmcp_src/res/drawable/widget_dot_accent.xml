@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 暖纸 Warm Paper · 状态点: clay 强调 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#B85C38"/>
+    <size android:width="8dp" android:height="8dp"/>
+</shape>

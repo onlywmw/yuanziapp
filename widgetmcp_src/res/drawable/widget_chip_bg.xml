@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 暖纸 Warm Paper · 白玻璃底(单卡): 与 widget_chip_bg_glass 同规范 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#FAFFFFFF"/>
+    <corners android:radius="20dp"/>
+    <stroke android:width="0.5dp" android:color="#14000000"/>
+</shape>

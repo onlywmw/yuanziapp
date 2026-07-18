@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===== 暖纸 Warm Paper 色板（App 内界面） ===== -->
+    <color name="paper">#F7F4EE</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="hairline">#E9E2D6</color>
+
+    <color name="ink">#2E2A26</color>
+    <color name="muted">#8C8378</color>
+    <color name="faint">#B4AB9E</color>
+
+    <color name="clay">#B85C38</color>
+    <color name="clay_deep">#A04E2A</color>
+    <color name="clay_light">#F5E7DE</color>
+    <color name="clay_disabled">#66B85C38</color>
+
+    <color name="sage">#7A8B6F</color>
+    <color name="sage_light">#EEF3EA</color>
+    <color name="sage_deep">#5F7355</color>
+
+    <color name="amber">#C98A2D</color>
+    <color name="amber_light">#F7EEDD</color>
+    <color name="amber_deep">#9C7326</color>
+
+    <color name="rust">#B4453C</color>
+    <color name="rust_light">#F6E9E6</color>
+    <color name="rust_deep">#A04438</color>
+
+    <!-- ===== 旧 widget 配色（保留兼容，widget 侧文件引用/改造时可继续使用） ===== -->
+    <color name="widget_bg">#17171A</color>
+    <color name="widget_surface2">#212126</color>
+    <color name="widget_text">#F5F5F7</color>
+    <color name="widget_muted">#8A8A93</color>
+    <color name="widget_accent">#4D6BFE</color>
+    <color name="widget_ok">#30D158</color>
+</resources>
