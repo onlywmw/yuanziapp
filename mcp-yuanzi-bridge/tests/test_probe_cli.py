@@ -54,6 +54,16 @@ def db(tmp_path, monkeypatch):
         return _Resp()
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    # 假域名不走真实 DNS：全部解析到回环（M6.5b CIDR 检查通过）
+    import socket as _socket
+
+    monkeypatch.setattr(
+        _socket,
+        "getaddrinfo",
+        lambda host, port: [
+            (_socket.AF_INET, _socket.SOCK_STREAM, 6, "", ("127.0.0.1", 0))
+        ],
+    )
     return path
 
 
