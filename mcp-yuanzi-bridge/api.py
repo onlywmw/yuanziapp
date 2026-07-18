@@ -156,6 +156,27 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
         return resolve_dependencies(conn, atom_id)
 
+    @app.get("/atoms/{atom_id}/recommendations")
+    def recommendations(atom_id: str, limit: int = 5) -> Dict[str, Any]:
+        """原子搭配推荐（M5 任务 5.3）：依赖/被依赖/同类别加权。"""
+        from recommend import recommend_for_atom
+
+        if not get_atom(conn, atom_id):
+            raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
+        return {
+            "atom_id": atom_id,
+            "recommendations": recommend_for_atom(conn, atom_id, limit=limit),
+        }
+
+    @app.get("/atoms/{atom_id}/combination")
+    def combination(atom_id: str) -> Dict[str, Any]:
+        """原子的完整启动组合（依赖闭包，拓扑序）。"""
+        from recommend import recommend_combination
+
+        if not get_atom(conn, atom_id):
+            raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
+        return recommend_combination(conn, atom_id)
+
     @app.get("/search")
     def search(
         q: str,

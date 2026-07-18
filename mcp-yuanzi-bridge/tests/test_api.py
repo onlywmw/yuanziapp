@@ -167,3 +167,24 @@ def test_search_endpoint(tmp_path):
 def test_search_endpoint_bad_provider(client):
     r = client.get("/search", params={"q": "x", "provider": "wat"})
     assert r.status_code == 400
+
+
+def test_recommendations_and_combination_endpoints(client):
+    client.post("/atoms", json=_atom("com.example.base", functions=("base_fn",)))
+    child = _atom("com.example.child", functions=("child_fn",))
+    child["architecture"]["dependencies"] = ["com.example.base"]
+    client.post("/atoms", json=child)
+
+    r = client.get("/atoms/com.example.base/recommendations")
+    assert r.status_code == 200
+    recs = r.json()["recommendations"]
+    assert recs[0]["atom_id"] == "com.example.child"
+    assert "dependent" in recs[0]["reasons"]
+
+    r = client.get("/atoms/com.example.child/combination")
+    assert r.status_code == 200
+    order = [c["atom_id"] for c in r.json()["combination"]]
+    assert order == ["com.example.base", "com.example.child"]
+
+    assert client.get("/atoms/com.example.ghost/recommendations").status_code == 404
+    assert client.get("/atoms/com.example.ghost/combination").status_code == 404
