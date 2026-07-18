@@ -22,9 +22,9 @@
 |--------|------|----------|------|
 | M1 | 原子开发基础设施就绪 | 2026-07-25 | :heavy_check_mark: 已完成 |
 | M2 | 部署与配置管理就绪 | 2026-08-01 | :heavy_check_mark: 已完成 |
-| M3 | 测试与质量门禁就绪 | 2026-08-08 | :heavy_check_mark: 已完成 |
-| M4 | 注册中心服务化 | 2026-08-22 | :heavy_check_mark: 已完成 |
-| M5 | 能力搜索与匹配 | 2026-09-05 | :construction: 进行中 |
+| M3 | 测试与质量门禁就绪 | 2026-08-08 | :construction: 进行中 |
+| M4 | 注册中心服务化 | 2026-08-22 | :white_circle: 未开始 |
+| M5 | 能力搜索与匹配 | 2026-09-05 | :white_circle: 未开始 |
 | M6 | 安全与多租户 | 2026-09-19 | :white_circle: 未开始 |
 | M7 | 原子市场与工作流 | 2026-10-10 | :white_circle: 未开始 |
 
@@ -80,8 +80,8 @@
 | 3.2 | 配置 pytest 测试框架 | P0 | 1 天 | :heavy_check_mark: 已完成 | 无 | `tests/` 结构 |
 | 3.3 | 配置 pre-commit 钩子 | P0 | 1 天 | :heavy_check_mark: 已完成 | 3.1, 3.2 | `.pre-commit-config.yaml` |
 | 3.4 | 实现 `yuanzi install-hooks` | P1 | 0.5 天 | :heavy_check_mark: 已完成 | 3.3 | CLI 命令 |
-| 3.5 | 原子 smoke test 规范 | P1 | 1 天 | :heavy_check_mark: 已完成 | 3.2 | `docs/atom-smoke-test-spec.md` |
-| 3.6 | GitHub Actions CI 初版 | P2 | 2 天 | :heavy_check_mark: 已完成 | 3.3 | `.github/workflows/ci.yml` |
+| 3.5 | 原子 smoke test 规范 | P1 | 1 天 | :heavy_check_mark: 已完成 | 3.2 | `docs/SMOKE_TEST_SPEC.md` |
+| 3.6 | GitHub Actions CI（扩展版） | P2 | 2 天 | :heavy_check_mark: 已完成 | 3.3, 3.5 | `.github/workflows/ci.yml`（含矩阵 + atoms smoke tests） |
 
 ---
 
@@ -89,11 +89,11 @@
 
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
-| 4.1 | Schema 迁移系统 | P0 | 2 天 | :heavy_check_mark: 已完成 | 无 | `migrations/` |
-| 4.2 | 原子版本化表 | P0 | 2 天 | :heavy_check_mark: 已完成 | 4.1 | `atom_versions` |
-| 4.3 | REST API（FastAPI） | P0 | 3 天 | :heavy_check_mark: 已完成 | 4.2 | `api.py` |
-| 4.4 | 健康探针系统 | P1 | 2 天 | :heavy_check_mark: 已完成 | 4.3 | probe 服务 |
-| 4.5 | 依赖图解析 | P1 | 2 天 | :heavy_check_mark: 已完成 | 4.2 | `resolve_dependencies()` |
+| 4.1 | Schema 迁移系统 | P0 | 2 天 | :heavy_check_mark: 已完成 | 无 | `migrations/`（MigrationRunner + 001_initial + 002_add_meta） |
+| 4.2 | 原子版本化表 | P0 | 2 天 | :white_circle: 未开始 | 4.1 | `atom_versions` |
+| 4.3 | REST API（FastAPI） | P0 | 3 天 | :white_circle: 未开始 | 4.2 | `api.py` |
+| 4.4 | 健康探针系统 | P1 | 2 天 | :white_circle: 未开始 | 4.3 | probe 服务 |
+| 4.5 | 依赖图解析 | P1 | 2 天 | :white_circle: 未开始 | 4.2 | `resolve_dependencies()` |
 | 4.6 | 修复分类误判 | P1 | 1 天 | :heavy_check_mark: 已完成 | 无 | 更新后的分类 |
 
 ---
@@ -102,7 +102,7 @@
 
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
-| 5.1 | function embedding 生成 | P0 | 3 天 | :heavy_check_mark: 已完成 | 4.3 | `function_embeddings` |
+| 5.1 | function embedding 生成 | P0 | 3 天 | :white_circle: 未开始 | 4.3 | embedding 表 |
 | 5.2 | 语义搜索 API | P0 | 2 天 | :white_circle: 未开始 | 5.1 | `/search` 端点 |
 | 5.3 | 原子组合推荐 | P1 | 3 天 | :white_circle: 未开始 | 5.2 | 组合算法 |
 | 5.4 | Widget MCP 集成搜索 | P1 | 2 天 | :white_circle: 未开始 | 5.2 | UI 搜索入口 |
@@ -138,8 +138,9 @@
 | `yuanzi-cli init/validate/test` | P0 | :heavy_check_mark: 已完成 | 第一阶段核心，直接决定造原子体验 |
 | pre-commit + 代码格式化 | P0 | :heavy_check_mark: 已完成 | 代码质量门禁 |
 | `yuanzi install-hooks` CLI 命令 | P1 | :heavy_check_mark: 已完成 | 把钩子安装收进 yuanzi-cli |
-| GitHub Actions CI 初版 | P2 | :heavy_check_mark: 已完成 | 提交时自动跑检查 |
-| pre-commit + 代码格式化 | P0 | :white_circle: 未开始 | 代码质量门禁 |
+| GitHub Actions CI（扩展版） | P2 | :heavy_check_mark: 已完成 | Python 3.10/3.12 矩阵 + atoms smoke tests |
+| 原子 smoke test 规范 | P1 | :heavy_check_mark: 已完成 | `docs/SMOKE_TEST_SPEC.md` + 25 个示例原子测试 |
+| 示例原子测试覆盖 | P1 | :heavy_check_mark: 已完成 | atoms/tests/ 覆盖全部 5 个示例原子（math-sum/file-read/http-get/string-split/template） |
 | 修复原子分类误判 | P1 | :heavy_check_mark: 已完成 | 提升图谱分组准确性 |
 
 ---

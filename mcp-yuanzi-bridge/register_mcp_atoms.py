@@ -16,12 +16,12 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
-import jsonschema
-from migrations import migrate
 from registry import (
     compute_signature,
     dump_registry,
+    ensure_registry_schema,
     list_atoms,
+    now_iso,
     review_atom,
     submit_atom,
 )
@@ -346,16 +346,82 @@ def build_registry_atom(raw: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def validate_atom(atom: Dict[str, Any], schema: Dict[str, Any]) -> List[str]:
-    """用 atom-registry-schema.json 做真正的 JSON Schema 校验。
-
-    返回人类可读的错误列表；空列表表示通过。
-    """
-    validator = jsonschema.Draft7Validator(schema)
+    """简单字段级校验（不完全实现 JSON Schema）。"""
     errors: List[str] = []
-    for error in sorted(validator.iter_errors(atom), key=lambda e: list(e.path)):
-        loc = ".".join(str(p) for p in error.absolute_path) or "(root)"
-        errors.append(f"{loc}: {error.message}")
+    required = schema.get("required", [])
+    for k in required:
+        if k not in atom or atom[k] in (None, "", {}):
+            errors.append(f"Missing required field: {k}")
+    for k in ["purpose", "architecture", "ownership", "lifecycle", "signature"]:
+        if k in atom and not isinstance(atom[k], dict):
+            errors.append(f"Field {k} must be an object")
+    if "atom_id" in atom:
+        aid = atom["atom_id"]
+        if not aid or "." not in aid:
+            errors.append("atom_id must be a reverse-domain style string")
     return errors
+
+
+def sync_atoms_table(conn: sqlite3.Connection) -> int:
+    """把 atom_registry 中的原子同步到旧的 atoms 表，供 Widget MCP /graph 渲染。"""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS atoms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            atom_id TEXT UNIQUE NOT NULL,
+            label TEXT NOT NULL,
+            atom_type TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'unknown',
+            capabilities TEXT DEFAULT '[]',
+            updated_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    rows = conn.execute(
+        "SELECT atom_id, name, purpose_json, architecture_json, lifecycle_json, runtime_json FROM atom_registry"
+    ).fetchall()
+    now = now_iso()
+    synced = 0
+    for row in rows:
+        atom_id, name, purpose_json, arch_json, lifecycle_json, runtime_json = row
+        purpose = json.loads(purpose_json)
+        arch = json.loads(arch_json)
+        lifecycle = json.loads(lifecycle_json)
+        runtime = json.loads(runtime_json)
+        functions = purpose.get("functions", [])
+        capabilities = [
+            f"mcp/{atom_id}/{f.get('name', '')}" for f in functions if f.get("name")
+        ]
+        atom_type = arch.get("type", "atom")
+        endpoint = runtime.get("endpoint", f"http://127.0.0.1:8080/mcp/{atom_id}")
+        status = lifecycle.get("status", "registered")
+        conn.execute(
+            """
+            INSERT INTO atoms (atom_id, label, atom_type, endpoint, status, capabilities, updated_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(atom_id) DO UPDATE SET
+                label = excluded.label,
+                atom_type = excluded.atom_type,
+                endpoint = excluded.endpoint,
+                status = excluded.status,
+                capabilities = excluded.capabilities,
+                updated_at = excluded.updated_at
+        """,
+            (
+                atom_id,
+                name,
+                atom_type,
+                endpoint,
+                status,
+                json.dumps(capabilities, ensure_ascii=False),
+                now,
+                now,
+            ),
+        )
+        synced += 1
+    conn.commit()
+    print(f"Synced {synced} atoms to legacy atoms table")
+    return synced
 
 
 def write_ledger(conn: sqlite3.Connection, ledger_dir: Path) -> None:
@@ -509,7 +575,7 @@ def main() -> int:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
-    migrate(conn)
+    ensure_registry_schema(conn)
 
     success_count = 0
     failed: List[Dict[str, Any]] = []
@@ -535,6 +601,7 @@ def main() -> int:
                 {"atom_id": atom["atom_id"], "errors": [result.get("message", "")]}
             )
 
+    sync_atoms_table(conn)
     write_ledger(conn, LEDGER_DIR)
     conn.close()
 

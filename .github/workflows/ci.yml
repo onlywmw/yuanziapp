@@ -9,36 +9,48 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install black ruff
+          pip install black ruff requests
           pip install -e yuanzi-cli[dev]
           pip install -r yuanzi-atom-templates/examples/com.example.sum/requirements.txt
 
       - name: Black (check)
         run: black --check --config pyproject.toml .
 
-      - name: Ruff
-        run: |
-          ruff check --config pyproject.toml .
-          ruff format --check --config pyproject.toml .
+      - name: Ruff (lint)
+        run: ruff check --config pyproject.toml .
+
+      - name: Ruff (format check)
+        run: ruff format --check --config pyproject.toml .
+
+      # ---- unit / bridge tests ----
 
       - name: yuanzi-cli tests
-        run: python -m pytest yuanzi-cli/tests -q
+        run: python -m pytest yuanzi-cli/tests -q --tb=short
 
       - name: mcp-yuanzi-bridge tests
-        run: python -m pytest mcp-yuanzi-bridge/tests -q
+        run: python -m pytest mcp-yuanzi-bridge/tests -q --tb=short
 
-      - name: Example atom validate + tests
+      # ---- example atom smoke tests (M3 3.5) ----
+
+      - name: Example atoms smoke tests
+        run: python -m pytest atoms/tests/ -v --tb=short
+
+      - name: yuanzi validate + test (com.example.sum)
         run: |
           yuanzi validate yuanzi-atom-templates/examples/com.example.sum
           yuanzi test --no-validate yuanzi-atom-templates/examples/com.example.sum
