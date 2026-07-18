@@ -47,9 +47,11 @@ def test_submit_archives_version(conn):
     v = versions[0]
     assert v["version"] == "1.0.0"
     assert v["purpose"]["functions"] == [{"name": "sum"}]
-    assert len(v["signature_hash"]) == 64
+    assert len(v["signature"]) == 64
     assert len(v["content_hash"]) == 64
-    assert len(v["identity_hash"]) == 64
+    # 完整快照（含 identity_hash）走 get_atom_version（契约 1.7）
+    full = get_atom_version(conn, "com.example.sum", "1.0.0")
+    assert len(full["identity_hash"]) == 64
 
 
 def test_resubmit_same_version_updates_snapshot(conn):
@@ -57,14 +59,16 @@ def test_resubmit_same_version_updates_snapshot(conn):
     submit_atom(conn, _atom(description="v1 revised"))
     versions = list_atom_versions(conn, "com.example.sum")
     assert len(versions) == 1
-    assert versions[0]["description"] == "v1 revised"
+    # description 不在契约 1.6 的列表形状里，用完整快照验证
+    full = get_atom_version(conn, "com.example.sum", "1.0.0")
+    assert full["description"] == "v1 revised"
 
 
 def test_multiple_versions_archived(conn):
     submit_atom(conn, _atom(version="1.0.0"))
     submit_atom(conn, _atom(version="1.1.0", functions=("sum", "sum_many")))
     versions = list_atom_versions(conn, "com.example.sum")
-    assert [v["version"] for v in versions] == ["1.0.0", "1.1.0"]
+    assert [v["version"] for v in versions] == ["1.1.0", "1.0.0"]  # 契约 1.6: DESC
 
     v11 = get_atom_version(conn, "com.example.sum", "1.1.0")
     assert [f["name"] for f in v11["purpose"]["functions"]] == ["sum", "sum_many"]
@@ -140,11 +144,11 @@ def test_migration_backfills_existing_atoms():
     conn.commit()
 
     applied = migrate(conn)
-    assert applied == [1, 2, 3, 4, 5]
+    assert applied == [1, 2, 3, 4, 5, 6, 7]
 
     versions = list_atom_versions(conn, "com.example.legacy")
     assert len(versions) == 1
     assert versions[0]["version"] == "1.0.0"
-    assert versions[0]["signature_hash"] == "deadbeef"
+    assert versions[0]["signature"] == "deadbeef"
     assert versions[0]["created_at"] == "2026-01-01T00:00:00+00:00"
-    assert applied_versions(conn) == [1, 2, 3, 4, 5]
+    assert applied_versions(conn) == [1, 2, 3, 4, 5, 6, 7]

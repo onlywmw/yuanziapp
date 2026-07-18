@@ -113,77 +113,14 @@ def compute_signature(atom: Dict[str, Any]) -> str:
 
 
 def ensure_registry_schema(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {REGISTRY_TABLE} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            atom_id TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            version TEXT NOT NULL DEFAULT '1.0.0',
-            description TEXT,
-            purpose_json TEXT NOT NULL,
-            architecture_json TEXT NOT NULL,
-            ownership_json TEXT NOT NULL,
-            classification_json TEXT,
-            compliance_json TEXT,
-            quality_json TEXT,
-            runtime_json TEXT,
-            lifecycle_json TEXT NOT NULL,
-            signature_hash TEXT UNIQUE NOT NULL,
-            signature_algorithm TEXT NOT NULL DEFAULT 'sha256',
-            content_hash TEXT,
-            identity_hash TEXT,
-            alias TEXT,
-            created_at TEXT,
-            submitted_at TEXT,
-            registered_at TEXT,
-            updated_at TEXT,
-            reviewed_at TEXT,
-            reviewed_by TEXT,
-            review_comments TEXT,
-            review_score REAL
-        )
-        """
-    )
-    conn.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {AUDIT_TABLE} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            atom_id TEXT NOT NULL,
-            action TEXT NOT NULL,
-            old_status TEXT,
-            new_status TEXT,
-            actor TEXT,
-            detail TEXT,
-            created_at TEXT
-        )
-        """
-    )
-    conn.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {VERSIONS_TABLE} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            atom_id TEXT NOT NULL,
-            version TEXT NOT NULL,
-            name TEXT,
-            description TEXT,
-            purpose_json TEXT,
-            architecture_json TEXT,
-            ownership_json TEXT,
-            classification_json TEXT,
-            compliance_json TEXT,
-            quality_json TEXT,
-            runtime_json TEXT,
-            signature_hash TEXT,
-            content_hash TEXT,
-            identity_hash TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            UNIQUE (atom_id, version)
-        )
-        """
-    )
-    conn.commit()
+    """确保库结构为最新。
+
+    DDL 的唯一权威来源是 migrations/*.sql（SCHEMA_AUTHORITY.md），
+    本函数只是 migrate(conn) 的兼容包装（BUG-026）。
+    """
+    from migrations import migrate
+
+    migrate(conn)
 
 
 def _audit(
@@ -301,9 +238,9 @@ def _archive_version(
         INSERT INTO {VERSIONS_TABLE}
         (atom_id, version, name, description, purpose_json, architecture_json,
          ownership_json, classification_json, compliance_json, quality_json,
-         runtime_json, signature_hash, content_hash, identity_hash,
+         runtime_json, signature_hash, content_hash, identity_hash, changelog,
          created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(atom_id, version) DO UPDATE SET
             name=excluded.name,
             description=excluded.description,
@@ -317,6 +254,7 @@ def _archive_version(
             signature_hash=excluded.signature_hash,
             content_hash=excluded.content_hash,
             identity_hash=excluded.identity_hash,
+            changelog=excluded.changelog,
             updated_at=excluded.updated_at
         """,
         (
@@ -334,6 +272,7 @@ def _archive_version(
             signature,
             signature_info.get("content_hash", ""),
             signature_info.get("identity_hash", ""),
+            atom.get("changelog", ""),
             created_at,
             now,
         ),
@@ -373,7 +312,7 @@ def submit_atom(
     if row and row[0] != atom_id:
         return {
             "success": False,
-            "error": "duplicate_content",
+            "error": "duplicate_signature",
             "message": (
                 f"Identical capabilities already registered by atom "
                 f"'{row[0]}'; cannot register '{atom_id}'"
@@ -726,12 +665,26 @@ def _row_to_version(row: sqlite3.Row) -> Dict[str, Any]:
 
 
 def list_atom_versions(conn: sqlite3.Connection, atom_id: str) -> List[Dict[str, Any]]:
-    """列出某原子的全部归档版本，按创建时间升序。"""
+    """列出某原子的全部归档版本（接口契约 1.6，按创建时间 DESC）。"""
     rows = conn.execute(
-        f"SELECT * FROM {VERSIONS_TABLE} WHERE atom_id = ? ORDER BY created_at, id",
+        f"""SELECT version, signature_hash, content_hash, changelog,
+                   purpose_json, created_at
+            FROM {VERSIONS_TABLE}
+            WHERE atom_id = ?
+            ORDER BY created_at DESC, id DESC""",
         (atom_id,),
     ).fetchall()
-    return [_row_to_version(row) for row in rows]
+    return [
+        {
+            "version": row[0],
+            "signature": row[1],
+            "content_hash": row[2],
+            "changelog": row[3],
+            "purpose": json.loads(row[4]) if row[4] else {},
+            "created_at": row[5],
+        }
+        for row in rows
+    ]
 
 
 def get_atom_version(
@@ -836,12 +789,32 @@ def resolve_dependencies(conn: sqlite3.Connection, atom_id: str) -> Dict[str, An
         order.append(aid)
 
     visit(atom_id, [])
+
+    deps: List[Dict[str, Any]] = []
+    root = get_atom(conn, atom_id)
+    if root:
+        for dep_id in sorted(
+            set(root.get("architecture", {}).get("dependencies", []) or [])
+        ):
+            dep_atom = get_atom(conn, dep_id)
+            deps.append(
+                {
+                    "atom_id": dep_id,
+                    "name": dep_atom.get("name", "") if dep_atom else "",
+                    "status": (
+                        dep_atom.get("lifecycle", {}).get("status", "")
+                        if dep_atom
+                        else "missing"
+                    ),
+                }
+            )
     return {
+        "ok": not missing and not cycles,
         "atom_id": atom_id,
         "order": order,
         "missing": sorted(missing),
         "cycles": cycles,
-        "ok": not missing and not cycles,
+        "deps": deps,
     }
 
 
@@ -939,8 +912,10 @@ def compute_registry_stats(conn: sqlite3.Connection) -> Dict[str, Any]:
 def dump_registry(
     conn: sqlite3.Connection, include_audit: bool = False
 ) -> Dict[str, Any]:
+    from migrations import current_version
+
     return {
-        "schema_version": "2.0",
+        "schema_version": str(current_version(conn)),
         "generated_at": now_iso(),
         "stats": compute_registry_stats(conn),
         "atoms": list_atoms(conn),

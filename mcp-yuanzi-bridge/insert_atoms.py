@@ -21,54 +21,49 @@ def main():
 
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    from migrations import migrate
+    from registry import submit_atom
 
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS atoms (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            atom_id TEXT UNIQUE NOT NULL,
-            label TEXT NOT NULL,
-            atom_type TEXT NOT NULL,
-            endpoint TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'unknown',
-            capabilities TEXT DEFAULT '[]',
-            updated_at TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    """
-    )
-
-    t = now_utc()
+    conn.row_factory = sqlite3.Row
+    migrate(conn)
+    ok = 0
     for atom in atoms:
-        cursor.execute(
-            """
-            INSERT INTO atoms (atom_id, label, atom_type, endpoint, status, capabilities, updated_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(atom_id) DO UPDATE SET
-                label = excluded.label,
-                atom_type = excluded.atom_type,
-                endpoint = excluded.endpoint,
-                status = excluded.status,
-                capabilities = excluded.capabilities,
-                updated_at = excluded.updated_at
-        """,
-            (
-                atom["atom_id"],
-                atom["label"],
-                atom["atom_type"],
-                atom["endpoint"],
-                atom["status"],
-                json.dumps(atom["capabilities"], ensure_ascii=False),
-                t,
-                t,
-            ),
-        )
-
-    conn.commit()
+        result = submit_atom(conn, to_registry_atom(atom), actor="insert_atoms")
+        if result.get("success"):
+            ok += 1
+        else:
+            print(f"[跳过] {atom['atom_id']}: {result.get('message')}")
     conn.close()
-    print(f"[OK] 已导入 {len(atoms)} 个 MCP 服务器原子到 {DB_PATH}")
+    print(f"完成：{ok}/{len(atoms)} 个原子已提交到注册中心")
 
 
 if __name__ == "__main__":
     main()
+
+
+def to_registry_atom(raw: dict) -> dict:
+    """把 legacy atoms 行格式转成注册中心 v2 原子（SCHEMA_AUTHORITY 状态 B）。"""
+    capabilities = raw.get("capabilities", []) or []
+    functions = []
+    for cap in capabilities:
+        if isinstance(cap, str):
+            functions.append({"name": cap.split("/")[-1], "description": cap})
+        elif isinstance(cap, dict) and cap.get("name"):
+            functions.append(
+                {"name": cap["name"], "description": cap.get("description", "")}
+            )
+    return {
+        "atom_id": raw["atom_id"],
+        "name": raw.get("label", raw["atom_id"]),
+        "version": "1.0.0",
+        "description": raw.get("description", "") or raw.get("label", ""),
+        "purpose": {"summary": raw.get("label", ""), "functions": functions},
+        "architecture": {
+            "type": raw.get("atom_type", "mcp-server"),
+            "runtime": "python3.10+",
+            "dependencies": [],
+        },
+        "ownership": {"author": "mcp-import", "license": "MIT / project license"},
+        "runtime": {"endpoint": raw.get("endpoint", "")},
+        "lifecycle": {"status": "submitted"},
+    }
