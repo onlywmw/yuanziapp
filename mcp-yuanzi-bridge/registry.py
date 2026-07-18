@@ -10,6 +10,9 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import time
+import urllib.error
+import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -367,9 +370,11 @@ def set_atom_status(
 ) -> Dict[str, Any]:
     """在注册后变更原子运行状态：running / offline / deprecated。"""
     allowed_transitions = {
-        "registered": ["running", "offline", "deprecated"],
-        "running": ["offline", "deprecated", "registered"],
-        "offline": ["running", "deprecated", "registered"],
+        "registered": ["probing", "running", "unreachable", "offline", "deprecated"],
+        "probing": ["running", "unreachable", "offline", "deprecated"],
+        "running": ["probing", "unreachable", "offline", "deprecated", "registered"],
+        "unreachable": ["probing", "running", "offline", "deprecated"],
+        "offline": ["probing", "running", "deprecated", "registered"],
         "deprecated": ["registered"],
     }
     row = conn.execute(
@@ -405,6 +410,117 @@ def set_atom_status(
         "old_status": old_status,
         "new_status": status,
     }
+
+
+# 探测后允许变更生命周期的状态；deprecated / rejected 只记录探测结果，不改状态
+_PROBEABLE_STATUSES = {"registered", "probing", "running", "unreachable", "offline"}
+
+
+def probe_atom(
+    conn: sqlite3.Connection,
+    atom_id: str,
+    timeout: float = 2.0,
+    actor: str = "probe",
+) -> Dict[str, Any]:
+    """真实请求原子的 health_url（缺省用 endpoint），按结果更新状态。
+
+    - 2xx          -> running
+    - 其他 HTTP 码 -> unreachable（有进程监听但不健康）
+    - 连接错误/超时 -> unreachable
+
+    探测结果写入 runtime_json（last_probe_at / last_probe_status /
+    last_probe_latency_ms / consecutive_failures），并记一条审计日志。
+    """
+    atom = get_atom(conn, atom_id)
+    if not atom:
+        return {
+            "success": False,
+            "error": "not_found",
+            "message": f"Atom '{atom_id}' not found",
+        }
+
+    runtime = atom.get("runtime") or {}
+    url = runtime.get("health_url") or runtime.get("endpoint")
+    if not url:
+        return {
+            "success": False,
+            "error": "no_endpoint",
+            "message": f"Atom '{atom_id}' has no health_url or endpoint",
+        }
+
+    lifecycle = atom.get("lifecycle", {})
+    old_status = lifecycle.get("status")
+
+    started = time.monotonic()
+    detail = ""
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            code = resp.status
+        ok = 200 <= code < 300
+        probe_status = "ok" if ok else f"http_{code}"
+    except urllib.error.HTTPError as exc:
+        ok = False
+        probe_status = f"http_{exc.code}"
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        ok = False
+        probe_status = "connection_error"
+        reason = getattr(exc, "reason", exc)
+        detail = str(reason)
+    latency_ms = round((time.monotonic() - started) * 1000, 1)
+
+    runtime["last_probe_at"] = now_iso()
+    runtime["last_probe_status"] = probe_status
+    runtime["last_probe_latency_ms"] = latency_ms
+    runtime["consecutive_failures"] = (
+        0 if ok else int(runtime.get("consecutive_failures", 0)) + 1
+    )
+
+    new_status = old_status
+    if old_status in _PROBEABLE_STATUSES:
+        new_status = "running" if ok else "unreachable"
+        lifecycle["status"] = new_status
+        lifecycle["updated_at"] = now_iso()
+
+    conn.execute(
+        f"UPDATE {REGISTRY_TABLE} SET runtime_json = ?, lifecycle_json = ?, updated_at = ? WHERE atom_id = ?",
+        (
+            json.dumps(runtime, ensure_ascii=False),
+            json.dumps(lifecycle, ensure_ascii=False),
+            now_iso(),
+            atom_id,
+        ),
+    )
+    conn.commit()
+    _audit(
+        conn,
+        atom_id,
+        "probe",
+        old_status,
+        new_status,
+        actor,
+        f"{probe_status} {latency_ms}ms {detail}".strip(),
+    )
+    return {
+        "success": True,
+        "atom_id": atom_id,
+        "ok": ok,
+        "probe_status": probe_status,
+        "latency_ms": latency_ms,
+        "old_status": old_status,
+        "new_status": new_status,
+    }
+
+
+def probe_atoms(
+    conn: sqlite3.Connection,
+    atom_ids: Optional[List[str]] = None,
+    timeout: float = 2.0,
+    actor: str = "probe",
+) -> List[Dict[str, Any]]:
+    """批量探测。atom_ids 为 None 时探测注册表里的所有原子。"""
+    if atom_ids is None:
+        atom_ids = [a["atom_id"] for a in list_atoms(conn)]
+    return [probe_atom(conn, aid, timeout=timeout, actor=actor) for aid in atom_ids]
 
 
 def get_atom(conn: sqlite3.Connection, atom_id: str) -> Optional[Dict[str, Any]]:
