@@ -36,6 +36,7 @@
 | [DESIGN_M5_SEMANTIC_SEARCH.md](DESIGN_M5_SEMANTIC_SEARCH.md) | 语义搜索 | ✅ 已实现 |
 | [DESIGN_M6_SECURITY.md](DESIGN_M6_SECURITY.md) | 安全与多租户 | 📐 设计就绪 |
 | [DESIGN_M7_MARKETPLACE_WORKFLOW.md](DESIGN_M7_MARKETPLACE_WORKFLOW.md) | 原子市场与工作流 | 📐 设计就绪 |
+| [DESIGN_APK_ARCHITECTURE.md](DESIGN_APK_ARCHITECTURE.md) | APK 客户端架构 | 📐 设计就绪 |
 
 ## 质量治理 (Governance)
 
