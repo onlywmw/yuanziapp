@@ -136,11 +136,11 @@ def test_migration_backfills_existing_atoms(conn):
     conn.commit()
 
     applied = migrate(conn)
-    assert applied == [1, 2, 3]
+    assert applied == [1, 2, 3, 4]
 
     versions = list_atom_versions(conn, "com.example.legacy")
     assert len(versions) == 1
     assert versions[0]["version"] == "1.0.0"
     assert versions[0]["signature_hash"] == "deadbeef"
     assert versions[0]["created_at"] == "2026-01-01T00:00:00+00:00"
-    assert applied_versions(conn) == [1, 2, 3]
+    assert applied_versions(conn) == [1, 2, 3, 4]
