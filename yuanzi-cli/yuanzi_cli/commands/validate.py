@@ -1,8 +1,8 @@
 """`yuanzi validate` command - validate an atom directory."""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from pydantic import ValidationError
@@ -68,7 +68,7 @@ def run_validate(
     try:
         meta = validate_meta(raw)
     except ValidationError as exc:
-        typer.echo(f"Error: meta.yaml validation failed", err=True)
+        typer.echo("Error: meta.yaml validation failed", err=True)
         for error in exc.errors():
             loc = ".".join(str(x) for x in error["loc"])
             typer.echo(f"  - {loc}: {error['msg']}", err=True)
@@ -76,7 +76,10 @@ def run_validate(
 
     missing = _missing_files(atom_dir, meta.kernel_type)
     if missing:
-        typer.echo(f"Error: missing required files for kernel_type '{meta.kernel_type}'", err=True)
+        typer.echo(
+            f"Error: missing required files for kernel_type '{meta.kernel_type}'",
+            err=True,
+        )
         for name in missing:
             typer.echo(f"  - {name}", err=True)
         raise typer.Exit(code=1)

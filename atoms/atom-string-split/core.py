@@ -1,5 +1,6 @@
 # core.py
 
+
 def handler(data):
     """
     将字符串按分隔符拆分为列表
@@ -16,15 +17,6 @@ def handler(data):
         else:
             parts = text.split(delimiter, int(maxsplit))
 
-        return {
-            "status": "success",
-            "data": {
-                "parts": parts,
-                "count": len(parts)
-            }
-        }
+        return {"status": "success", "data": {"parts": parts, "count": len(parts)}}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}

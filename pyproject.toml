@@ -1,0 +1,51 @@
+# Root tool configuration for the Yuanzi monorepo.
+# This file intentionally does NOT define a Python package; individual
+# packages (e.g. yuanzi-cli) keep their own pyproject.toml.
+
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | \.pytest_cache
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+]
+
+[tool.ruff.lint.pep8-naming]
+# http.server handlers use CamelCase method names from the standard library.
+extend-ignore-names = ["do_GET", "do_POST"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

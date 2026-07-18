@@ -4,6 +4,7 @@
 This file is the shell of the atom. It should NOT contain business logic.
 Business logic lives in `atom/core.py` (for python_script kernels).
 """
+
 import json
 import os
 import sys

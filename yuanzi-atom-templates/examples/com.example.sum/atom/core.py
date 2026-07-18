@@ -2,6 +2,7 @@
 
 The `handle` function receives a JSON payload and returns the sum of `a` and `b`.
 """
+
 from typing import Any, Dict
 
 

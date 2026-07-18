@@ -4,12 +4,10 @@
 Yuanzi Core - 原子化注册中心与事件总线
 端口：8080
 """
+
 import json
 import os
-import socket
 import sys
-import threading
-import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Tuple
 
@@ -22,6 +20,7 @@ CORE_HOST = os.environ.get("YUANZI_CORE_HOST", "127.0.0.1")
 
 def now_utc() -> str:
     from datetime import datetime, timezone
+
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -33,7 +32,9 @@ def err_response(error: str) -> Dict[str, Any]:
     return {"ok": False, "error": error}
 
 
-def send_json(handler: BaseHTTPRequestHandler, status: int, payload: Dict[str, Any]) -> None:
+def send_json(
+    handler: BaseHTTPRequestHandler, status: int, payload: Dict[str, Any]
+) -> None:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
@@ -60,7 +61,12 @@ def route_graph() -> Tuple[int, Dict[str, Any]]:
     caps = db.list_capabilities()
 
     nodes = [
-        {"id": "yuanzi-core", "label": "Yuanzi Core", "type": "core", "status": "online"},
+        {
+            "id": "yuanzi-core",
+            "label": "Yuanzi Core",
+            "type": "core",
+            "status": "online",
+        },
         {"id": "widgetmcp", "label": "组件 MCP", "type": "client", "status": "online"},
     ]
     edges = [
@@ -69,18 +75,19 @@ def route_graph() -> Tuple[int, Dict[str, Any]]:
 
     for atom in atoms:
         atom_id = atom["atom_id"]
-        nodes.append({
-            "id": atom_id,
-            "label": atom["label"],
-            "type": atom["atom_type"],
-            "status": atom["status"],
-            "endpoint": atom["endpoint"],
-            "capabilities": atom["capabilities"],
-        })
+        nodes.append(
+            {
+                "id": atom_id,
+                "label": atom["label"],
+                "type": atom["atom_type"],
+                "status": atom["status"],
+                "endpoint": atom["endpoint"],
+                "capabilities": atom["capabilities"],
+            }
+        )
         edges.append({"source": "yuanzi-core", "target": atom_id})
 
     # 根据 capability 增加细粒度连线
-    tool_to_atom = {cap["tool_id"]: cap["target"] for cap in caps}
     for cap in caps:
         target = cap["target"]
         if target == "yuanzi-core":
@@ -92,7 +99,9 @@ def route_graph() -> Tuple[int, Dict[str, Any]]:
                 atom_id = atom["atom_id"]
                 break
         if atom_id and atom_id != "yuanzi-core":
-            edges.append({"source": "yuanzi-core", "target": atom_id, "label": cap["tool_id"]})
+            edges.append(
+                {"source": "yuanzi-core", "target": atom_id, "label": cap["tool_id"]}
+            )
 
     return 200, ok_response({"nodes": nodes, "edges": edges})
 
@@ -121,11 +130,13 @@ def route_poll_browser_command() -> Tuple[int, Dict[str, Any]]:
     cmd = db.poll_pending_browser_command()
     if cmd is None:
         return 200, ok_response(None)
-    return 200, ok_response({
-        "event_id": cmd["id"],
-        "tool_id": cmd["tool_id"],
-        "args": cmd["args"],
-    })
+    return 200, ok_response(
+        {
+            "event_id": cmd["id"],
+            "tool_id": cmd["tool_id"],
+            "args": cmd["args"],
+        }
+    )
 
 
 def route_event(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:

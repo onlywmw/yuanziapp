@@ -1,4 +1,5 @@
 """Yuanzi CLI entry point."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -66,10 +67,11 @@ def test(
     validate_first: bool = typer.Option(
         True, "--validate/--no-validate", help="Validate atom before running tests"
     ),
+    fast: bool = typer.Option(False, "--fast", help="Run only fast kernel tests"),
     pytest_args: list[str] = typer.Argument([], help="Extra pytest arguments"),
 ) -> None:
     """Run an atom's pytest suite."""
-    run_test(path, validate_first, pytest_args)
+    run_test(path, validate_first, fast, pytest_args)
 
 
 if __name__ == "__main__":

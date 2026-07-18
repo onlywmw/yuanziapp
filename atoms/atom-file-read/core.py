@@ -22,7 +22,10 @@ def handler(data):
 
         size = os.path.getsize(path)
         if size > max_size:
-            return {"status": "error", "message": f"file too large: {size} bytes > {max_size}"}
+            return {
+                "status": "error",
+                "message": f"file too large: {size} bytes > {max_size}",
+            }
 
         if mode == "base64":
             with open(path, "rb") as f:
@@ -34,15 +37,7 @@ def handler(data):
 
         return {
             "status": "success",
-            "data": {
-                "path": path,
-                "size": size,
-                "mode": mode,
-                "content": content
-            }
+            "data": {"path": path, "size": size, "mode": mode, "content": content},
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}

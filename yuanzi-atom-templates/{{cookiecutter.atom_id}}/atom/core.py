@@ -3,6 +3,7 @@
 The `handle` function receives a JSON payload from the `/run` endpoint
 and must return a JSON-serializable dict.
 """
+
 from typing import Any, Dict
 
 

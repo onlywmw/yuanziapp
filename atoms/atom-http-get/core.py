@@ -18,10 +18,7 @@ def handler(data):
         allow_redirects = data.get("allow_redirects", True)
 
         resp = requests.get(
-            url,
-            headers=headers,
-            timeout=timeout,
-            allow_redirects=allow_redirects
+            url, headers=headers, timeout=timeout, allow_redirects=allow_redirects
         )
 
         # 尽量返回文本，但限制长度避免过大
@@ -37,11 +34,8 @@ def handler(data):
                 "url": resp.url,
                 "headers": dict(resp.headers),
                 "text": text,
-                "encoding": resp.encoding
-            }
+                "encoding": resp.encoding,
+            },
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}

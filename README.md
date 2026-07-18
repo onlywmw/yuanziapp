@@ -88,6 +88,26 @@ python scripts/sync-to-device.py
 sh /data/data/com.termux/files/home/yuanzi-project/start_yuanzi_termux.sh
 ```
 
+## 代码质量门禁
+
+安装 pre-commit 钩子后，每次 `git commit` 会自动运行格式化、lint 和示例原子测试：
+
+```bash
+scripts/install-hooks.sh
+```
+
+手动跑所有检查：
+
+```bash
+pre-commit run --all-files
+```
+
+手动格式化全部代码：
+
+```bash
+scripts/format-all.sh
+```
+
 ## 注册中心
 
 `mcp-yuanzi-bridge/` 包含：

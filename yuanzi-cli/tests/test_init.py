@@ -1,10 +1,10 @@
 """Tests for the yuanzi init command."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 from typer.testing import CliRunner
-
 from yuanzi_cli.main import app
 
 runner = CliRunner()

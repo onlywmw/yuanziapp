@@ -1,5 +1,4 @@
 """Kernel unit tests."""
-import pytest
 
 from atom.core import handle
 

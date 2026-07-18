@@ -2,11 +2,12 @@
 """
 Yuanzi 原子化服务 - 共享 SQLite 数据层
 """
+
+import json
 import os
 import sqlite3
-import json
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 DB_DIR = os.environ.get("YUANZI_DB_DIR", "/opt/yuanzi/data")
 DB_PATH = os.path.join(DB_DIR, "agent.db")
@@ -71,14 +72,14 @@ def init_db() -> None:
 
 def seed_capabilities() -> None:
     defaults = [
-        ("browser/open", "atom", "yuanzi-browser", '{}', '{}'),
-        ("browser/navigate", "atom", "yuanzi-browser", '{}', '{}'),
-        ("browser/back", "atom", "yuanzi-browser", '{}', '{}'),
-        ("browser/forward", "atom", "yuanzi-browser", '{}', '{}'),
-        ("browser/reload", "atom", "yuanzi-browser", '{}', '{}'),
-        ("widget/list", "atom", "yuanzi-widget", '{}', '{}'),
-        ("deepseek/balance", "atom", "yuanzi-deepseek", '{}', '{}'),
-        ("obsidian/card", "atom", "yuanzi-obsidian", '{}', '{}'),
+        ("browser/open", "atom", "yuanzi-browser", "{}", "{}"),
+        ("browser/navigate", "atom", "yuanzi-browser", "{}", "{}"),
+        ("browser/back", "atom", "yuanzi-browser", "{}", "{}"),
+        ("browser/forward", "atom", "yuanzi-browser", "{}", "{}"),
+        ("browser/reload", "atom", "yuanzi-browser", "{}", "{}"),
+        ("widget/list", "atom", "yuanzi-widget", "{}", "{}"),
+        ("deepseek/balance", "atom", "yuanzi-deepseek", "{}", "{}"),
+        ("obsidian/card", "atom", "yuanzi-obsidian", "{}", "{}"),
     ]
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -103,8 +104,13 @@ def _from_json(s: str) -> Any:
     return json.loads(s) if s else {}
 
 
-def insert_event(source: str, tool_id: Optional[str], args: Dict[str, Any], result: Dict[str, Any],
-                 status: str = "success") -> int:
+def insert_event(
+    source: str,
+    tool_id: Optional[str],
+    args: Dict[str, Any],
+    result: Dict[str, Any],
+    status: str = "success",
+) -> int:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -169,8 +175,14 @@ def list_capabilities() -> List[Dict[str, Any]]:
     return result
 
 
-def register_atom(atom_id: str, label: str, atom_type: str, endpoint: str,
-                  capabilities: List[str], status: str = "online") -> None:
+def register_atom(
+    atom_id: str,
+    label: str,
+    atom_type: str,
+    endpoint: str,
+    capabilities: List[str],
+    status: str = "online",
+) -> None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     t = now_utc()

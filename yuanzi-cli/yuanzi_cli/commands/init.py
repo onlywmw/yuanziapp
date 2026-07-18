@@ -1,4 +1,5 @@
 """`yuanzi init` command - scaffold a new atom from a Cookiecutter template."""
+
 from __future__ import annotations
 
 from pathlib import Path

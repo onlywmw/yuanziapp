@@ -1,11 +1,11 @@
 """HTTP endpoint health tests for com.example.sum."""
+
 import subprocess
 import sys
 import time
 
 import pytest
 import requests
-
 from server import load_meta
 
 META = load_meta()

@@ -1,9 +1,9 @@
 """Helpers for locating the atom template directory."""
+
 from __future__ import annotations
 
 import os
 from pathlib import Path
-
 
 DEFAULT_TEMPLATE_DIR_NAME = "yuanzi-atom-templates"
 

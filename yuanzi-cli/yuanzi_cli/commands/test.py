@@ -1,4 +1,5 @@
 """`yuanzi test` command - run tests for an atom."""
+
 from __future__ import annotations
 
 import subprocess
@@ -25,6 +26,11 @@ def run_test(
         "--validate/--no-validate",
         help="Run yuanzi validate before executing tests",
     ),
+    fast: bool = typer.Option(
+        False,
+        "--fast",
+        help="Run only fast kernel tests (skip server/endpoint tests)",
+    ),
     pytest_args: list[str] = typer.Argument(
         [],
         help="Additional arguments forwarded to pytest",
@@ -33,6 +39,7 @@ def run_test(
     """Run pytest for a Yuanzi atom.
 
     By default the atom is validated first; use --no-validate to skip.
+    Use --fast to run only kernel-level tests and skip endpoint tests.
     """
     atom_dir = path.resolve()
 
@@ -40,7 +47,8 @@ def run_test(
         run_validate(atom_dir)
         typer.echo("---")
 
-    typer.echo(f"Running pytest in {atom_dir}")
-    cmd = [sys.executable, "-m", "pytest", str(atom_dir), *pytest_args]
+    extra_args = ["-k", "kernel"] if fast else []
+    typer.echo(f"Running pytest in {atom_dir}" + (" (fast mode)" if fast else ""))
+    cmd = [sys.executable, "-m", "pytest", str(atom_dir), *extra_args, *pytest_args]
     result = subprocess.run(cmd, cwd=atom_dir)
     raise typer.Exit(code=result.returncode)

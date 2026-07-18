@@ -4,12 +4,12 @@
 提供原子的提交、审核、注册、去重、状态流转、审计日志等功能。
 注册信息必须满足 atom-registry-schema.json 定义的完整字段。
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import sqlite3
-import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,7 +59,9 @@ def compute_signature(atom: Dict[str, Any]) -> str:
     - 接口规范
     """
     purpose = atom.get("purpose", {})
-    functions = sorted({f.get("name", "") for f in purpose.get("functions", []) if f.get("name")})
+    functions = sorted(
+        {f.get("name", "") for f in purpose.get("functions", []) if f.get("name")}
+    )
     arch = atom.get("architecture", {})
     deps = sorted(set(arch.get("dependencies", [])))
 
@@ -123,8 +125,15 @@ def ensure_registry_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def _audit(conn: sqlite3.Connection, atom_id: str, action: str, old_status: Optional[str],
-           new_status: Optional[str], actor: str, detail: str = "") -> None:
+def _audit(
+    conn: sqlite3.Connection,
+    atom_id: str,
+    action: str,
+    old_status: Optional[str],
+    new_status: Optional[str],
+    actor: str,
+    detail: str = "",
+) -> None:
     conn.execute(
         f"""
         INSERT INTO {AUDIT_TABLE}
@@ -136,8 +145,9 @@ def _audit(conn: sqlite3.Connection, atom_id: str, action: str, old_status: Opti
     conn.commit()
 
 
-def _insert_or_update(conn: sqlite3.Connection, atom: Dict[str, Any],
-                      signature: str, actor: str) -> Dict[str, Any]:
+def _insert_or_update(
+    conn: sqlite3.Connection, atom: Dict[str, Any], signature: str, actor: str
+) -> Dict[str, Any]:
     now = now_iso()
     lifecycle = atom.get("lifecycle", {})
     if "submitted_at" not in lifecycle:
@@ -201,10 +211,16 @@ def _insert_or_update(conn: sqlite3.Connection, atom: Dict[str, Any],
         ),
     )
     conn.commit()
-    return {"atom_id": atom["atom_id"], "signature": signature, "status": lifecycle.get("status", "submitted")}
+    return {
+        "atom_id": atom["atom_id"],
+        "signature": signature,
+        "status": lifecycle.get("status", "submitted"),
+    }
 
 
-def submit_atom(conn: sqlite3.Connection, atom: Dict[str, Any], actor: str = "system") -> Dict[str, Any]:
+def submit_atom(
+    conn: sqlite3.Connection, atom: Dict[str, Any], actor: str = "system"
+) -> Dict[str, Any]:
     """提交一个新原子进入审核队列。"""
     atom_id = atom.get("atom_id", "")
     if not atom_id:
@@ -240,19 +256,37 @@ def submit_atom(conn: sqlite3.Connection, atom: Dict[str, Any], actor: str = "sy
     atom["signature"]["source"] = "auto-computed"
 
     result = _insert_or_update(conn, atom, signature, actor)
-    _audit(conn, atom_id, "submit", old_status, "submitted", actor, f"signature={signature}")
+    _audit(
+        conn,
+        atom_id,
+        "submit",
+        old_status,
+        "submitted",
+        actor,
+        f"signature={signature}",
+    )
     result["success"] = True
     return result
 
 
-def review_atom(conn: sqlite3.Connection, atom_id: str, approved: bool,
-                reviewer: str = "system", comments: str = "", score: Optional[float] = None) -> Dict[str, Any]:
+def review_atom(
+    conn: sqlite3.Connection,
+    atom_id: str,
+    approved: bool,
+    reviewer: str = "system",
+    comments: str = "",
+    score: Optional[float] = None,
+) -> Dict[str, Any]:
     """审核原子，通过后进入 registered 状态，拒绝进入 rejected 状态。"""
     row = conn.execute(
         f"SELECT lifecycle_json FROM {REGISTRY_TABLE} WHERE atom_id = ?", (atom_id,)
     ).fetchone()
     if not row:
-        return {"success": False, "error": "not_found", "message": f"Atom '{atom_id}' not found"}
+        return {
+            "success": False,
+            "error": "not_found",
+            "message": f"Atom '{atom_id}' not found",
+        }
 
     lifecycle = json.loads(row[0])
     old_status = lifecycle.get("status")
@@ -278,16 +312,27 @@ def review_atom(conn: sqlite3.Connection, atom_id: str, approved: bool,
     lifecycle["updated_at"] = now_iso()
     conn.execute(
         f"UPDATE {REGISTRY_TABLE} SET lifecycle_json = ?, reviewed_at = ?, reviewed_by = ?, review_comments = ?, review_score = ? WHERE atom_id = ?",
-        (json.dumps(lifecycle, ensure_ascii=False), lifecycle["review_result"]["reviewed_at"],
-         reviewer, comments, score, atom_id),
+        (
+            json.dumps(lifecycle, ensure_ascii=False),
+            lifecycle["review_result"]["reviewed_at"],
+            reviewer,
+            comments,
+            score,
+            atom_id,
+        ),
     )
     conn.commit()
     _audit(conn, atom_id, "review", old_status, lifecycle["status"], reviewer, comments)
     return {"success": True, "atom_id": atom_id, "status": lifecycle["status"]}
 
 
-def set_atom_status(conn: sqlite3.Connection, atom_id: str, status: str,
-                    actor: str = "system", detail: str = "") -> Dict[str, Any]:
+def set_atom_status(
+    conn: sqlite3.Connection,
+    atom_id: str,
+    status: str,
+    actor: str = "system",
+    detail: str = "",
+) -> Dict[str, Any]:
     """在注册后变更原子运行状态：running / offline / deprecated。"""
     allowed_transitions = {
         "registered": ["running", "offline", "deprecated"],
@@ -299,7 +344,11 @@ def set_atom_status(conn: sqlite3.Connection, atom_id: str, status: str,
         f"SELECT lifecycle_json FROM {REGISTRY_TABLE} WHERE atom_id = ?", (atom_id,)
     ).fetchone()
     if not row:
-        return {"success": False, "error": "not_found", "message": f"Atom '{atom_id}' not found"}
+        return {
+            "success": False,
+            "error": "not_found",
+            "message": f"Atom '{atom_id}' not found",
+        }
 
     lifecycle = json.loads(row[0])
     old_status = lifecycle.get("status")
@@ -318,7 +367,12 @@ def set_atom_status(conn: sqlite3.Connection, atom_id: str, status: str,
     )
     conn.commit()
     _audit(conn, atom_id, "status_change", old_status, status, actor, detail)
-    return {"success": True, "atom_id": atom_id, "old_status": old_status, "new_status": status}
+    return {
+        "success": True,
+        "atom_id": atom_id,
+        "old_status": old_status,
+        "new_status": status,
+    }
 
 
 def get_atom(conn: sqlite3.Connection, atom_id: str) -> Optional[Dict[str, Any]]:
@@ -330,8 +384,12 @@ def get_atom(conn: sqlite3.Connection, atom_id: str) -> Optional[Dict[str, Any]]
     return _row_to_atom(row)
 
 
-def list_atoms(conn: sqlite3.Connection, status: Optional[str] = None,
-               category: Optional[str] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
+def list_atoms(
+    conn: sqlite3.Connection,
+    status: Optional[str] = None,
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     query = f"SELECT * FROM {REGISTRY_TABLE} WHERE 1=1"
     params: List[Any] = []
     if status:
@@ -362,7 +420,9 @@ def _row_to_atom(row: sqlite3.Row) -> Dict[str, Any]:
     return atom
 
 
-def get_audit_log(conn: sqlite3.Connection, atom_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_audit_log(
+    conn: sqlite3.Connection, atom_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
     query = f"SELECT * FROM {AUDIT_TABLE}"
     params: List[Any] = []
     if atom_id:
@@ -395,7 +455,9 @@ def compute_registry_stats(conn: sqlite3.Connection) -> Dict[str, Any]:
     }
 
 
-def dump_registry(conn: sqlite3.Connection, include_audit: bool = False) -> Dict[str, Any]:
+def dump_registry(
+    conn: sqlite3.Connection, include_audit: bool = False
+) -> Dict[str, Any]:
     return {
         "schema_version": "2.0",
         "generated_at": now_iso(),

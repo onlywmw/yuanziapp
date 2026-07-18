@@ -3,13 +3,13 @@
 These tests assume `server.py` is already running on the configured port.
 Use pytest fixture or run server in a subprocess for integration tests.
 """
+
 import subprocess
 import sys
 import time
 
 import pytest
 import requests
-
 from server import load_meta
 
 META = load_meta()

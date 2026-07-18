@@ -8,9 +8,9 @@ Yuanzi Browser Atom - 浏览器能力原子
   2. 轮询 /agent/command/poll 获取 browser/* 命令
   3. 暴露 /latest-command 给 Android Widget MCP 查询
 """
+
 import json
 import os
-import sys
 import threading
 import time
 import urllib.error
@@ -29,7 +29,9 @@ latest_command: Optional[Dict[str, Any]] = None
 latest_lock = threading.Lock()
 
 
-def send_json(handler: BaseHTTPRequestHandler, status: int, payload: Dict[str, Any]) -> None:
+def send_json(
+    handler: BaseHTTPRequestHandler, status: int, payload: Dict[str, Any]
+) -> None:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
@@ -73,7 +75,13 @@ def register_with_core() -> bool:
             "label": LABEL,
             "type": ATOM_TYPE,
             "endpoint": endpoint,
-            "capabilities": ["browser/open", "browser/navigate", "browser/back", "browser/forward", "browser/reload"],
+            "capabilities": [
+                "browser/open",
+                "browser/navigate",
+                "browser/back",
+                "browser/forward",
+                "browser/reload",
+            ],
         },
     )
     print(f"[{ATOM_ID}] register: ok={ok} resp={resp}")
@@ -98,7 +106,9 @@ class BrowserHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            send_json(self, 200, {"ok": True, "data": {"atom": ATOM_ID, "status": "ok"}})
+            send_json(
+                self, 200, {"ok": True, "data": {"atom": ATOM_ID, "status": "ok"}}
+            )
         elif self.path == "/latest-command":
             with latest_lock:
                 cmd = latest_command
@@ -115,7 +125,11 @@ class BrowserHandler(BaseHTTPRequestHandler):
             raw = self.rfile.read(length).decode("utf-8") if length else "{}"
             body = json.loads(raw) if raw else {}
             ok, resp = http_post(f"{CORE_URL}/agent/event", body)
-            send_json(self, 200 if ok else 502, resp if ok else {"ok": False, "error": str(resp)})
+            send_json(
+                self,
+                200 if ok else 502,
+                resp if ok else {"ok": False, "error": str(resp)},
+            )
         else:
             send_json(self, 404, {"ok": False, "error": "Not Found"})
 

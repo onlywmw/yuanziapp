@@ -5,6 +5,7 @@ Reads ``yuanzi-config.yaml`` for the adb path, device root, ignore patterns and
 sync items.  Files are first staged into a temporary directory (ignoring
 unwanted patterns) and then pushed with ``adb push``.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,7 +19,6 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
-
 
 DEFAULT_CONFIG = "yuanzi-config.yaml"
 
@@ -122,16 +122,16 @@ def adb_check(adb: str) -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Sync Yuanzi project to Android tablet")
+    parser = argparse.ArgumentParser(
+        description="Sync Yuanzi project to Android tablet"
+    )
     parser.add_argument(
         "-c", "--config", default=DEFAULT_CONFIG, help="Path to yuanzi-config.yaml"
     )
     parser.add_argument(
         "-n", "--dry-run", action="store_true", help="Show what would be done"
     )
-    parser.add_argument(
-        "--no-chown", action="store_true", help="Skip chown on device"
-    )
+    parser.add_argument("--no-chown", action="store_true", help="Skip chown on device")
     args = parser.parse_args(argv)
 
     config_path = Path(args.config).resolve()
@@ -142,7 +142,9 @@ def main(argv: list[str] | None = None) -> int:
     config = load_config(config_path)
     sync_cfg = config.get("sync", {})
     adb = sync_cfg.get("adb_path", "adb")
-    device_root = sync_cfg.get("device_root", "/data/data/com.termux/files/home/yuanzi-project")
+    device_root = sync_cfg.get(
+        "device_root", "/data/data/com.termux/files/home/yuanzi-project"
+    )
     device_user = sync_cfg.get("device_user", "u0_a304")
     ignore_patterns = sync_cfg.get("ignore", [])
     items = sync_cfg.get("items", [])
@@ -200,12 +202,17 @@ def main(argv: list[str] | None = None) -> int:
             ]
             rc = run_cmd(chown_cmd, dry_run=args.dry_run)
             if rc != 0:
-                print("chown failed; files are pushed but ownership may be wrong.", file=sys.stderr)
+                print(
+                    "chown failed; files are pushed but ownership may be wrong.",
+                    file=sys.stderr,
+                )
                 return rc
 
     print("Sync complete.")
     if not args.dry_run:
-        print(f"Restart Yuanzi on the tablet with: sh {device_root}/start_yuanzi_termux.sh")
+        print(
+            f"Restart Yuanzi on the tablet with: sh {device_root}/start_yuanzi_termux.sh"
+        )
     return 0
 
 

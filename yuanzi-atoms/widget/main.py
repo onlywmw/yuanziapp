@@ -4,9 +4,9 @@
 Yuanzi Widget Atom - 组件能力原子
 端口：8082
 """
+
 import json
 import os
-import sys
 import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,7 +20,9 @@ HOST = os.environ.get("YUANZI_WIDGET_HOST", "127.0.0.1")
 CORE_URL = os.environ.get("YUANZI_CORE_URL", "http://127.0.0.1:8080")
 
 
-def send_json(handler: BaseHTTPRequestHandler, status: int, payload: Dict[str, Any]) -> None:
+def send_json(
+    handler: BaseHTTPRequestHandler, status: int, payload: Dict[str, Any]
+) -> None:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
@@ -32,7 +34,9 @@ def send_json(handler: BaseHTTPRequestHandler, status: int, payload: Dict[str, A
 
 def http_post(url: str, body: Dict[str, Any]) -> bool:
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(
+        url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+    )
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return json.loads(resp.read().decode("utf-8")).get("ok", False)
@@ -60,7 +64,9 @@ class WidgetHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            send_json(self, 200, {"ok": True, "data": {"atom": ATOM_ID, "status": "ok"}})
+            send_json(
+                self, 200, {"ok": True, "data": {"atom": ATOM_ID, "status": "ok"}}
+            )
         elif self.path == "/widgets":
             send_json(self, 200, {"ok": True, "data": []})
         else:

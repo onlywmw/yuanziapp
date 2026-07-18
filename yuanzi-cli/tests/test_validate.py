@@ -1,9 +1,8 @@
 """Tests for the yuanzi validate command."""
+
 from __future__ import annotations
 
-import pytest
 from typer.testing import CliRunner
-
 from yuanzi_cli.main import app
 
 runner = CliRunner()

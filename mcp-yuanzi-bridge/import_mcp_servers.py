@@ -9,14 +9,15 @@
 - 直接写入 Yuanzi core 的 SQLite 数据库 atoms 表
 - 状态标记为 "declared"（已声明，尚未运行）
 """
+
+import json
 import os
 import re
-import sys
-import json
 import sqlite3
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Yuanzi DB 路径（在 Termux/Debian 中）
 DB_PATH = os.environ.get("YUANZI_DB_PATH", "/opt/yuanzi/data/agent.db")
@@ -95,7 +96,6 @@ def scan_mcp_servers(src_dir: Path) -> List[Dict[str, Any]]:
         atom_id = f"mcp.{short_name}"
 
         readme = server_dir / "README.md"
-        pyproject = server_dir / "pyproject.toml"
 
         # 找 server.py（可能在不同层级）
         server_py = None
@@ -113,16 +113,18 @@ def scan_mcp_servers(src_dir: Path) -> List[Dict[str, Any]]:
         if not capabilities:
             capabilities = [f"mcp/{short_name}/invoke"]
 
-        atoms.append({
-            "atom_id": atom_id,
-            "label": display_name,
-            "atom_type": "mcp-server",
-            "endpoint": f"http://127.0.0.1:0/{short_name}",  # 占位，未运行
-            "status": "declared",
-            "capabilities": capabilities,
-            "description": description,
-            "source_dir": str(server_dir),
-        })
+        atoms.append(
+            {
+                "atom_id": atom_id,
+                "label": display_name,
+                "atom_type": "mcp-server",
+                "endpoint": f"http://127.0.0.1:0/{short_name}",  # 占位，未运行
+                "status": "declared",
+                "capabilities": capabilities,
+                "description": description,
+                "source_dir": str(server_dir),
+            }
+        )
 
     return atoms
 
@@ -134,7 +136,8 @@ def import_to_yuanzi(atoms: List[Dict[str, Any]]):
     cursor = conn.cursor()
 
     # 确保表存在
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS atoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -146,11 +149,13 @@ def import_to_yuanzi(atoms: List[Dict[str, Any]]):
             updated_at TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
-    """)
+    """
+    )
 
     t = now_utc()
     for atom in atoms:
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO atoms (atom_id, label, atom_type, endpoint, status, capabilities, updated_at, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(atom_id) DO UPDATE SET
@@ -160,16 +165,18 @@ def import_to_yuanzi(atoms: List[Dict[str, Any]]):
                 status = excluded.status,
                 capabilities = excluded.capabilities,
                 updated_at = excluded.updated_at
-        """, (
-            atom["atom_id"],
-            atom["label"],
-            atom["atom_type"],
-            atom["endpoint"],
-            atom["status"],
-            json.dumps(atom["capabilities"], ensure_ascii=False),
-            t,
-            t,
-        ))
+        """,
+            (
+                atom["atom_id"],
+                atom["label"],
+                atom["atom_type"],
+                atom["endpoint"],
+                atom["status"],
+                json.dumps(atom["capabilities"], ensure_ascii=False),
+                t,
+                t,
+            ),
+        )
 
     conn.commit()
     conn.close()
@@ -186,7 +193,9 @@ def main():
     print(f"发现 {len(atoms)} 个 MCP 服务器")
 
     for atom in atoms[:5]:
-        print(f"  - {atom['atom_id']}: {atom['label']} ({len(atom['capabilities'])} tools)")
+        print(
+            f"  - {atom['atom_id']}: {atom['label']} ({len(atom['capabilities'])} tools)"
+        )
     if len(atoms) > 5:
         print(f"  ... 还有 {len(atoms) - 5} 个")
 

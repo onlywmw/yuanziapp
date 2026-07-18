@@ -1,6 +1,6 @@
 """Kernel unit tests for com.example.sum."""
-import pytest
 
+import pytest
 from atom.core import handle
 
 

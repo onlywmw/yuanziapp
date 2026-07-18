@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """把 mcp_atoms.json 写入 Yuanzi core 的 SQLite 数据库"""
+
 import json
 import os
 import sqlite3
@@ -22,7 +23,8 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS atoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -34,11 +36,13 @@ def main():
             updated_at TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
-    """)
+    """
+    )
 
     t = now_utc()
     for atom in atoms:
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO atoms (atom_id, label, atom_type, endpoint, status, capabilities, updated_at, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(atom_id) DO UPDATE SET
@@ -48,16 +52,18 @@ def main():
                 status = excluded.status,
                 capabilities = excluded.capabilities,
                 updated_at = excluded.updated_at
-        """, (
-            atom["atom_id"],
-            atom["label"],
-            atom["atom_type"],
-            atom["endpoint"],
-            atom["status"],
-            json.dumps(atom["capabilities"], ensure_ascii=False),
-            t,
-            t,
-        ))
+        """,
+            (
+                atom["atom_id"],
+                atom["label"],
+                atom["atom_type"],
+                atom["endpoint"],
+                atom["status"],
+                json.dumps(atom["capabilities"], ensure_ascii=False),
+                t,
+                t,
+            ),
+        )
 
     conn.commit()
     conn.close()

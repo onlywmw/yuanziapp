@@ -9,14 +9,6 @@ def handler(data):
         num_a = float(data.get("a", 0))
         num_b = float(data.get("b", 0))
         result = num_a + num_b
-        return {
-            "status": "success",
-            "data": {
-                "result": result
-            }
-        }
+        return {"status": "success", "data": {"result": result}}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}

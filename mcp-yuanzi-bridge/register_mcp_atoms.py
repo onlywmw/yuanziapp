@@ -5,6 +5,7 @@
 输出：在设备 SQLite 的 atom_registry 表中写入 61 条完整注册记录
 同时生成 ATOM_REGISTRY_LEDGER.md / .csv / .json
 """
+
 from __future__ import annotations
 
 import csv
@@ -35,17 +36,28 @@ def guess_category(atom_id: str, functions: List[Dict[str, Any]]) -> str:
     name_lower = atom_id.lower()
     func_names = " ".join(f.get("name", "").lower() for f in functions)
     text = f"{name_lower} {func_names}"
-    if any(k in text for k in ["document", "pdf", "doc", "file", "text", "markdown", "csv", "json"]):
+    if any(
+        k in text
+        for k in ["document", "pdf", "doc", "file", "text", "markdown", "csv", "json"]
+    ):
         return "Document & Data"
-    if any(k in text for k in ["browser", "web", "http", "url", "search", "fetch", "api"]):
+    if any(
+        k in text for k in ["browser", "web", "http", "url", "search", "fetch", "api"]
+    ):
         return "Web & Browser"
-    if any(k in text for k in ["ai", "llm", "openai", "claude", "deepseek", "embedding", "image"]):
+    if any(
+        k in text
+        for k in ["ai", "llm", "openai", "claude", "deepseek", "embedding", "image"]
+    ):
         return "AI & Model"
     if any(k in text for k in ["database", "db", "sql", "sqlite", "postgres", "redis"]):
         return "Database"
     if any(k in text for k in ["git", "github", "gitlab", "version", "repo"]):
         return "Version Control"
-    if any(k in text for k in ["slack", "telegram", "email", "discord", "message", "notify"]):
+    if any(
+        k in text
+        for k in ["slack", "telegram", "email", "discord", "message", "notify"]
+    ):
         return "Communication"
     if any(k in text for k in ["cloud", "aws", "azure", "gcp", "s3", "storage"]):
         return "Cloud & Storage"
@@ -63,7 +75,10 @@ def guess_maturity(name: str) -> str:
 
 
 def infer_interface(functions: List[Dict[str, Any]]) -> str:
-    if any("sse" in f.get("name", "").lower() or "stream" in f.get("name", "").lower() for f in functions):
+    if any(
+        "sse" in f.get("name", "").lower() or "stream" in f.get("name", "").lower()
+        for f in functions
+    ):
         return "std-atom-http-v1 / sse"
     return "std-atom-http-v1"
 
@@ -88,12 +103,14 @@ def build_registry_atom(raw: Dict[str, Any]) -> Dict[str, Any]:
     enriched_functions: List[Dict[str, Any]] = []
     for f in functions:
         fname = f.get("name", "")
-        enriched_functions.append({
-            "name": fname,
-            "description": f.get("description", ""),
-            "input_schema": {"type": "object"},
-            "output_schema": {"type": "object"},
-        })
+        enriched_functions.append(
+            {
+                "name": fname,
+                "description": f.get("description", ""),
+                "input_schema": {"type": "object"},
+                "output_schema": {"type": "object"},
+            }
+        )
 
     atom: Dict[str, Any] = {
         "atom_id": atom_id,
@@ -138,7 +155,11 @@ def build_registry_atom(raw: Dict[str, Any]) -> Dict[str, Any]:
         "classification": {
             "category": category,
             "domain": "mcp",
-            "tags": ["mcp", category.lower().replace(" & ", "-").replace(" ", "-"), "auto-registered"],
+            "tags": [
+                "mcp",
+                category.lower().replace(" & ", "-").replace(" ", "-"),
+                "auto-registered",
+            ],
             "maturity": maturity,
         },
         "compliance": {
@@ -191,7 +212,8 @@ def validate_atom(atom: Dict[str, Any], schema: Dict[str, Any]) -> List[str]:
 
 def sync_atoms_table(conn: sqlite3.Connection) -> int:
     """把 atom_registry 中的原子同步到旧的 atoms 表，供 Widget MCP /graph 渲染。"""
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS atoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -203,7 +225,8 @@ def sync_atoms_table(conn: sqlite3.Connection) -> int:
             updated_at TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
-    """)
+    """
+    )
     rows = conn.execute(
         "SELECT atom_id, name, purpose_json, architecture_json, lifecycle_json, runtime_json FROM atom_registry"
     ).fetchall()
@@ -216,11 +239,14 @@ def sync_atoms_table(conn: sqlite3.Connection) -> int:
         lifecycle = json.loads(lifecycle_json)
         runtime = json.loads(runtime_json)
         functions = purpose.get("functions", [])
-        capabilities = [f"mcp/{atom_id}/{f.get('name', '')}" for f in functions if f.get('name')]
+        capabilities = [
+            f"mcp/{atom_id}/{f.get('name', '')}" for f in functions if f.get("name")
+        ]
         atom_type = arch.get("type", "atom")
         endpoint = runtime.get("endpoint", f"http://127.0.0.1:8080/mcp/{atom_id}")
         status = lifecycle.get("status", "registered")
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO atoms (atom_id, label, atom_type, endpoint, status, capabilities, updated_at, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(atom_id) DO UPDATE SET
@@ -230,7 +256,18 @@ def sync_atoms_table(conn: sqlite3.Connection) -> int:
                 status = excluded.status,
                 capabilities = excluded.capabilities,
                 updated_at = excluded.updated_at
-        """, (atom_id, name, atom_type, endpoint, status, json.dumps(capabilities, ensure_ascii=False), now, now))
+        """,
+            (
+                atom_id,
+                name,
+                atom_type,
+                endpoint,
+                status,
+                json.dumps(capabilities, ensure_ascii=False),
+                now,
+                now,
+            ),
+        )
         synced += 1
     conn.commit()
     print(f"Synced {synced} atoms to legacy atoms table")
@@ -241,9 +278,15 @@ def write_ledger(conn: sqlite3.Connection, ledger_dir: Path) -> None:
     atoms = list_atoms(conn)
     stats = {
         "total": len(atoms),
-        "registered": len([a for a in atoms if a.get("lifecycle", {}).get("status") == "registered"]),
-        "submitted": len([a for a in atoms if a.get("lifecycle", {}).get("status") == "submitted"]),
-        "rejected": len([a for a in atoms if a.get("lifecycle", {}).get("status") == "rejected"]),
+        "registered": len(
+            [a for a in atoms if a.get("lifecycle", {}).get("status") == "registered"]
+        ),
+        "submitted": len(
+            [a for a in atoms if a.get("lifecycle", {}).get("status") == "submitted"]
+        ),
+        "rejected": len(
+            [a for a in atoms if a.get("lifecycle", {}).get("status") == "rejected"]
+        ),
         "categories": {},
     }
     for a in atoms:
@@ -269,13 +312,15 @@ def write_ledger(conn: sqlite3.Connection, ledger_dir: Path) -> None:
     ]
     for cat, cnt in sorted(stats["categories"].items(), key=lambda x: -x[1]):
         lines.append(f"| {cat} | {cnt} |")
-    lines.extend([
-        "",
-        "## 注册原子清单",
-        "",
-        "| 序号 | atom_id | 名称 | 类别 | 状态 | 版本 | 签名 | 功能数 |",
-        "|------|---------|------|------|------|------|------|--------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 注册原子清单",
+            "",
+            "| 序号 | atom_id | 名称 | 类别 | 状态 | 版本 | 签名 | 功能数 |",
+            "|------|---------|------|------|------|------|------|--------|",
+        ]
+    )
     for idx, a in enumerate(atoms, 1):
         cat = a.get("classification", {}).get("category", "Uncategorized")
         status = a.get("lifecycle", {}).get("status", "unknown")
@@ -284,66 +329,84 @@ def write_ledger(conn: sqlite3.Connection, ledger_dir: Path) -> None:
             f"| {idx} | `{a['atom_id']}` | {a['name']} | {cat} | `{status}` | {a.get('version', '')} | `{a.get('signature_hash', '')[:12]}...` | {func_count} |"
         )
 
-    lines.extend([
-        "",
-        "## 字段说明",
-        "",
-        "| 字段 | 说明 |",
-        "|------|------|",
-        "| `atom_id` | 全局唯一标识 |",
-        "| `name` | 人类可读名称 |",
-        "| `version` | 语义化版本 |",
-        "| `description` | 一句话简介 |",
-        "| `purpose` | 作用与能力描述（含 functions / input / output / examples） |",
-        "| `architecture` | 技术架构（类型、运行时、接口、状态、依赖、资源） |",
-        "| `ownership` | 归属与产权（作者、维护者、许可证、源码地址） |",
-        "| `classification` | 分类（category / domain / tags / maturity） |",
-        "| `compliance` | 合规与安全（安全等级、数据敏感度、权限、审计） |",
-        "| `quality` | 质量（测试状态、覆盖率、文档级别） |",
-        "| `runtime` | 运行时信息（endpoint / health_url） |",
-        "| `lifecycle` | 生命周期状态与审核记录 |",
-        "| `signature` | 去重指纹（sha256） |",
-        "",
-        "## 注册流程",
-        "",
-        "```",
-        "提交(submit) → 校验(validate) → 去重(dedup) → 审核(review) → 注册(registered) → 运行(running)",
-        "              ↘ 拒绝(rejected) ↗",
-        "```",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 字段说明",
+            "",
+            "| 字段 | 说明 |",
+            "|------|------|",
+            "| `atom_id` | 全局唯一标识 |",
+            "| `name` | 人类可读名称 |",
+            "| `version` | 语义化版本 |",
+            "| `description` | 一句话简介 |",
+            "| `purpose` | 作用与能力描述（含 functions / input / output / examples） |",
+            "| `architecture` | 技术架构（类型、运行时、接口、状态、依赖、资源） |",
+            "| `ownership` | 归属与产权（作者、维护者、许可证、源码地址） |",
+            "| `classification` | 分类（category / domain / tags / maturity） |",
+            "| `compliance` | 合规与安全（安全等级、数据敏感度、权限、审计） |",
+            "| `quality` | 质量（测试状态、覆盖率、文档级别） |",
+            "| `runtime` | 运行时信息（endpoint / health_url） |",
+            "| `lifecycle` | 生命周期状态与审核记录 |",
+            "| `signature` | 去重指纹（sha256） |",
+            "",
+            "## 注册流程",
+            "",
+            "```",
+            "提交(submit) → 校验(validate) → 去重(dedup) → 审核(review) → 注册(registered) → 运行(running)",
+            "              ↘ 拒绝(rejected) ↗",
+            "```",
+            "",
+        ]
+    )
     md_path.write_text("\n".join(lines), encoding="utf-8")
 
     # CSV ledger
     csv_path = ledger_dir / "ATOM_REGISTRY_LEDGER.csv"
     with csv_path.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "atom_id", "name", "version", "description", "category",
-            "status", "maturity", "runtime", "interface", "hosting",
-            "signature_hash", "function_count", "source_url",
-        ])
+        writer.writerow(
+            [
+                "atom_id",
+                "name",
+                "version",
+                "description",
+                "category",
+                "status",
+                "maturity",
+                "runtime",
+                "interface",
+                "hosting",
+                "signature_hash",
+                "function_count",
+                "source_url",
+            ]
+        )
         for a in atoms:
-            writer.writerow([
-                a["atom_id"],
-                a["name"],
-                a.get("version", ""),
-                a.get("description", ""),
-                a.get("classification", {}).get("category", ""),
-                a.get("lifecycle", {}).get("status", ""),
-                a.get("classification", {}).get("maturity", ""),
-                a.get("architecture", {}).get("runtime", ""),
-                a.get("architecture", {}).get("interface", ""),
-                a.get("architecture", {}).get("hosting", ""),
-                a.get("signature_hash", ""),
-                len(a.get("purpose", {}).get("functions", [])),
-                a.get("ownership", {}).get("source_url", ""),
-            ])
+            writer.writerow(
+                [
+                    a["atom_id"],
+                    a["name"],
+                    a.get("version", ""),
+                    a.get("description", ""),
+                    a.get("classification", {}).get("category", ""),
+                    a.get("lifecycle", {}).get("status", ""),
+                    a.get("classification", {}).get("maturity", ""),
+                    a.get("architecture", {}).get("runtime", ""),
+                    a.get("architecture", {}).get("interface", ""),
+                    a.get("architecture", {}).get("hosting", ""),
+                    a.get("signature_hash", ""),
+                    len(a.get("purpose", {}).get("functions", [])),
+                    a.get("ownership", {}).get("source_url", ""),
+                ]
+            )
 
     # JSON ledger
     json_path = ledger_dir / "ATOM_REGISTRY_LEDGER.json"
     json_path.write_text(
-        json.dumps(dump_registry(conn, include_audit=False), ensure_ascii=False, indent=2),
+        json.dumps(
+            dump_registry(conn, include_audit=False), ensure_ascii=False, indent=2
+        ),
         encoding="utf-8",
     )
     print(f"Ledger written to {ledger_dir}")
@@ -354,7 +417,9 @@ def main() -> int:
         print(f"Missing {MCP_ATOMS_PATH}", file=sys.stderr)
         return 1
 
-    raw_atoms: List[Dict[str, Any]] = json.loads(MCP_ATOMS_PATH.read_text(encoding="utf-8"))
+    raw_atoms: List[Dict[str, Any]] = json.loads(
+        MCP_ATOMS_PATH.read_text(encoding="utf-8")
+    )
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -372,11 +437,19 @@ def main() -> int:
             continue
         result = submit_atom(conn, atom, actor="register_mcp_atoms")
         if result.get("success"):
-            review_atom(conn, atom["atom_id"], approved=True,
-                        reviewer="auto-reviewer", comments="Bulk imported from mcp-main decomposition", score=0.7)
+            review_atom(
+                conn,
+                atom["atom_id"],
+                approved=True,
+                reviewer="auto-reviewer",
+                comments="Bulk imported from mcp-main decomposition",
+                score=0.7,
+            )
             success_count += 1
         else:
-            failed.append({"atom_id": atom["atom_id"], "errors": [result.get("message", "")]})
+            failed.append(
+                {"atom_id": atom["atom_id"], "errors": [result.get("message", "")]}
+            )
 
     sync_atoms_table(conn)
     write_ledger(conn, LEDGER_DIR)
