@@ -432,8 +432,12 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
 
     @app.get("/audit/verify", dependencies=[admin])
     def audit_verify() -> Dict[str, Any]:
-        """审计哈希链完整性校验（M6.4）。"""
-        return verify_audit_chain(conn)
+        """审计哈希链完整性校验（M6.4）；附带安全事件计数（BUG-037）。"""
+        result = verify_audit_chain(conn)
+        result["security_audit_events"] = conn.execute(
+            "SELECT COUNT(*) FROM security_audit_log"
+        ).fetchone()[0]
+        return result
 
     @app.get("/audit", dependencies=[viewer])
     def audit(atom_id: Optional[str] = Query(None)) -> List[Dict[str, Any]]:
