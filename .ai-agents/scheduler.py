@@ -48,15 +48,18 @@ def get_issue_event() -> Optional[Dict[str, Any]]:
 def extract_issue_info(event: Dict[str, Any]) -> Dict[str, Any]:
     """Pull standard fields from a GitHub webhook Issue event."""
     issue = event.get("issue", {})
+    comment = event.get("comment", {})
     repo = event.get("repository", {}).get("full_name", "")
     return {
         "repo": repo,
         "issue_number": str(issue.get("number", "")),
         "title": issue.get("title", ""),
         "body": issue.get("body", ""),
+        "comment_body": comment.get("body", ""),  # issue_comment events
         "labels": [lb["name"] for lb in issue.get("labels", [])],
         "action": event.get("action", ""),
-        "sender": event.get("sender", {}).get("login", ""),
+        "sender": event.get("comment", {}).get("user", {}).get("login", "")
+        or event.get("sender", {}).get("login", ""),
     }
 
 
@@ -66,8 +69,12 @@ def extract_issue_info(event: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def detect_signals(issue_info: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Scan issue title + body for known collaboration signals (emoji patterns)."""
-    text = f"{issue_info['title']}\n{issue_info['body']}"
+    """Scan issue title + body + latest comment for collaboration signals."""
+    text = (
+        f"{issue_info['title']}\n"
+        f"{issue_info['body']}\n"
+        f"{issue_info.get('comment_body', '')}"
+    )
     matched = []
     for sig in SIGNALS:
         pattern = sig.get("pattern", "")
