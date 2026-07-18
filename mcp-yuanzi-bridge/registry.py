@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 
 REGISTRY_TABLE = "atom_registry"
 AUDIT_TABLE = "atom_audit_log"
+VERSIONS_TABLE = "atom_versions"
 
 
 @dataclass
@@ -155,6 +156,30 @@ def ensure_registry_schema(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    conn.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {VERSIONS_TABLE} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            atom_id TEXT NOT NULL,
+            version TEXT NOT NULL,
+            name TEXT,
+            description TEXT,
+            purpose_json TEXT,
+            architecture_json TEXT,
+            ownership_json TEXT,
+            classification_json TEXT,
+            compliance_json TEXT,
+            quality_json TEXT,
+            runtime_json TEXT,
+            signature_hash TEXT,
+            content_hash TEXT,
+            identity_hash TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE (atom_id, version)
+        )
+        """
+    )
     conn.commit()
 
 
@@ -251,6 +276,62 @@ def _insert_or_update(
     }
 
 
+def _archive_version(
+    conn: sqlite3.Connection, atom: Dict[str, Any], signature: str
+) -> None:
+    """把本次提交的内容快照归档到 atom_versions（同版本重复提交则更新）。"""
+    now = now_iso()
+    signature_info = atom.get("signature", {})
+    existing = conn.execute(
+        f"SELECT created_at FROM {VERSIONS_TABLE} WHERE atom_id = ? AND version = ?",
+        (atom["atom_id"], atom.get("version", "1.0.0")),
+    ).fetchone()
+    created_at = existing[0] if existing else now
+    conn.execute(
+        f"""
+        INSERT INTO {VERSIONS_TABLE}
+        (atom_id, version, name, description, purpose_json, architecture_json,
+         ownership_json, classification_json, compliance_json, quality_json,
+         runtime_json, signature_hash, content_hash, identity_hash,
+         created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(atom_id, version) DO UPDATE SET
+            name=excluded.name,
+            description=excluded.description,
+            purpose_json=excluded.purpose_json,
+            architecture_json=excluded.architecture_json,
+            ownership_json=excluded.ownership_json,
+            classification_json=excluded.classification_json,
+            compliance_json=excluded.compliance_json,
+            quality_json=excluded.quality_json,
+            runtime_json=excluded.runtime_json,
+            signature_hash=excluded.signature_hash,
+            content_hash=excluded.content_hash,
+            identity_hash=excluded.identity_hash,
+            updated_at=excluded.updated_at
+        """,
+        (
+            atom["atom_id"],
+            atom.get("version", "1.0.0"),
+            atom.get("name", ""),
+            atom.get("description", ""),
+            json.dumps(atom.get("purpose", {}), ensure_ascii=False),
+            json.dumps(atom.get("architecture", {}), ensure_ascii=False),
+            json.dumps(atom.get("ownership", {}), ensure_ascii=False),
+            json.dumps(atom.get("classification", {}), ensure_ascii=False),
+            json.dumps(atom.get("compliance", {}), ensure_ascii=False),
+            json.dumps(atom.get("quality", {}), ensure_ascii=False),
+            json.dumps(atom.get("runtime", {}), ensure_ascii=False),
+            signature,
+            signature_info.get("content_hash", ""),
+            signature_info.get("identity_hash", ""),
+            created_at,
+            now,
+        ),
+    )
+    conn.commit()
+
+
 def submit_atom(
     conn: sqlite3.Connection, atom: Dict[str, Any], actor: str = "system"
 ) -> Dict[str, Any]:
@@ -291,6 +372,7 @@ def submit_atom(
     atom["signature"]["identity_hash"] = compute_identity_hash(atom)
 
     result = _insert_or_update(conn, atom, signature, actor)
+    _archive_version(conn, atom, signature)
     _audit(
         conn,
         atom_id,
@@ -530,6 +612,94 @@ def get_atom(conn: sqlite3.Connection, atom_id: str) -> Optional[Dict[str, Any]]
     if not row:
         return None
     return _row_to_atom(row)
+
+
+def _row_to_version(row: sqlite3.Row) -> Dict[str, Any]:
+    version: Dict[str, Any] = {}
+    for k in row.keys():
+        v = row[k]
+        if k.endswith("_json") and v is not None:
+            version[k[:-5]] = json.loads(v)
+        else:
+            version[k] = v
+    return version
+
+
+def list_atom_versions(conn: sqlite3.Connection, atom_id: str) -> List[Dict[str, Any]]:
+    """列出某原子的全部归档版本，按创建时间升序。"""
+    rows = conn.execute(
+        f"SELECT * FROM {VERSIONS_TABLE} WHERE atom_id = ? ORDER BY created_at, id",
+        (atom_id,),
+    ).fetchall()
+    return [_row_to_version(row) for row in rows]
+
+
+def get_atom_version(
+    conn: sqlite3.Connection, atom_id: str, version: str
+) -> Optional[Dict[str, Any]]:
+    row = conn.execute(
+        f"SELECT * FROM {VERSIONS_TABLE} WHERE atom_id = ? AND version = ?",
+        (atom_id, version),
+    ).fetchone()
+    if not row:
+        return None
+    return _row_to_version(row)
+
+
+def rollback_atom(
+    conn: sqlite3.Connection, atom_id: str, version: str, actor: str = "system"
+) -> Dict[str, Any]:
+    """把注册表中的原子回滚到某个归档版本的内容。
+
+    当前 lifecycle 状态保留（registered/running 等不变），只替换内容与
+    version 字段；回滚本身记一条审计日志。归档版本记录不受影响。
+    """
+    snapshot = get_atom_version(conn, atom_id, version)
+    if not snapshot:
+        return {
+            "success": False,
+            "error": "version_not_found",
+            "message": f"Version '{version}' of atom '{atom_id}' not found",
+        }
+    current = get_atom(conn, atom_id)
+    if not current:
+        return {
+            "success": False,
+            "error": "not_found",
+            "message": f"Atom '{atom_id}' not found",
+        }
+
+    old_version = current.get("version")
+    lifecycle = current.get("lifecycle", {})
+    lifecycle["updated_at"] = now_iso()
+
+    atom = {
+        "atom_id": atom_id,
+        "name": snapshot.get("name", ""),
+        "version": snapshot.get("version", version),
+        "description": snapshot.get("description", ""),
+        "purpose": snapshot.get("purpose", {}),
+        "architecture": snapshot.get("architecture", {}),
+        "ownership": snapshot.get("ownership", {}),
+        "classification": snapshot.get("classification", {}),
+        "compliance": snapshot.get("compliance", {}),
+        "quality": snapshot.get("quality", {}),
+        "runtime": snapshot.get("runtime", {}),
+        "lifecycle": lifecycle,
+        "alias": current.get("alias", []),
+    }
+    signature = snapshot.get("signature_hash") or compute_signature(atom)
+    _insert_or_update(conn, atom, signature, actor)
+    _audit(
+        conn,
+        atom_id,
+        "rollback",
+        old_version,
+        version,
+        actor,
+        f"rolled back from {old_version} to {version}",
+    )
+    return {"success": True, "atom_id": atom_id, "version": version}
 
 
 def list_atoms(

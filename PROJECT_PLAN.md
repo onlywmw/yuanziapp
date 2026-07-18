@@ -90,7 +90,7 @@
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
 | 4.1 | Schema 迁移系统 | P0 | 2 天 | :heavy_check_mark: 已完成 | 无 | `migrations/` |
-| 4.2 | 原子版本化表 | P0 | 2 天 | :white_circle: 未开始 | 4.1 | `atom_versions` |
+| 4.2 | 原子版本化表 | P0 | 2 天 | :heavy_check_mark: 已完成 | 4.1 | `atom_versions` |
 | 4.3 | REST API（FastAPI） | P0 | 3 天 | :white_circle: 未开始 | 4.2 | `api.py` |
 | 4.4 | 健康探针系统 | P1 | 2 天 | :white_circle: 未开始 | 4.3 | probe 服务 |
 | 4.5 | 依赖图解析 | P1 | 2 天 | :white_circle: 未开始 | 4.2 | `resolve_dependencies()` |
