@@ -31,7 +31,6 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 from config import ROLES, SIGNALS  # noqa: E402
 
-
 # ============================================================
 # GitHub Issue 事件解析
 # ============================================================
@@ -96,12 +95,22 @@ def execute_actions(
         add_label = sig.get("add_label", "")
         if add_label:
             _gh(
-                "label", "create", add_label, "--repo", repo,
-                "--force", silent=True,
+                "label",
+                "create",
+                add_label,
+                "--repo",
+                repo,
+                "--force",
+                silent=True,
             )
             _gh(
-                "issue", "edit", issue_num, "--repo", repo,
-                "--add-label", add_label,
+                "issue",
+                "edit",
+                issue_num,
+                "--repo",
+                repo,
+                "--add-label",
+                add_label,
             )
             log.append(f"Label +{add_label}")
 
@@ -109,15 +118,25 @@ def execute_actions(
         remove_label = sig.get("remove_label", "")
         if isinstance(remove_label, str) and remove_label:
             _gh(
-                "issue", "edit", issue_num, "--repo", repo,
-                "--remove-label", remove_label,
+                "issue",
+                "edit",
+                issue_num,
+                "--repo",
+                repo,
+                "--remove-label",
+                remove_label,
             )
             log.append(f"Label -{remove_label}")
         elif isinstance(remove_label, list):
             for rl in remove_label:
                 _gh(
-                    "issue", "edit", issue_num, "--repo", repo,
-                    "--remove-label", str(rl),
+                    "issue",
+                    "edit",
+                    issue_num,
+                    "--repo",
+                    repo,
+                    "--remove-label",
+                    str(rl),
                 )
                 log.append(f"Label -{rl}")
 
@@ -174,9 +193,7 @@ def _gh(*args: str, silent: bool = False) -> str:
             env=env,
         )
         if result.returncode != 0 and not silent:
-            sys.stderr.write(
-                f"[gh] WARN: {' '.join(cmd)} → {result.stderr.strip()}\n"
-            )
+            sys.stderr.write(f"[gh] WARN: {' '.join(cmd)} → {result.stderr.strip()}\n")
         return result.stdout.strip()
     except Exception as exc:
         if not silent:
@@ -188,8 +205,7 @@ def _gh_comment(repo: str, issue_num: str, body: str) -> str:
     """Post a comment on a GitHub issue via gh CLI (stdin mode)."""
     try:
         result = subprocess.run(
-            ["gh", "issue", "comment", issue_num, "--repo", repo,
-             "--body-file", "-"],
+            ["gh", "issue", "comment", issue_num, "--repo", repo, "--body-file", "-"],
             input=body,
             capture_output=True,
             text=True,
@@ -197,9 +213,7 @@ def _gh_comment(repo: str, issue_num: str, body: str) -> str:
             timeout=30,
         )
         if result.returncode != 0:
-            sys.stderr.write(
-                f"[gh] WARN: comment failed → {result.stderr.strip()}\n"
-            )
+            sys.stderr.write(f"[gh] WARN: comment failed → {result.stderr.strip()}\n")
         return result.stdout.strip()
     except Exception as exc:
         sys.stderr.write(f"[gh] ERR: comment → {exc}\n")
@@ -212,12 +226,8 @@ def _gh_comment(repo: str, issue_num: str, body: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Yuanzi AI Agent Hub Scheduler"
-    )
-    parser.add_argument(
-        "--issue", help="Issue number (debug mode, overrides event)"
-    )
+    parser = argparse.ArgumentParser(description="Yuanzi AI Agent Hub Scheduler")
+    parser.add_argument("--issue", help="Issue number (debug mode, overrides event)")
     parser.add_argument("--repo", help="Repository (debug mode)")
     args = parser.parse_args()
 
@@ -236,16 +246,19 @@ def main() -> int:
             "sender": "cli",
         }
         raw = _gh(
-            "issue", "view", args.issue, "--repo", args.repo,
-            "--json", "title,body,labels",
+            "issue",
+            "view",
+            args.issue,
+            "--repo",
+            args.repo,
+            "--json",
+            "title,body,labels",
         )
         if raw:
             data = json.loads(raw)
             issue_info["title"] = data.get("title", "")
             issue_info["body"] = data.get("body", "")
-            issue_info["labels"] = [
-                lb["name"] for lb in data.get("labels", [])
-            ]
+            issue_info["labels"] = [lb["name"] for lb in data.get("labels", [])]
         print(f"[scheduler] Debug: #{args.issue} — '{issue_info['title'][:60]}'")
     else:
         event = get_issue_event()

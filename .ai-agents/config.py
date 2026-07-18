@@ -154,9 +154,7 @@ PR 已通过审查，可合并至 main。
         "triggered_by": "fixer",
         "route_to": "hub",
         "add_label": "resolved",
-        "remove_label": "investigating",
-        "remove_label": "ci-failed",
-        "remove_label": "needs-fix",
+        "remove_label": ["investigating", "ci-failed", "needs-fix"],
         "comment": """## ✅ 故障已修复
 
 工作流恢复正常。相关阻塞已解除。

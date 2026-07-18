@@ -49,7 +49,8 @@ class TestInsertAtoms:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
             try:
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS atoms (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         atom_id TEXT UNIQUE NOT NULL,
@@ -61,7 +62,8 @@ class TestInsertAtoms:
                         updated_at TEXT NOT NULL,
                         created_at TEXT NOT NULL
                     )
-                """)
+                """
+                )
 
                 t = now_utc()
                 atom = SAMPLE_ATOMS[0]
@@ -109,7 +111,8 @@ class TestInsertAtoms:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
             try:
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS atoms (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         atom_id TEXT UNIQUE NOT NULL,
@@ -121,7 +124,8 @@ class TestInsertAtoms:
                         updated_at TEXT NOT NULL,
                         created_at TEXT NOT NULL
                     )
-                """)
+                """
+                )
 
                 t = now_utc()
                 atom = SAMPLE_ATOMS[0]

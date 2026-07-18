@@ -4,10 +4,10 @@ Uses importlib to load each atom's core.py as a uniquely-named module
 so Python's import cache doesn't make all ``import core`` resolve to the same module.
 """
 
+import importlib.util
 import os
 import sys
 import tempfile
-import importlib.util
 from pathlib import Path
 
 import pytest
@@ -100,9 +100,7 @@ class TestAtomStringSplit:
         assert result["data"]["parts"] == ["hello", "world", "foo"]
 
     def test_maxsplit(self, core):
-        result = core.handler(
-            {"text": "a,b,c,d", "delimiter": ",", "maxsplit": 2}
-        )
+        result = core.handler({"text": "a,b,c,d", "delimiter": ",", "maxsplit": 2})
         assert result["status"] == "success"
         assert result["data"]["parts"] == ["a", "b", "c,d"]
 
@@ -159,6 +157,13 @@ class TestAtomFileRead:
     @pytest.fixture(scope="class")
     def core(self):
         return _load_atom_core("atom-file-read")
+
+    @pytest.fixture(scope="class", autouse=True)
+    def _sandbox(self):
+        # BUG-007 沙箱：显式把系统临时目录加入白名单，测试才能读到临时文件
+        os.environ["ATOM_FILE_READ_ROOTS"] = tempfile.gettempdir()
+        yield
+        os.environ.pop("ATOM_FILE_READ_ROOTS", None)
 
     def test_missing_path_returns_error(self, core):
         result = core.handler({})
@@ -244,7 +249,5 @@ class TestAtomHttpGet:
 
     def test_default_timeout(self, core):
         """Handler should not crash even with unreachable URL."""
-        result = core.handler(
-            {"url": "http://192.0.2.1", "timeout": 1}
-        )
+        result = core.handler({"url": "http://192.0.2.1", "timeout": 1})
         assert result["status"] in ("error", "success")

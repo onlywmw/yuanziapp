@@ -23,7 +23,8 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS atoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -35,7 +36,8 @@ def main():
             updated_at TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
-    """)
+    """
+    )
 
     t = now_utc()
     for atom in atoms:

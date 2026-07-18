@@ -136,7 +136,8 @@ def import_to_yuanzi(atoms: List[Dict[str, Any]]):
     cursor = conn.cursor()
 
     # 确保表存在
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS atoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -148,7 +149,8 @@ def import_to_yuanzi(atoms: List[Dict[str, Any]]):
             updated_at TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
-    """)
+    """
+    )
 
     t = now_utc()
     for atom in atoms:
