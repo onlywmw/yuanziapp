@@ -77,3 +77,28 @@ def test_view_columns_match_legacy(conn):
         "created_at",
     ):
         assert column in row.keys(), column
+
+
+def test_view_never_returns_null(conn):
+    """加固3：缺 JSON 字段的原子，VIEW 列返回 'unknown'/'' 而不是 NULL。"""
+    conn.execute(
+        """
+        INSERT INTO atom_registry
+        (atom_id, name, version, purpose_json, architecture_json,
+         ownership_json, lifecycle_json, signature_hash)
+        VALUES ('com.example.sparse', '', '1.0.0', '{}', '{}', '{}', '{}', 'h1')
+        """
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT * FROM atoms WHERE atom_id = 'com.example.sparse'"
+    ).fetchone()
+    assert row["label"] == ""  # name 列 NOT NULL，空串原样返回
+    assert row["atom_type"] == "unknown"
+    assert row["endpoint"] == ""
+    assert row["status"] == "unknown"
+    assert row["capabilities"] == "[]"
+    assert row["updated_at"] == ""
+    assert row["created_at"] == ""
+    for column in row.keys():
+        assert row[column] is not None, column

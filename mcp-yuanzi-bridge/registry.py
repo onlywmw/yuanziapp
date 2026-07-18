@@ -30,6 +30,13 @@ REGISTRY_TABLE = "atom_registry"
 AUDIT_TABLE = "atom_audit_log"
 VERSIONS_TABLE = "atom_versions"
 
+# 内置基础原子的保留命名空间，禁止注册/删除（加固4）
+RESERVED_PREFIXES = ("system.", "yuanzi.")
+
+
+class ConcurrentModificationError(Exception):
+    """乐观锁冲突：写入时 version_counter 已被其他进程修改（加固2）。"""
+
 
 @dataclass
 class AtomRegistration:
@@ -300,8 +307,8 @@ def _insert_or_update(
          ownership_json, classification_json, compliance_json, quality_json,
          runtime_json, lifecycle_json, signature_hash, signature_algorithm,
          content_hash, identity_hash, alias,
-         created_at, submitted_at, registered_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         created_at, submitted_at, registered_at, updated_at, version_counter)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         ON CONFLICT(atom_id) DO UPDATE SET
             name=excluded.name,
             version=excluded.version,
@@ -318,7 +325,8 @@ def _insert_or_update(
             content_hash=excluded.content_hash,
             identity_hash=excluded.identity_hash,
             alias=excluded.alias,
-            updated_at=excluded.updated_at
+            updated_at=excluded.updated_at,
+            version_counter=atom_registry.version_counter + 1
         """,
         (
             atom["atom_id"],
@@ -417,6 +425,15 @@ def submit_atom(
     atom_id = atom.get("atom_id", "")
     if not atom_id:
         raise ValueError("atom_id is required")
+
+    # 保护内置命名空间（ISOLATION_HARDENING_PLAN 加固4）
+    for prefix in RESERVED_PREFIXES:
+        if atom_id.startswith(prefix):
+            return {
+                "success": False,
+                "error": "reserved_namespace",
+                "message": f"'{prefix}*' is reserved for built-in atoms",
+            }
 
     signature = atom.get("signature", {}).get("hash") or compute_signature(atom)
     content_hash = compute_content_hash(atom)
@@ -584,7 +601,8 @@ def set_atom_status(
     lifecycle["status"] = status
     lifecycle["updated_at"] = now_iso()
     conn.execute(
-        f"UPDATE {REGISTRY_TABLE} SET lifecycle_json = ? WHERE atom_id = ?",
+        f"UPDATE {REGISTRY_TABLE} SET lifecycle_json = ?, "
+        "version_counter = version_counter + 1 WHERE atom_id = ?",
         (json.dumps(lifecycle, ensure_ascii=False), atom_id),
     )
     conn.commit()
@@ -713,6 +731,25 @@ def probe_atom(
     atom_id: str,
     timeout: float = 2.0,
     actor: str = "probe",
+    max_retries: int = 3,
+) -> Dict[str, Any]:
+    """带乐观锁重试的探测入口（加固2）：并发写入冲突时重读重试。"""
+    last_error: Optional[Exception] = None
+    for _ in range(max_retries):
+        try:
+            return _probe_once(conn, atom_id, timeout=timeout, actor=actor)
+        except ConcurrentModificationError as exc:
+            last_error = exc
+    raise ConcurrentModificationError(
+        f"probe of '{atom_id}' failed after {max_retries} retries: {last_error}"
+    )
+
+
+def _probe_once(
+    conn: sqlite3.Connection,
+    atom_id: str,
+    timeout: float = 2.0,
+    actor: str = "probe",
 ) -> Dict[str, Any]:
     """真实请求原子的 health_url（缺省用 endpoint），按结果更新状态。
 
@@ -735,6 +772,7 @@ def probe_atom(
             "message": f"Atom '{atom_id}' not found",
         }
 
+    expected_counter = int(atom.get("version_counter") or 0)
     runtime = atom.get("runtime") or {}
     lifecycle = atom.get("lifecycle", {})
     old_status = lifecycle.get("status")
@@ -744,6 +782,7 @@ def probe_atom(
         ok: Optional[bool],
         latency_ms: Optional[float] = None,
         detail: str = "",
+        expected_counter: int = 0,
     ) -> str:
         prev_probe_status = runtime.get("last_probe_status")
         runtime["last_probe_at"] = now_iso()
@@ -764,15 +803,23 @@ def probe_atom(
         lifecycle["status"] = new_status
         lifecycle["updated_at"] = now_iso()
 
-        conn.execute(
-            f"UPDATE {REGISTRY_TABLE} SET runtime_json = ?, lifecycle_json = ?, updated_at = ? WHERE atom_id = ?",
+        cursor = conn.execute(
+            f"UPDATE {REGISTRY_TABLE} SET runtime_json = ?, lifecycle_json = ?, "
+            "updated_at = ?, version_counter = version_counter + 1 "
+            "WHERE atom_id = ? AND version_counter = ?",
             (
                 json.dumps(runtime, ensure_ascii=False),
                 json.dumps(lifecycle, ensure_ascii=False),
                 now_iso(),
                 atom_id,
+                expected_counter,
             ),
         )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            raise ConcurrentModificationError(
+                f"Atom '{atom_id}' was modified concurrently; retry probe"
+            )
         conn.commit()
 
         if new_status != old_status or probe_status != prev_probe_status:
@@ -789,7 +836,7 @@ def probe_atom(
     url = runtime.get("health_url") or runtime.get("endpoint")
     if not url:
         # BUG-018：无端点也要留下探测痕迹与审计
-        new_status = _persist("no_endpoint", ok=None)
+        new_status = _persist("no_endpoint", ok=None, expected_counter=expected_counter)
         return {
             "success": False,
             "atom_id": atom_id,
@@ -801,7 +848,7 @@ def probe_atom(
 
     scheme = urllib.parse.urlparse(url).scheme.lower()
     if scheme not in _ALLOWED_PROBE_SCHEMES:
-        new_status = _persist("invalid_url", ok=None)
+        new_status = _persist("invalid_url", ok=None, expected_counter=expected_counter)
         return {
             "success": False,
             "atom_id": atom_id,
@@ -816,7 +863,9 @@ def probe_atom(
     with _PROBE_DNS_LOCK:
         address_error, resolved_infos = _probe_address_error(url, timeout)
         if address_error:
-            new_status = _persist("blocked_address", ok=None)
+            new_status = _persist(
+                "blocked_address", ok=None, expected_counter=expected_counter
+            )
             return {
                 "success": False,
                 "atom_id": atom_id,
@@ -856,7 +905,9 @@ def probe_atom(
             detail = str(reason)
         latency_ms = round((time.monotonic() - started) * 1000, 1)
 
-    new_status = _persist(probe_status, ok, latency_ms, detail)
+    new_status = _persist(
+        probe_status, ok, latency_ms, detail, expected_counter=expected_counter
+    )
     return {
         "success": True,
         "atom_id": atom_id,

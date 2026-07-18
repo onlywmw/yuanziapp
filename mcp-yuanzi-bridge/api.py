@@ -45,6 +45,7 @@ from marketplace import (
 from migrations import migrate
 from pydantic import BaseModel
 from registry import (
+    RESERVED_PREFIXES,
     compute_registry_stats,
     get_atom,
     get_atom_version,
@@ -130,6 +131,21 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
         if not result.get("success"):
             raise HTTPException(status_code=409, detail=result.get("message"))
         return result
+
+    @app.delete("/atoms/{atom_id}", dependencies=[admin])
+    def delete_atom(atom_id: str) -> Dict[str, Any]:
+        # 内置基础原子不可删除（加固4）
+        for prefix in RESERVED_PREFIXES:
+            if atom_id.startswith(prefix):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"'{prefix}*' built-in atoms cannot be deleted",
+                )
+        if not get_atom(conn, atom_id):
+            raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
+        conn.execute("DELETE FROM atom_registry WHERE atom_id = ?", (atom_id,))
+        conn.commit()
+        return {"success": True, "atom_id": atom_id}
 
     @app.get("/atoms/{atom_id}", dependencies=[viewer])
     def get_one(atom_id: str) -> Dict[str, Any]:

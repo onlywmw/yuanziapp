@@ -460,3 +460,40 @@ def test_probe_dns_rebinding_pinned(conn, monkeypatch):
     assert seen["ip"] == "127.0.0.1"
     # 翻转函数只在校验时被消费一次，10.0.0.5 从未生效
     assert calls == ["127.0.0.1"]
+
+
+# ---------- 加固2：乐观锁 ----------
+
+
+def test_probe_counter_increments(conn, monkeypatch):
+    """每次探测写入 version_counter 自增。"""
+    _register(conn)
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+    probe_atom(conn, "com.example.probe")
+    row = conn.execute(
+        "SELECT version_counter FROM atom_registry WHERE atom_id = 'com.example.probe'"
+    ).fetchone()
+    assert row[0] >= 1
+
+
+def test_probe_retries_on_concurrent_modification(conn, monkeypatch):
+    """乐观锁冲突时重读重试，最终成功。"""
+    _register(conn)
+    bumped = {"done": False}
+
+    def fake_urlopen(url, timeout=None):
+        # 在读取与写入之间模拟另一进程抢先修改
+        if not bumped["done"]:
+            bumped["done"] = True
+            conn.execute(
+                "UPDATE atom_registry SET version_counter = version_counter + 1 "
+                "WHERE atom_id = 'com.example.probe'"
+            )
+            conn.commit()
+        return _FakeResponse(200)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    result = probe_atom(conn, "com.example.probe")
+    assert result["ok"]  # 第一次 persist 冲突，重试后成功
+    atom = get_atom(conn, "com.example.probe")
+    assert atom["lifecycle"]["status"] == "running"

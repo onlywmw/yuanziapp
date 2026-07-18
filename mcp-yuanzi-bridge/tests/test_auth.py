@@ -169,3 +169,26 @@ def test_audit_verify_endpoint(client):
     assert r.status_code == 200
     assert r.json()["valid"] is True
     assert r.json()["total_rows"] >= 1
+
+
+def test_builtin_atom_cannot_be_deleted(client):
+    """加固4：DELETE 内置原子 → 403。"""
+    r = client.delete("/atoms/system.file-read", headers=_h(ADMIN_TOKEN))
+    assert r.status_code == 403
+
+
+def test_delete_atom_admin_only(client):
+    client.post("/atoms", json=_atom(), headers=_h(ADMIN_TOKEN))
+    # viewer 无权删除
+    assert (
+        client.delete("/atoms/com.example.sum", headers=_h(VIEWER_TOKEN)).status_code
+        == 403
+    )
+    # admin 可删除
+    assert (
+        client.delete("/atoms/com.example.sum", headers=_h(ADMIN_TOKEN)).status_code
+        == 200
+    )
+    assert (
+        client.get("/atoms/com.example.sum", headers=_h(ADMIN_TOKEN)).status_code == 404
+    )

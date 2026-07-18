@@ -219,3 +219,11 @@ def test_migrations_contract(conn):
     discovered = discover_migrations()
     assert all(isinstance(v, int) for v, _, _ in discovered)
     assert [v for v, _, _ in discovered] == versions
+
+
+def test_reserved_namespace_rejected(conn):
+    """加固4：system./yuanzi. 命名空间禁止注册。"""
+    for atom_id in ("system.file-read", "yuanzi.core"):
+        result = submit_atom(conn, _atom(atom_id=atom_id))
+        assert not result["success"]
+        assert result["error"] == "reserved_namespace"
