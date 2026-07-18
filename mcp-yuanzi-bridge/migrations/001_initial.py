@@ -34,6 +34,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
             signature_hash TEXT UNIQUE NOT NULL,
             signature_algorithm TEXT NOT NULL DEFAULT 'sha256',
             alias TEXT,
+            content_hash TEXT,
+            identity_hash TEXT,
             created_at TEXT,
             submitted_at TEXT,
             registered_at TEXT,

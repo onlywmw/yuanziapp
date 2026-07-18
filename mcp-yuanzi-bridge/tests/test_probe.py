@@ -165,8 +165,9 @@ def test_probe_no_endpoint(conn):
 
 
 def test_probe_atoms_batch(conn, monkeypatch):
-    _register(conn, "com.example.a")
-    _register(conn, "com.example.b")
+    # 两个原子必须具备不同能力（BUG-016 起同能力不同 atom_id 会被拒绝）
+    _register_distinct(conn, "com.example.a", None, "ping_a")
+    _register_distinct(conn, "com.example.b", None, "ping_b")
     _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
 
     results = probe_atoms(conn)

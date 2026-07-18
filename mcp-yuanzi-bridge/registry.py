@@ -208,7 +208,50 @@ def ensure_registry_schema(conn: sqlite3.Connection) -> None:
             UNIQUE (atom_id, function_name, model)
         )
         """)
+    # BUG-016: layered-signature columns. Idempotent column migration for
+    # databases created before content_hash/identity_hash were persisted,
+    # then backfill values for pre-existing rows.
+    _ensure_column(conn, REGISTRY_TABLE, "content_hash")
+    _ensure_column(conn, REGISTRY_TABLE, "identity_hash")
+    backfill_content_hashes(conn)
     conn.commit()
+
+
+def _ensure_column(
+    conn: sqlite3.Connection, table: str, column: str, ddl_type: str = "TEXT"
+) -> None:
+    """ALTER TABLE ADD COLUMN if `column` is missing (idempotent)."""
+    columns = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}")
+        conn.commit()
+
+
+def backfill_content_hashes(conn: sqlite3.Connection) -> int:
+    """Fill missing content_hash/identity_hash on atom_registry rows.
+
+    Idempotent: only rows with NULL content_hash are recomputed. Returns
+    the number of rows updated.
+    """
+    rows = conn.execute(
+        f"SELECT * FROM {REGISTRY_TABLE} WHERE content_hash IS NULL"
+    ).fetchall()
+    updated = 0
+    for row in rows:
+        atom = _row_to_atom(row)
+        conn.execute(
+            f"UPDATE {REGISTRY_TABLE} SET content_hash = ?, identity_hash = ? "
+            "WHERE atom_id = ?",
+            (
+                compute_content_hash(atom),
+                compute_identity_hash(atom),
+                atom["atom_id"],
+            ),
+        )
+        updated += 1
+    if updated:
+        conn.commit()
+    return updated
 
 
 def _audit(
@@ -256,8 +299,9 @@ def _insert_or_update(
         (atom_id, name, version, description, purpose_json, architecture_json,
          ownership_json, classification_json, compliance_json, quality_json,
          runtime_json, lifecycle_json, signature_hash, signature_algorithm, alias,
+         content_hash, identity_hash,
          created_at, submitted_at, registered_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(atom_id) DO UPDATE SET
             name=excluded.name,
             version=excluded.version,
@@ -272,6 +316,8 @@ def _insert_or_update(
             lifecycle_json=excluded.lifecycle_json,
             signature_hash=excluded.signature_hash,
             alias=excluded.alias,
+            content_hash=excluded.content_hash,
+            identity_hash=excluded.identity_hash,
             updated_at=excluded.updated_at
         """,
         (
@@ -290,6 +336,8 @@ def _insert_or_update(
             signature,
             "sha256",
             json.dumps(alias, ensure_ascii=False),
+            compute_content_hash(atom),
+            compute_identity_hash(atom),
             lifecycle.get("created_at"),
             lifecycle.get("submitted_at"),
             lifecycle.get("registered_at"),
@@ -325,6 +373,24 @@ def submit_atom(
             "message": f"Signature already registered by atom '{row[0]}'; cannot register '{atom_id}'",
         }
 
+    # BUG-016：能力去重闭环。content_hash 是跨 atom_id 的能力指纹——
+    # 相同能力（功能/架构/依赖/接口一致）不允许以不同 atom_id 重复注册。
+    # 同 atom_id 的重复提交视为更新，不受此限制。
+    content_hash = compute_content_hash(atom)
+    row = conn.execute(
+        f"SELECT atom_id FROM {REGISTRY_TABLE} WHERE content_hash = ?",
+        (content_hash,),
+    ).fetchone()
+    if row and row[0] != atom_id:
+        return {
+            "success": False,
+            "error": "duplicate_content",
+            "message": (
+                f"Identical capability already registered by atom '{row[0]}' "
+                f"(content_hash match); cannot register '{atom_id}'"
+            ),
+        }
+
     lifecycle = atom.get("lifecycle", {})
     old_status = None
     existing = conn.execute(
@@ -340,7 +406,7 @@ def submit_atom(
     atom["signature"]["hash"] = signature
     atom["signature"]["algorithm"] = "sha256"
     atom["signature"]["source"] = "auto-computed"
-    atom["signature"]["content_hash"] = compute_content_hash(atom)
+    atom["signature"]["content_hash"] = content_hash
     atom["signature"]["identity_hash"] = compute_identity_hash(atom)
 
     result = _insert_or_update(conn, atom, signature, actor)

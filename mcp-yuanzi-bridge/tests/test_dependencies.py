@@ -14,7 +14,9 @@ def _atom(atom_id, deps=()):
         "name": atom_id,
         "version": "1.0.0",
         "description": "",
-        "purpose": {"functions": [{"name": "f"}]},
+        # 功能名随 atom_id 变化：BUG-016 起同能力（同 content_hash）的
+        # 不同 atom_id 会被判为重复能力而拒绝注册。
+        "purpose": {"functions": [{"name": f"f_{atom_id}"}]},
         "architecture": {
             "type": "python_script",
             "runtime": "python3.12",
