@@ -110,7 +110,9 @@ def test_forbidden_role_403_is_audited(env):
 def test_allowed_requests_are_not_audited(env):
     client, db = env
     assert (
-        client.get("/atoms", headers={"Authorization": f"Bearer {VIEWER_TOKEN}"}).status_code
+        client.get(
+            "/atoms", headers={"Authorization": f"Bearer {VIEWER_TOKEN}"}
+        ).status_code
         == 200
     )
     assert _events(db) == []

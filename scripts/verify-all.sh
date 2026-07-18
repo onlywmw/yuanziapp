@@ -1,7 +1,8 @@
 #!/bin/bash
 # Yuanzi 全量验证脚本
 # Usage: bash scripts/verify-all.sh
-set -e
+# 注意：不要用 set -e —— 各阶段用 "cmd; if [ \$? -eq 0 ]" 统计失败，
+# set -e 会让首个失败直接退出，fail() 统计沦为死代码（BUG-035）。
 
 PYTHON="${PYTHON:-python}"
 PASS=0
@@ -9,6 +10,10 @@ FAIL=0
 RED='\033[31m'
 GREEN='\033[32m'
 NC='\033[0m'
+
+# 可移植临时目录（/tmp/yuanzi_*.log 在 Windows 上不可用，BUG-035）
+TMPDIR_LOGS=$(mktemp -d 2>/dev/null || mktemp -d -t yuanzi)
+trap 'rm -rf "$TMPDIR_LOGS"' EXIT
 
 pass() { echo -e "${GREEN}PASS${NC} $1"; PASS=$((PASS+1)); }
 fail() { echo -e "${RED}FAIL${NC} $1 — $2"; FAIL=$((FAIL+1)); }
@@ -19,29 +24,49 @@ echo "=========================================="
 echo ""
 
 # ============================================
+# Phase 0: 依赖
+# ============================================
+echo "--- Phase 0: Dependencies ---"
+
+# base-atoms 的非平凡依赖（cryptography>=42 等），干净环境下缺失会导致测试失败
+DEP_OK=1
+for req in base-atoms/*/requirements.txt; do
+    if [ -s "$req" ]; then
+        $PYTHON -m pip install -q -r "$req" || DEP_OK=0
+    fi
+done
+if [ "$DEP_OK" -eq 1 ]; then
+    pass "Base atom dependencies installed"
+else
+    fail "Base atom dependencies" "pip install failed"
+fi
+
+echo ""
+
+# ============================================
 # Phase 1: 代码质量
 # ============================================
 echo "--- Phase 1: Code Quality ---"
 
-$PYTHON -m pytest yuanzi-cli/tests/ mcp-yuanzi-bridge/tests/ base-atoms/tests/ -q 2>&1 > /tmp/yuanzi_test.log
+$PYTHON -m pytest yuanzi-cli/tests/ mcp-yuanzi-bridge/tests/ base-atoms/tests/ -q > "$TMPDIR_LOGS/test.log" 2>&1
 if [ $? -eq 0 ]; then
     pass "All tests pass"
 else
-    fail "Tests failed" "$(tail -5 /tmp/yuanzi_test.log)"
+    fail "Tests failed" "$(tail -5 "$TMPDIR_LOGS/test.log")"
 fi
 
-$PYTHON -m black --check --config pyproject.toml . 2>&1 > /tmp/yuanzi_black.log
+$PYTHON -m black --check --config pyproject.toml . > "$TMPDIR_LOGS/black.log" 2>&1
 if [ $? -eq 0 ]; then
     pass "Black formatting ok"
 else
-    fail "Black would reformat" "$(grep 'would reformat' /tmp/yuanzi_black.log | wc -l) files"
+    fail "Black would reformat" "$(grep 'would reformat' "$TMPDIR_LOGS/black.log" | wc -l) files"
 fi
 
-$PYTHON -m ruff check --config pyproject.toml . 2>&1 > /tmp/yuanzi_ruff.log
+$PYTHON -m ruff check --config pyproject.toml . > "$TMPDIR_LOGS/ruff.log" 2>&1
 if [ $? -eq 0 ]; then
     pass "Ruff lint ok"
 else
-    fail "Ruff errors" "$(grep -c 'E\|F' /tmp/yuanzi_ruff.log) issues"
+    fail "Ruff errors" "$(grep -c 'E\|F' "$TMPDIR_LOGS/ruff.log") issues"
 fi
 
 echo ""
@@ -99,7 +124,8 @@ echo ""
 echo "--- Phase 3: Schema Authority ---"
 
 # registry.py 不应有 CREATE TABLE
-DDL_COUNT=$(grep -c "CREATE TABLE" mcp-yuanzi-bridge/registry.py 2>/dev/null || echo 0)
+# grep -c 无匹配时退出码为 1 且已输出 0，不能再接 || echo 0（会得到 "0\n0"）
+DDL_COUNT=$(grep -c "CREATE TABLE" mcp-yuanzi-bridge/registry.py 2>/dev/null || true)
 if [ "$DDL_COUNT" -eq 0 ]; then
     pass "registry.py: no CREATE TABLE"
 else
