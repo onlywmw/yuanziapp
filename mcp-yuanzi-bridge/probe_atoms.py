@@ -16,7 +16,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from registry import ensure_registry_schema, probe_atoms
+from migrations import migrate
+from registry import probe_atoms
 
 DEFAULT_DB = Path(__file__).with_name("registry.db")
 
@@ -36,7 +37,7 @@ def main() -> int:
 
     conn = sqlite3.connect(args.db)
     conn.row_factory = sqlite3.Row
-    ensure_registry_schema(conn)
+    migrate(conn)
 
     results = probe_atoms(conn, atom_ids=args.atom_ids, timeout=args.timeout)
 
