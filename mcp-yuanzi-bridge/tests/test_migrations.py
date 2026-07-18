@@ -66,7 +66,8 @@ def _insert_atom(conn):
 
 
 def _create_legacy_atoms_table(conn):
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE atoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             atom_id TEXT UNIQUE NOT NULL,
@@ -78,7 +79,8 @@ def _create_legacy_atoms_table(conn):
             updated_at TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
-        """)
+        """
+    )
     conn.commit()
 
 
