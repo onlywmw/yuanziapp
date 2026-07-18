@@ -160,11 +160,33 @@ def embed_atom_functions(conn: sqlite3.Connection, atom_id: str, provider: Any) 
         raise ValueError(f"Atom '{atom_id}' not found")
     functions = atom.get("purpose", {}).get("functions", []) or []
     functions = [f for f in functions if f.get("name")]
+
+    # 清理已删除/改名函数残留的旧 embedding（同 atom 同 model 范围内），
+    # 否则 search 仍能命中已不存在的函数。
+    names = [f["name"] for f in functions]
+    if names:
+        placeholders = ",".join("?" for _ in names)
+        conn.execute(
+            f"DELETE FROM {EMBEDDINGS_TABLE} "
+            f"WHERE atom_id = ? AND model = ? "
+            f"AND function_name NOT IN ({placeholders})",
+            (atom_id, provider.model, *names),
+        )
+    else:
+        conn.execute(
+            f"DELETE FROM {EMBEDDINGS_TABLE} WHERE atom_id = ? AND model = ?",
+            (atom_id, provider.model),
+        )
     if not functions:
+        conn.commit()
         return 0
 
     texts = [function_text(f) for f in functions]
     vectors = provider.embed(texts)
+    if len(vectors) != len(texts):
+        raise ValueError(
+            f"Provider returned {len(vectors)} vectors for {len(texts)} texts"
+        )
     for func, text, vector in zip(functions, texts, vectors):
         _upsert_embedding(conn, atom_id, func["name"], text, provider, vector)
     conn.commit()
