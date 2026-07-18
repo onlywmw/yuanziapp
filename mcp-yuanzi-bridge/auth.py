@@ -11,13 +11,17 @@ token 来源（优先级）：
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
+import secrets
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+logger = logging.getLogger(__name__)
 
 ROLE_ADMIN = "admin"
 ROLE_REGISTRY = "registry"
@@ -65,6 +69,24 @@ def _dev_mode(conn: sqlite3.Connection) -> bool:
     return row is None
 
 
+def _audit_security_event(
+    conn: sqlite3.Connection, subject: str, route: str, method: str, result: str
+) -> None:
+    """记录一条认证/授权拒绝事件（BUG-037）。
+
+    只记拒绝事件，绝不记录 token 本体。写库失败不得阻断主流程。
+    """
+    try:
+        conn.execute(
+            "INSERT INTO security_audit_log (subject, route, method, result, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (subject, route, method, result, _now_iso()),
+        )
+        conn.commit()
+    except Exception as exc:  # noqa: BLE001 — 审计失败不阻断请求
+        logger.warning("security audit log write failed: %s", exc)
+
+
 class Auth:
     """绑定到一个 sqlite 连接的认证/授权上下文。"""
 
@@ -79,36 +101,54 @@ class Auth:
     def verify_token(
         self,
         credentials: Optional[HTTPAuthorizationCredentials] = Security(_security),
+        route: str = "",
+        method: str = "",
     ) -> Dict[str, Any]:
         """FastAPI 依赖：验证 Bearer token，返回 {role, subject}。"""
         if _dev_mode(self.conn):
             return {"role": ROLE_ADMIN, "subject": "dev-mode"}
 
         if not credentials:
+            _audit_security_event(
+                self.conn, "anonymous", route, method, "401 Missing Bearer token"
+            )
             raise HTTPException(status_code=401, detail="Missing Bearer token")
 
         env_token = os.environ.get(ENV_TOKEN)
-        if env_token and credentials.credentials == env_token:
+        if env_token and secrets.compare_digest(credentials.credentials, env_token):
             return {"role": ROLE_ADMIN, "subject": "env-token"}
 
         db_token = _lookup_db_token(self.conn, credentials.credentials)
         if db_token:
             return {"role": db_token["role"], "subject": f"token-{db_token['id']}"}
 
+        _audit_security_event(
+            self.conn, "anonymous", route, method, "401 Invalid token"
+        )
         raise HTTPException(status_code=401, detail="Invalid token")
 
     def require_role(self, *roles: str):
         """FastAPI 依赖工厂：要求最低角色（含更高级别）。"""
 
         async def dependency(
+            request: Request,
             credentials: Optional[HTTPAuthorizationCredentials] = Security(_security),
         ) -> Dict[str, Any]:
-            principal = self.verify_token(credentials)
+            route = request.url.path
+            method = request.method
+            principal = self.verify_token(credentials, route=route, method=method)
             allowed = any(
                 _ROLE_RANK.get(principal["role"], 0) >= _ROLE_RANK.get(role, 99)
                 for role in roles
             )
             if not allowed:
+                _audit_security_event(
+                    self.conn,
+                    principal["subject"],
+                    route,
+                    method,
+                    f"403 Requires role: {' or '.join(roles)}",
+                )
                 raise HTTPException(
                     status_code=403,
                     detail=f"Requires role: {' or '.join(roles)}",
