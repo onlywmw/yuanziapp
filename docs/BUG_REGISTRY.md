@@ -6,25 +6,30 @@
 
 ---
 
-## 当前状态总览（2026-07-18 Audit M4 复核刷新）
+## 当前状态总览（2026-07-19 Audit "M1-M7 就绪"验证刷新）
 
 | 级别 | 总数 | Fixed | Open | 说明 |
 |------|------|-------|------|------|
-| P0 | 3 | 3 | 0 | BUG-007/008/020 全部闭环（020 残留已由 9a1bbbc CIDR 实现闭环） |
-| P1 | 10 | 9 | 1 | **BUG-025（API 零鉴权）唯一 P1 阻断项**，代码已落地待第三轮复检 |
-| P2 | 15 | 13 | 2 | BUG-028（契约违约）/ BUG-031（契约 1.9 脱节）Open |
-| P3 | 5 | 3 | 2 | BUG-032（M4 计划未回填）/ BUG-033（CIDR 加固建议）Open |
-| **合计** | **33** | **28** | **5** | 另 BUG-011 为 Fixed (partial) |
+| P0 | 3 | 3 | 0 | — |
+| P1 | 12 | 9 | 3 | BUG-025（第三轮 12.5/14，条件性）、BUG-028（POST 已加，Arch 裁决待）、**BUG-034（CI 连 6 红）** |
+| P2 | 17 | 14 | 3 | BUG-031（Arch）、BUG-035（verify 脚本缺陷+声明失实）、BUG-037（AC-13 审计缺失） |
+| P3 | 7 | 3 | 4 | BUG-029 转 Fixed(partial)、BUG-033 已 Fixed；BUG-032/036/038/039 Open |
+| **合计** | **39** | **29** | **10** | 另 BUG-011/029 为 Fixed (partial) |
 
 ## Open 缺陷清单（权威）
 
 | BUG | 级别 | 描述 | 放行路径 | 指派 |
 |-----|------|------|----------|------|
-| BUG-025 | P1 | api.py 14 路由零鉴权，含 5 个写路由（自审自批通道） | 代码已于 fbe2b78 落地；`BUG-025-ACCEPTANCE-CRITERIA.md` 14 检查点第三轮复检通过后关闭 | Audit（复检中） |
-| BUG-028 | P1 | M5 实现 GET /search 违反 Arch 两份 POST 契约（DESIGN_M5 §4.1 + 契约注册表 §3）；BM25 降级等设计要素缺失 | Arch 裁决契约权威归属后对齐齐一 | **Arch** |
-| BUG-031 | P2 | 契约 1.9（probe_atom）与实现五处脱节（CIDR 条款因 9a1bbbc 落地已转准确） | 契约文本按现行实现语义修订 | **Arch** |
-| BUG-032 | P3 | PROJECT_PLAN M4 任务行 4.2~4.5 与里程碑行未回填 | 交付即勾选 | Eng |
-| BUG-033 | P3 | probe CIDR 三条加固建议（DNS 重绑定 TOCTOU / 畸形 env / DNS 无超时） | 建议级，随 M6 收尾处理 | Eng |
+| BUG-025 | P1 | API 鉴权（fbe2b78 已落地） | **第三轮 12.5/14**：关闭只差 BUG-036（一行 compare_digest）+ BUG-037（修复或正式挂起） | Eng（收尾） |
+| BUG-028 | P1 | M5 GET/POST 契约违例 | POST /search 已新增缓解；BM25 等设计要素 + Arch 契约裁决仍待 | **Arch** |
+| BUG-034 | P1 | CI 引用已删除路径 → main 连 6 红，质量门禁失效 | 修正工作流安装行 + base-atoms 依赖纳入；恢复绿灯 | **Eng（紧急）** |
+| BUG-031 | P2 | 契约 1.9 与实现五处脱节 | 契约文本修订 | **Arch** |
+| BUG-035 | P2 | verify-all.sh 三缺陷 + 验证声明两处失实 | 修脚本、覆盖 4 测试目录、声明以可复跑输出为准 | Eng |
+| BUG-037 | P2 | 401/403 无审计记录（AC-13） | 写审计或正式挂起记录 | Eng |
+| BUG-032 | P3 | PROJECT_PLAN M4 行未回填 | 交付即勾选 | Eng |
+| BUG-036 | P3 | auth.py:91 env token == 比较 | secrets.compare_digest 一行 | Eng |
+| BUG-038 | P3 | /health 豁免未记录 | 契约文档注明或绑 viewer | Arch |
+| BUG-039 | P3 | M7 引擎两条加固建议 | 建议级 | Eng |
 
 ## 已关闭缺陷索引
 
