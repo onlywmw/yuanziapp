@@ -224,6 +224,8 @@ def search_functions(
     返回按分数降序的前 limit 条，含 atom 名称/状态/分类信息。
     维度不匹配的向量（不同 provider 混存）自动跳过。
     """
+    if limit <= 0:
+        return []
     query_vector = provider.embed([query])[0]
     model = model or provider.model
 
