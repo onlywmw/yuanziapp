@@ -293,3 +293,70 @@ def test_probe_status_change_records_audit(conn, monkeypatch):
         "SELECT old_status, new_status FROM atom_audit_log WHERE action='probe'"
     ).fetchone()
     assert tuple(row) == ("registered", "running")
+
+
+# ---------- M6.5b：probe CIDR 限制（裁决 2026-07-18-01） ----------
+
+
+def _fake_dns(ip):
+    import socket as _socket
+
+    return [(_socket.AF_INET, _socket.SOCK_STREAM, 6, "", (ip, 0))]
+
+
+def test_probe_blocks_non_loopback_by_default(conn, monkeypatch):
+    """默认仅允许 127.0.0.0/8：私网地址被拒，不发请求。"""
+    import socket as _socket
+
+    monkeypatch.setattr(_socket, "getaddrinfo", lambda h, p: _fake_dns("192.168.1.50"))
+    monkeypatch.delenv("YUANZI_PROBE_ALLOWED_CIDR", raising=False)
+    _register(conn, runtime={"health_url": "http://internal.local/health"})
+
+    result = probe_atom(conn, "com.example.probe")
+    assert not result["success"]
+    assert result["error"] == "blocked_address"
+    assert result["new_status"] == "registered"  # 生命周期不改写
+
+    atom = get_atom(conn, "com.example.probe")
+    assert atom["runtime"]["last_probe_status"] == "blocked_address"
+
+
+def test_probe_loopback_allowed_by_default(conn, monkeypatch):
+    """回环地址默认放行。"""
+    import socket as _socket
+
+    monkeypatch.setattr(_socket, "getaddrinfo", lambda h, p: _fake_dns("127.0.0.1"))
+    monkeypatch.delenv("YUANZI_PROBE_ALLOWED_CIDR", raising=False)
+    _register(conn)
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+
+    result = probe_atom(conn, "com.example.probe")
+    assert result["ok"]
+
+
+def test_probe_cidr_env_override(conn, monkeypatch):
+    """YUANZI_PROBE_ALLOWED_CIDR 可追加放行网段。"""
+    import socket as _socket
+
+    monkeypatch.setattr(_socket, "getaddrinfo", lambda h, p: _fake_dns("192.168.1.50"))
+    monkeypatch.setenv("YUANZI_PROBE_ALLOWED_CIDR", "127.0.0.0/8,192.168.1.0/24")
+    _register(conn)
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+
+    result = probe_atom(conn, "com.example.probe")
+    assert result["ok"]
+
+
+def test_probe_unresolvable_host_blocked(conn, monkeypatch):
+    """DNS 解析失败按 blocked_address 处理（不发请求）。"""
+    import socket as _socket
+
+    def _raise(host, port):
+        raise _socket.gaierror("nxdomain")
+
+    monkeypatch.setattr(_socket, "getaddrinfo", _raise)
+    _register(conn, runtime={"health_url": "http://no-such-host.invalid/health"})
+
+    result = probe_atom(conn, "com.example.probe")
+    assert result["error"] == "blocked_address"
+    assert "cannot resolve" in result["message"]

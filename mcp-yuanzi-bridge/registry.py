@@ -8,7 +8,10 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
+import os
+import socket
 import sqlite3
 import time
 import urllib.error
@@ -474,6 +477,38 @@ _PROBEABLE_STATUSES = {"registered", "probing", "running", "unreachable", "offli
 # （file:// 等）既不合法也会让 urllib 返回非 HTTP 响应导致崩溃。
 _ALLOWED_PROBE_SCHEMES = {"http", "https"}
 
+# M6.5b / 裁决 2026-07-18-01：probe 目标地址默认仅允许回环，
+# 可用 YUANZI_PROBE_ALLOWED_CIDR 追加网段（逗号分隔），
+# 例如 "127.0.0.0/8,192.168.1.0/24"。
+_DEFAULT_PROBE_CIDRS = "127.0.0.0/8,::1/128"
+
+
+def _allowed_probe_networks() -> List[Any]:
+    raw = os.environ.get("YUANZI_PROBE_ALLOWED_CIDR", _DEFAULT_PROBE_CIDRS)
+    networks = []
+    for item in raw.split(","):
+        item = item.strip()
+        if item:
+            networks.append(ipaddress.ip_network(item))
+    return networks
+
+
+def _probe_address_error(url: str) -> Optional[str]:
+    """检查探测目标地址是否在允许网段内；返回 None 表示允许。"""
+    host = urllib.parse.urlparse(url).hostname
+    if not host:
+        return "missing host"
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        return f"cannot resolve host: {host}"
+    networks = _allowed_probe_networks()
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if not any(ip in network for network in networks):
+            return f"address {ip} outside allowed CIDRs (YUANZI_PROBE_ALLOWED_CIDR)"
+    return None
+
 
 def probe_atom(
     conn: sqlite3.Connection,
@@ -574,6 +609,19 @@ def probe_atom(
             "atom_id": atom_id,
             "error": "invalid_url",
             "message": f"Refusing to probe non-HTTP URL (scheme='{scheme or 'none'}')",
+            "old_status": old_status,
+            "new_status": new_status,
+        }
+
+    # M6.5b：目标地址 CIDR 限制（默认仅回环）
+    address_error = _probe_address_error(url)
+    if address_error:
+        new_status = _persist("blocked_address", ok=None)
+        return {
+            "success": False,
+            "atom_id": atom_id,
+            "error": "blocked_address",
+            "message": f"Refusing to probe address: {address_error}",
             "old_status": old_status,
             "new_status": new_status,
         }
