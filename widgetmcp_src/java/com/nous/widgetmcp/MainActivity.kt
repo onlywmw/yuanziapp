@@ -42,6 +42,13 @@ class MainActivity : Activity() {
         container.addView(buildYuanziSettings())
         setContentView(container)
 
+        // Chaquopy：先在进程内拉起嵌入式 Python API（DESIGN_CHAQUOPY_MIGRATION）
+        try {
+            com.nous.widgetmcp.yuanzi.PythonBridge.ensureStarted(this)
+        } catch (e: Exception) {
+            AppLogger.e("MAIN", "PythonBridge failed: ${e.message}", e)
+        }
+
         // 用户打开 App（前台）时启动 Yuanzi 轮询
         if (YuanziConfig.enabled) {
             try {

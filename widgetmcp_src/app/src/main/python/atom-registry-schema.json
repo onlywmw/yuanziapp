@@ -1,0 +1,255 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Atom Registry Schema v2",
+  "description": "原子注册标准 v2：每个原子必须包含完整的身份、作用、架构、归属、生命周期、合规信息，并保证同构原子只注册一次",
+  "type": "object",
+  "required": [
+    "atom_id",
+    "name",
+    "purpose",
+    "architecture",
+    "ownership",
+    "lifecycle",
+    "signature"
+  ],
+  "properties": {
+    "atom_id": {
+      "type": "string",
+      "description": "全局唯一原子标识，反向域名风格，例如 mcp.document-loader",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "人类可读的原子名称"
+    },
+    "alias": {
+      "type": "array",
+      "description": "别名列表，便于搜索",
+      "items": { "type": "string" }
+    },
+    "description": {
+      "type": "string",
+      "description": "一句话简介"
+    },
+    "purpose": {
+      "type": "object",
+      "description": "原子的作用与能力描述",
+      "required": ["summary", "functions"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "一句话描述这个原子解决什么问题"
+        },
+        "detail": {
+          "type": "string",
+          "description": "详细说明"
+        },
+        "functions": {
+          "type": "array",
+          "description": "原子提供的具体功能/工具列表",
+          "items": {
+            "type": "object",
+            "required": ["name", "description"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "input_schema": { "type": "object" },
+              "output_schema": { "type": "object" }
+            }
+          }
+        },
+        "input": {
+          "type": "string",
+          "description": "典型输入说明"
+        },
+        "output": {
+          "type": "string",
+          "description": "典型输出说明"
+        },
+        "examples": {
+          "type": "array",
+          "description": "使用示例",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "input": {},
+              "output": {}
+            }
+          }
+        }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "description": "原子的技术架构信息",
+      "required": ["type", "runtime", "interface"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["function", "rule", "external", "agent", "mcp-server", "data", "schema", "gateway"],
+          "description": "原子类型"
+        },
+        "runtime": {
+          "type": "string",
+          "description": "运行环境，例如 python3.10, node18, docker"
+        },
+        "interface": {
+          "type": "string",
+          "description": "对外暴露的接口规范，例如 std-atom-http-v1"
+        },
+        "state": {
+          "type": "string",
+          "enum": ["stateless", "stateful"],
+          "description": "是否有状态"
+        },
+        "execution": {
+          "type": "string",
+          "enum": ["sync", "async"],
+          "description": "同步或异步执行"
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "依赖的其他原子或外部服务",
+          "items": { "type": "string" }
+        },
+        "hosting": {
+          "type": "string",
+          "description": "部署方式，例如 docker, process, lambda"
+        },
+        "resource_requirements": {
+          "type": "object",
+          "description": "资源需求",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string" },
+            "disk": { "type": "string" },
+            "network": { "type": "string" }
+          }
+        },
+        "ports": {
+          "type": "array",
+          "items": { "type": "integer" }
+        }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "description": "归属与产权信息",
+      "required": ["author"],
+      "properties": {
+        "author": { "type": "string" },
+        "maintainer": { "type": "string" },
+        "team": { "type": "string" },
+        "organization": { "type": "string" },
+        "license": { "type": "string" },
+        "source_url": { "type": "string", "format": "uri" },
+        "documentation_url": { "type": "string", "format": "uri" },
+        "issue_tracker": { "type": "string", "format": "uri" }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "description": "分类与标签",
+      "properties": {
+        "category": { "type": "string" },
+        "domain": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "maturity": {
+          "type": "string",
+          "enum": ["experimental", "alpha", "beta", "stable", "deprecated"]
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "生命周期与审核信息",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["submitted", "reviewing", "approved", "registered", "probing", "running", "unreachable", "offline", "deprecated", "rejected"]
+        },
+        "review_result": {
+          "type": "object",
+          "properties": {
+            "reviewer": { "type": "string" },
+            "reviewed_at": { "type": "string", "format": "date-time" },
+            "comments": { "type": "string" },
+            "score": { "type": "number" }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "submitted_at": { "type": "string", "format": "date-time" },
+        "registered_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "description": "合规与安全信息",
+      "properties": {
+        "security_level": {
+          "type": "string",
+          "enum": ["public", "internal", "confidential", "restricted"]
+        },
+        "data_sensitivity": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "critical"]
+        },
+        "permissions_required": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "network_access": {
+          "type": "string",
+          "enum": ["none", "localhost", "internal", "public"]
+        },
+        "audit_required": { "type": "boolean" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "description": "质量信息",
+      "properties": {
+        "test_status": {
+          "type": "string",
+          "enum": ["untested", "testing", "passed", "failed"]
+        },
+        "test_coverage": { "type": "number" },
+        "documentation_level": {
+          "type": "string",
+          "enum": ["none", "basic", "good", "comprehensive"]
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "description": "运行时信息",
+      "properties": {
+        "endpoint": { "type": "string" },
+        "health_url": { "type": "string" },
+        "metrics_url": { "type": "string" },
+        "logs_url": { "type": "string" }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "description": "用于去重的数字指纹",
+      "required": ["hash", "algorithm"],
+      "properties": {
+        "hash": { "type": "string" },
+        "algorithm": { "type": "string" },
+        "source": { "type": "string" }
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "原子版本，遵循 semver",
+      "default": "1.0.0"
+    }
+  }
+}

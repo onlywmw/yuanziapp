@@ -114,7 +114,7 @@ ruff check --config pyproject.toml .
 scripts/sync-to-device.sh
 
 # 5. 在 Android 设备上重启原子服务
-sh /data/data/com.termux/files/home/yuanzi-project/start_yuanzi_termux.sh
+# 已废弃（Chaquopy 迁移后 Python 内嵌 APK）：见 docs/DESIGN_CHAQUOPY_MIGRATION.md
 
 # 6. 在 Android 设备上打开 Widget MCP App 验证图谱和小组件
 ```
@@ -271,7 +271,7 @@ yuanzi install-hooks
 | Python 配置 | `pyproject.toml` |
 | Android 主 Activity | `widgetmcp_src/java/com/nous/widgetmcp/MainActivity.kt` |
 | MCP 服务器 | `widgetmcp_src/java/com/nous/widgetmcp/McpServer.kt` |
-| Termux 启动脚本 | `start_yuanzi_termux.sh` |
+| ~~Termux 启动脚本~~（已废弃，Chaquopy 内嵌替代） | 见 DESIGN_CHAQUOPY_MIGRATION.md |
 | ADB 同步 | `scripts/sync-to-device.sh` |
 
 ---
@@ -291,4 +291,4 @@ yuanzi install-hooks
 → 正常，registry.db 只在 Android 设备上（`/data/data/com.termux/files/home/yuanzi-data/agent.db`）运行，开发机只做代码逻辑验证
 
 **问：如何验证 Android 设备上的改动生效？**
-→ `scripts/sync-to-device.sh` 同步后，在 Termux 中运行 `start_yuanzi_termux.sh` 重启服务
+→ Chaquopy 迁移后无需 Termux；APK 内嵌 Python 自动启动（旧流程见 DESIGN_CHAQUOPY_MIGRATION.md）

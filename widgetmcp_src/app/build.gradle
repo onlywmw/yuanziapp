@@ -1,0 +1,49 @@
+// Chaquopy 嵌入式迁移（docs/DESIGN_CHAQUOPY_MIGRATION.md §3.2）
+// Kotlin 源码保持在 widgetmcp_src/java（不重排目录），Python 在 src/main/python。
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'com.chaquo.python' version '16.0.0'
+}
+
+android {
+    namespace 'com.nous.widgetmcp'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.nous.widgetmcp"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        python {
+            // Termux/CI 上的 Python 3.x；Windows 本机构建时改成 python.exe 路径
+            buildPython "/usr/bin/python3"
+            pip {
+                install "fastapi"
+                install "uvicorn"
+                install "pydantic"
+                install "requests"
+                install "jsonschema"
+                install "pyyaml"
+                install "cryptography"
+            }
+        }
+        // 61 个原子 + 13 个基础原子只打 ARM 平板所需的 ABI，控制体积
+        ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
+    }
+
+    // Kotlin 源在 ../java、资源在 ../res（保持现有目录不动）
+    sourceSets {
+        main {
+            java.srcDirs = ['../java']
+            res.srcDirs = ['../res']
+            manifest.srcFile '../AndroidManifest.xml'
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.security:security-crypto:1.1.0-alpha06"
+}
