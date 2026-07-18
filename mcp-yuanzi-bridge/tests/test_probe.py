@@ -360,3 +360,101 @@ def test_probe_unresolvable_host_blocked(conn, monkeypatch):
     result = probe_atom(conn, "com.example.probe")
     assert result["error"] == "blocked_address"
     assert "cannot resolve" in result["message"]
+
+
+# ---------- BUG-033：probe CIDR 加固（畸形 env / DNS 超时 / 重绑定 TOCTOU） ----------
+
+
+def test_probe_cidr_malformed_entries_skipped(conn, monkeypatch, caplog):
+    """BUG-033：畸形 CIDR 项不崩溃——跳过并告警，合法项仍生效。"""
+    import logging
+    import socket as _socket
+
+    monkeypatch.setattr(_socket, "getaddrinfo", lambda h, p: _fake_dns("127.0.0.1"))
+    monkeypatch.setenv("YUANZI_PROBE_ALLOWED_CIDR", "garbage,,127.0.0.1/32")
+    _register(conn)
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+
+    with caplog.at_level(logging.WARNING):
+        result = probe_atom(conn, "com.example.probe")
+
+    assert result["ok"]  # 合法的 127.0.0.1/32 仍然生效
+    assert any("garbage" in r.message for r in caplog.records)
+
+
+def test_probe_cidr_all_malformed_fails_closed(conn, monkeypatch, caplog):
+    """BUG-033：env 全部畸形时 fail-closed——宁可全拒也不放行。"""
+    import logging
+    import socket as _socket
+
+    monkeypatch.setattr(_socket, "getaddrinfo", lambda h, p: _fake_dns("127.0.0.1"))
+    monkeypatch.setenv("YUANZI_PROBE_ALLOWED_CIDR", "garbage,also/bad")
+    _register(conn)
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+
+    with caplog.at_level(logging.WARNING):
+        result = probe_atom(conn, "com.example.probe")
+
+    assert not result["success"]
+    assert result["error"] == "blocked_address"
+    assert "no valid CIDR" in result["message"]
+    assert any("garbage" in r.message for r in caplog.records)
+
+
+def test_probe_dns_resolution_timeout(conn, monkeypatch):
+    """BUG-033：系统 DNS 无超时——解析卡死时按限时返回 dns_timeout 而非阻塞。"""
+    import socket as _socket
+    import time as _time
+
+    def _slow_dns(host, port, *args, **kwargs):
+        _time.sleep(0.6)  # 远超本测试的 probe timeout
+        return _fake_dns("127.0.0.1")
+
+    monkeypatch.setattr(_socket, "getaddrinfo", _slow_dns)
+    monkeypatch.delenv("YUANZI_PROBE_ALLOWED_CIDR", raising=False)
+    _register(conn, runtime={"health_url": "http://slow-dns.local/health"})
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+
+    started = _time.monotonic()
+    result = probe_atom(conn, "com.example.probe", timeout=0.1)
+    elapsed = _time.monotonic() - started
+
+    assert not result["success"]
+    assert result["error"] == "blocked_address"
+    assert "dns_timeout" in result["message"]
+    assert elapsed < 0.6  # 没有傻等卡死的解析线程
+
+
+def test_probe_dns_rebinding_pinned(conn, monkeypatch):
+    """BUG-033：DNS 翻转攻击——请求期的二次解析不得生效（TOCTOU 钉扎）。"""
+    import socket as _socket
+    import urllib.parse as _urlparse
+
+    calls = []
+    ips = ["127.0.0.1", "10.0.0.5"]  # 第一次回环（过校验），第二次内网（攻击）
+
+    def _flipping_dns(host, port, *args, **kwargs):
+        ip = ips[min(len(calls), 1)]
+        calls.append(ip)
+        return _fake_dns(ip)
+
+    monkeypatch.setattr(_socket, "getaddrinfo", _flipping_dns)
+    monkeypatch.delenv("YUANZI_PROBE_ALLOWED_CIDR", raising=False)
+    _register(conn, runtime={"health_url": "http://rebind.local/health"})
+
+    seen = {}
+
+    def fake_urlopen(url, timeout=None):
+        # 模拟 http.client 建连时再次调用 getaddrinfo（真实攻击面）
+        host = _urlparse.urlparse(url).hostname
+        infos = _socket.getaddrinfo(host, 80, 0, _socket.SOCK_STREAM)
+        seen["ip"] = infos[0][4][0]
+        return _FakeResponse(200)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    result = probe_atom(conn, "com.example.probe")
+
+    assert result["ok"]
+    assert len(calls) >= 2  # 确认确实发生了二次解析
+    assert seen["ip"] == "127.0.0.1"  # 翻转后的 10.0.0.5 从未被使用
