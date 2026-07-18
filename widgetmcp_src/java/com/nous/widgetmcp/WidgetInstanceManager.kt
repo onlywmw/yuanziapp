@@ -26,7 +26,7 @@ class WidgetInstanceManager(private val context: Context) {
                     source TEXT NOT NULL DEFAULT 'UI',
                     credentialRef TEXT,
                     lastError TEXT,
-                    hermesId TEXT
+                    yuanziId TEXT
                 )
             """)
         }
@@ -37,7 +37,7 @@ class WidgetInstanceManager(private val context: Context) {
                 db.execSQL("ALTER TABLE widget_instances ADD COLUMN lastError TEXT")
             }
             if (old < 3) {
-                db.execSQL("ALTER TABLE widget_instances ADD COLUMN hermesId TEXT")
+                db.execSQL("ALTER TABLE widget_instances ADD COLUMN yuanziId TEXT")
             }
         }
     }
@@ -53,7 +53,7 @@ class WidgetInstanceManager(private val context: Context) {
             put("source", config.source.name)
             config.credentialRef?.let { put("credentialRef", it) }
             config.lastError?.let { put("lastError", it) }
-            config.hermesId?.let { put("hermesId", it) }
+            config.yuanziId?.let { put("yuanziId", it) }
         }
         dbHelper.writableDatabase.insertWithOnConflict("widget_instances", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -71,7 +71,7 @@ class WidgetInstanceManager(private val context: Context) {
                 source = try { WidgetSource.valueOf(c.getString(c.getColumnIndexOrThrow("source"))) } catch (_: Exception) { WidgetSource.UI },
                 credentialRef = c.getString(c.getColumnIndexOrThrow("credentialRef")),
                 lastError = c.getString(c.getColumnIndexOrThrow("lastError")),
-                hermesId = c.getString(c.getColumnIndexOrThrow("hermesId"))
+                yuanziId = c.getString(c.getColumnIndexOrThrow("yuanziId"))
             ) else null
         }
     }
@@ -89,7 +89,7 @@ class WidgetInstanceManager(private val context: Context) {
                 source = try { WidgetSource.valueOf(c.getString(c.getColumnIndexOrThrow("source"))) } catch (_: Exception) { WidgetSource.UI },
                 credentialRef = c.getString(c.getColumnIndexOrThrow("credentialRef")),
                 lastError = c.getString(c.getColumnIndexOrThrow("lastError")),
-                hermesId = c.getString(c.getColumnIndexOrThrow("hermesId"))
+                yuanziId = c.getString(c.getColumnIndexOrThrow("yuanziId"))
             ))
         }
         return result

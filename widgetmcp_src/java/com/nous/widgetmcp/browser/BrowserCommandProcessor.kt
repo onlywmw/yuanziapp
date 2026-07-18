@@ -2,12 +2,12 @@ package com.nous.widgetmcp.browser
 
 import android.content.Context
 import com.nous.widgetmcp.AppLogger
-import com.nous.widgetmcp.hermes.HermesApi
+import com.nous.widgetmcp.yuanzi.YuanziApi
 
 /**
  * 浏览器命令处理器
  *
- * 轮询 Hermes 的 /agent/command/poll，拿到命令后唤起 BrowserActivity。
+ * 轮询 Yuanzi 的 /agent/command/poll，拿到命令后唤起 BrowserActivity。
  */
 object BrowserCommandProcessor {
 
@@ -16,7 +16,7 @@ object BrowserCommandProcessor {
 
     fun processPendingCommands(context: Context) {
         try {
-            val result = HermesApi.pollCommand()
+            val result = YuanziApi.pollCommand()
             result.fold(
                 onSuccess = { cmd ->
                     if (cmd != null && cmd.eventId != lastEventId) {

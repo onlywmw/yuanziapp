@@ -1,6 +1,6 @@
 :construction: **项目动态计划表** | 最后更新：2026-07-18
 
-# Hermes 原子生态项目计划
+# Yuanzi 原子生态项目计划
 
 > 把 MCP 服务器、工具、模块拆成独立"原子"，通过注册中心管理，在 Android 平板以知识图谱形式呈现。
 
@@ -10,9 +10,9 @@
 
 | 项目 | 内容 |
 |------|------|
-| 项目名称 | Hermes 原子生态 / 原子 App（Yuanzi App） |
+| 项目名称 | Yuanzi 原子生态 / 原子 App（Yuanzi App） |
 | 当前阶段 | **第一阶段：开发体验基础设施** |
-| 核心仓库 | `hermes-atom-templates`、`hermes-atoms`、`mcp-hermes-bridge`、`widgetmcp_src` |
+| 核心仓库 | `yuanzi-atom-templates`、`yuanzi-atoms`、`mcp-yuanzi-bridge`、`widgetmcp_src` |
 
 ---
 
@@ -35,14 +35,14 @@
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
 | 1.1 | 定义 `meta.yaml` 规范 | P0 | 0.5 天 | :heavy_check_mark: 已完成 | 无 | 规范文档 |
-| 1.2 | 创建标准化原子模板 | P0 | 1 天 | :heavy_check_mark: 已完成 | 1.1 | `hermes-atom-templates/` |
+| 1.2 | 创建标准化原子模板 | P0 | 1 天 | :heavy_check_mark: 已完成 | 1.1 | `yuanzi-atom-templates/` |
 | 1.3 | 制作示例原子 `com.example.sum` | P0 | 0.5 天 | :heavy_check_mark: 已完成 | 1.2 | 可运行示例 |
 | 1.4 | 示例原子在平板验证 | P0 | 0.5 天 | :heavy_check_mark: 已完成 | 1.3 | 测试报告 |
-| 1.5 | 实现 `hermes-cli init` | P0 | 2 天 | :white_circle: 未开始 | 1.2 | CLI 命令 |
-| 1.6 | 实现 `hermes-cli validate` | P0 | 1.5 天 | :white_circle: 未开始 | 1.5 | CLI 命令 |
-| 1.7 | 实现 `hermes-cli test` | P0 | 1.5 天 | :white_circle: 未开始 | 1.5 | CLI 命令 |
-| 1.8 | 实现 `hermes-cli build` | P1 | 1 天 | :white_circle: 未开始 | 1.7 | CLI 命令 |
-| 1.9 | 实现 `hermes-cli publish --dry-run` | P1 | 1 天 | :white_circle: 未开始 | 1.8 | CLI 命令 |
+| 1.5 | 实现 `yuanzi-cli init` | P0 | 2 天 | :white_circle: 未开始 | 1.2 | CLI 命令 |
+| 1.6 | 实现 `yuanzi-cli validate` | P0 | 1.5 天 | :white_circle: 未开始 | 1.5 | CLI 命令 |
+| 1.7 | 实现 `yuanzi-cli test` | P0 | 1.5 天 | :white_circle: 未开始 | 1.5 | CLI 命令 |
+| 1.8 | 实现 `yuanzi-cli build` | P1 | 1 天 | :white_circle: 未开始 | 1.7 | CLI 命令 |
+| 1.9 | 实现 `yuanzi-cli publish --dry-run` | P1 | 1 天 | :white_circle: 未开始 | 1.8 | CLI 命令 |
 
 ### 甘特图
 
@@ -63,7 +63,7 @@
 
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
-| 2.1 | 设计 `hermes-config.yaml` | P0 | 1 天 | :white_circle: 未开始 | 无 | 配置文件规范 |
+| 2.1 | 设计 `yuanzi-config.yaml` | P0 | 1 天 | :white_circle: 未开始 | 无 | 配置文件规范 |
 | 2.2 | 实现 adb 一键同步脚本 | P0 | 1 天 | :white_circle: 未开始 | 2.1 | `scripts/sync-to-device.sh` |
 | 2.3 | 配置 Syncthing 同步方案 | P1 | 1 天 | :white_circle: 未开始 | 2.1 | 同步配置文档 |
 | 2.4 | 环境变量与密钥管理 | P0 | 1 天 | :white_circle: 未开始 | 2.1 | 密钥管理方案 |
@@ -79,7 +79,7 @@
 | 3.1 | 配置 black / ruff / mypy | P0 | 1 天 | :white_circle: 未开始 | 无 | 配置文件 |
 | 3.2 | 配置 pytest 测试框架 | P0 | 1 天 | :white_circle: 未开始 | 无 | `tests/` 结构 |
 | 3.3 | 配置 pre-commit 钩子 | P0 | 1 天 | :white_circle: 未开始 | 3.1, 3.2 | `.pre-commit-config.yaml` |
-| 3.4 | 实现 `hermes install-hooks` | P1 | 0.5 天 | :white_circle: 未开始 | 3.3 | CLI 命令 |
+| 3.4 | 实现 `yuanzi install-hooks` | P1 | 0.5 天 | :white_circle: 未开始 | 3.3 | CLI 命令 |
 | 3.5 | 原子 smoke test 规范 | P1 | 1 天 | :white_circle: 未开始 | 3.2 | 测试规范 |
 | 3.6 | GitHub Actions CI 初版 | P2 | 2 天 | :white_circle: 未开始 | 3.3 | `.github/workflows/ci.yml` |
 
@@ -135,8 +135,8 @@
 
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| `hermes-cli init/validate/test` | P0 | :white_circle: 未开始 | 第一阶段核心，直接决定造原子体验 |
-| `hermes-config.yaml` + adb 同步 | P0 | :white_circle: 未开始 | Windows 开发机 ↔ 平板一键同步 |
+| `yuanzi-cli init/validate/test` | P0 | :white_circle: 未开始 | 第一阶段核心，直接决定造原子体验 |
+| `yuanzi-config.yaml` + adb 同步 | P0 | :white_circle: 未开始 | Windows 开发机 ↔ 平板一键同步 |
 | pre-commit + 代码格式化 | P0 | :white_circle: 未开始 | 代码质量门禁 |
 | 修复原子分类误判 | P1 | :white_circle: 未开始 | 提升图谱分组准确性 |
 

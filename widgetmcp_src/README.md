@@ -1,6 +1,6 @@
 # Widget MCP Android 客户端
 
-这是 Hermes 原子生态的 Android 前端，负责在平板上展示原子知识图谱并调用 Hermes 核心服务。
+这是 Yuanzi 原子生态的 Android 前端，负责在平板上展示原子知识图谱并调用 Yuanzi 核心服务。
 
 ## 依赖准备
 
@@ -59,30 +59,30 @@ sh build_adb.sh
 
 该脚本会先编译 APK，然后通过 adb 安装到已连接的 Android 设备。
 
-## 与 Hermes 后端的连接
+## 与 Yuanzi 后端的连接
 
 客户端默认连接：
 
 ```
-Hermes Core: http://127.0.0.1:8080
+Yuanzi Core: http://127.0.0.1:8080
 ```
 
 如需修改，编辑：
 
 ```
-java/com/nous/widgetmcp/hermes/HermesConfig.kt
+java/com/nous/widgetmcp/yuanzi/YuanziConfig.kt
 ```
 
 ## 核心模块
 
 | 模块 | 说明 |
 |------|------|
-| `hermes/` | 与 Hermes Core 通信：拉取图谱、同步状态 |
+| `yuanzi/` | 与 Yuanzi Core 通信：拉取图谱、同步状态 |
 | `ui/` | 自定义 View：图谱节点、连线渲染 |
 | `widget/` | Android 桌面小组件 |
 | `browser/` | 内置浏览器，执行 browser 类原子命令 |
 
 ## 注意
 
-- 客户端需要 Hermes Core（端口 8080）已启动才能正常显示图谱。
+- 客户端需要 Yuanzi Core（端口 8080）已启动才能正常显示图谱。
 - 桌面小组件需要在系统设置中手动添加。

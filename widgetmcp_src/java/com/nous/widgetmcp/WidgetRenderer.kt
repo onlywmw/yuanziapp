@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.widget.RemoteViews
-import com.nous.widgetmcp.hermes.HermesPollReceiver
+import com.nous.widgetmcp.yuanzi.YuanziPollReceiver
 import com.nous.widgetmcp.widget.WidgetBinding
 
 object WidgetRenderer {

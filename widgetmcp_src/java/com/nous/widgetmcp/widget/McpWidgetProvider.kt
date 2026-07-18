@@ -5,10 +5,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import com.nous.widgetmcp.*
-import com.nous.widgetmcp.hermes.HermesConfig
-import com.nous.widgetmcp.hermes.HermesPollScheduler
-import com.nous.widgetmcp.hermes.HermesSync
-import com.nous.widgetmcp.hermes.HermesSyncService
+import com.nous.widgetmcp.yuanzi.YuanziConfig
+import com.nous.widgetmcp.yuanzi.YuanziPollScheduler
+import com.nous.widgetmcp.yuanzi.YuanziSync
+import com.nous.widgetmcp.yuanzi.YuanziSyncService
 
 class McpWidgetProvider : AppWidgetProvider() {
 
@@ -33,7 +33,7 @@ class McpWidgetProvider : AppWidgetProvider() {
             WidgetRenderer.ACTION_WIDGET_CLICK -> {
                 val systemId = WidgetRenderer.getSystemWidgetId(intent)
                 if (systemId >= 0) {
-                    HermesSync.reportWidgetClick(context, systemId, WidgetRenderer.getClickAction(intent))
+                    YuanziSync.reportWidgetClick(context, systemId, WidgetRenderer.getClickAction(intent))
                 }
             }
             else -> super.onReceive(context, intent)
@@ -47,17 +47,17 @@ class McpWidgetProvider : AppWidgetProvider() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        // 第一个 widget 添加时启动 Hermes 轮询服务
-        if (HermesConfig.enabled) {
-            HermesSyncService.start(context)
+        // 第一个 widget 添加时启动 Yuanzi 轮询服务
+        if (YuanziConfig.enabled) {
+            YuanziSyncService.start(context)
         }
     }
 
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
         // 所有 widget 删除后停止轮询
-        HermesSyncService.stop(context)
-        HermesPollScheduler.cancel(context)
+        YuanziSyncService.stop(context)
+        YuanziPollScheduler.cancel(context)
     }
 
     private fun handleUpdate(context: Context, mgr: AppWidgetManager, systemId: Int) {
@@ -83,11 +83,11 @@ class McpWidgetProvider : AppWidgetProvider() {
         // 3. 数据刷新策略
         val config = ServiceLocator.controller.snapshot(internalId)?.config
         when {
-            config?.source == WidgetSource.HERMES -> {
-                // Hermes 指令 widget：触发一次同步，由 Hermes 回写数据
+            config?.source == WidgetSource.YUANZI -> {
+                // Yuanzi 指令 widget：触发一次同步，由 Yuanzi 回写数据
                 WidgetExecutor.pool.submit {
-                    try { HermesSync.syncOnce(context) } catch (e: Exception) {
-                        AppLogger.e("PROVIDER", "Hermes sync failed: ${e.message}", e)
+                    try { YuanziSync.syncOnce(context) } catch (e: Exception) {
+                        AppLogger.e("PROVIDER", "Yuanzi sync failed: ${e.message}", e)
                     }
                 }
             }

@@ -16,7 +16,7 @@ tar czf /tmp/src.tar.gz \
   java/com/nous/widgetmcp/domain/usecase/*.kt \
   java/com/nous/widgetmcp/data/repo/*.kt \
   java/com/nous/widgetmcp/widget/*.kt \
-  java/com/nous/widgetmcp/hermes/*.kt \
+  java/com/nous/widgetmcp/yuanzi/*.kt \
   java/com/nous/widgetmcp/*.kt \
   res/
 

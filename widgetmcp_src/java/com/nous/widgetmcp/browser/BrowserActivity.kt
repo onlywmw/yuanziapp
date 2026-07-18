@@ -15,7 +15,7 @@ import android.widget.*
 import com.nous.widgetmcp.AppLogger
 import com.nous.widgetmcp.R
 import com.nous.widgetmcp.WidgetExecutor
-import com.nous.widgetmcp.hermes.HermesApi
+import com.nous.widgetmcp.yuanzi.YuanziApi
 
 class BrowserActivity : Activity() {
 
@@ -168,8 +168,8 @@ class BrowserActivity : Activity() {
 
     private fun reportPageLoaded(url: String, title: String) {
         WidgetExecutor.pool.submit {
-            HermesApi.reportEvent(
-                com.nous.widgetmcp.hermes.HermesEvent(
+            YuanziApi.reportEvent(
+                com.nous.widgetmcp.yuanzi.YuanziEvent(
                     source = "app",
                     toolId = "browser/page_loaded",
                     args = mapOf("url" to url, "title" to title)
@@ -180,8 +180,8 @@ class BrowserActivity : Activity() {
 
     private fun reportUrlChange(url: String) {
         WidgetExecutor.pool.submit {
-            HermesApi.reportEvent(
-                com.nous.widgetmcp.hermes.HermesEvent(
+            YuanziApi.reportEvent(
+                com.nous.widgetmcp.yuanzi.YuanziEvent(
                     source = "app",
                     toolId = "browser/url_changed",
                     args = mapOf("url" to url)

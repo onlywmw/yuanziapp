@@ -1,0 +1,10 @@
+{
+  "atom_id": "com.example.my-atom",
+  "name": "My Atom",
+  "description": "A short description of what this atom does.",
+  "type": "skill",
+  "kernel_type": "python_script",
+  "author": "yuanzi",
+  "license": "MIT",
+  "port": "8080"
+}

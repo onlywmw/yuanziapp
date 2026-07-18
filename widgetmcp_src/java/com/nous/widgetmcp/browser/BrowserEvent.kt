@@ -3,7 +3,7 @@ package com.nous.widgetmcp.browser
 import org.json.JSONObject
 
 /**
- * 浏览器上报 Hermes 的事件模型
+ * 浏览器上报 Yuanzi 的事件模型
  */
 data class BrowserEvent(
     val source: String = "app",
@@ -28,7 +28,7 @@ data class BrowserEvent(
 }
 
 /**
- * Hermes 下发的浏览器命令
+ * Yuanzi 下发的浏览器命令
  */
 data class BrowserCommand(
     val eventId: Int,

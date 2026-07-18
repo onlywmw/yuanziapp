@@ -1,9 +1,9 @@
 package com.nous.widgetmcp
 
 import android.app.Application
-import com.nous.widgetmcp.hermes.HermesConfig
-import com.nous.widgetmcp.hermes.HermesPollScheduler
-import com.nous.widgetmcp.hermes.HermesSyncService
+import com.nous.widgetmcp.yuanzi.YuanziConfig
+import com.nous.widgetmcp.yuanzi.YuanziPollScheduler
+import com.nous.widgetmcp.yuanzi.YuanziSyncService
 
 class WidgetMCPApp : Application() {
     override fun onCreate() {

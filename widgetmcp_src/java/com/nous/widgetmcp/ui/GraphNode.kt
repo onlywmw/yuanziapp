@@ -21,7 +21,7 @@ data class GraphNode(
         CENTER,       // 中心「组件 MCP」
         WIDGET,       // 已添加的 widget 实例
         ADD_TEMPLATE, // 添加模块（余额 / 文本 / Obsidian）
-        HERMES,       // Hermes 中枢
+        YUANZI,       // Yuanzi 中枢
         BROWSER,      // 浏览器
         SETTINGS      // 设置
     }

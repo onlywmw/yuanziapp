@@ -13,12 +13,12 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
-import com.nous.widgetmcp.hermes.HermesApi
-import com.nous.widgetmcp.hermes.HermesConfig
-import com.nous.widgetmcp.hermes.HermesEvent
-import com.nous.widgetmcp.hermes.HermesPollScheduler
-import com.nous.widgetmcp.hermes.HermesSync
-import com.nous.widgetmcp.hermes.HermesSyncService
+import com.nous.widgetmcp.yuanzi.YuanziApi
+import com.nous.widgetmcp.yuanzi.YuanziConfig
+import com.nous.widgetmcp.yuanzi.YuanziEvent
+import com.nous.widgetmcp.yuanzi.YuanziPollScheduler
+import com.nous.widgetmcp.yuanzi.YuanziSync
+import com.nous.widgetmcp.yuanzi.YuanziSyncService
 import com.nous.widgetmcp.ui.GraphEdge
 import com.nous.widgetmcp.ui.GraphNode
 import com.nous.widgetmcp.ui.GraphView
@@ -38,17 +38,17 @@ class MainActivity : Activity() {
         homeView = buildHome()
         container.addView(homeView)
         container.addView(buildDeepSeekConfig())
-        container.addView(buildHermesSettings())
+        container.addView(buildYuanziSettings())
         setContentView(container)
 
-        // 用户打开 App（前台）时启动 Hermes 轮询
-        if (HermesConfig.enabled) {
+        // 用户打开 App（前台）时启动 Yuanzi 轮询
+        if (YuanziConfig.enabled) {
             try {
-                HermesSyncService.start(this)
-                HermesPollScheduler.scheduleNext(this)
+                YuanziSyncService.start(this)
+                YuanziPollScheduler.scheduleNext(this)
             } catch (e: Exception) {
-                AppLogger.e("MAIN", "Hermes scheduler failed: ${e.message}", e)
-                HermesConfig.lastError = e.message
+                AppLogger.e("MAIN", "Yuanzi scheduler failed: ${e.message}", e)
+                YuanziConfig.lastError = e.message
             }
         }
     }
@@ -61,7 +61,7 @@ class MainActivity : Activity() {
 
     private fun refreshHome() {
         if (!::graphView.isInitialized) return
-        loadGraphFromHermes()
+        loadGraphFromYuanzi()
     }
 
     // ==================== 首页：知识图谱 ====================
@@ -75,13 +75,13 @@ class MainActivity : Activity() {
             setData(defaultGraphNodes(), defaultGraphEdges())
             onNodeClick = { node -> onGraphNodeClick(node) }
         }
-        loadGraphFromHermes()
+        loadGraphFromYuanzi()
         return graphView
     }
 
-    private fun loadGraphFromHermes() {
+    private fun loadGraphFromYuanzi() {
         Thread {
-            val topology = HermesApi.fetchGraph().getOrNull()
+            val topology = YuanziApi.fetchGraph().getOrNull()
             runOnUiThread {
                 if (topology != null) {
                     graphView.setData(
@@ -96,7 +96,7 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    private fun mapTopologyToUiNodes(topology: com.nous.widgetmcp.hermes.GraphTopology): List<GraphNode> {
+    private fun mapTopologyToUiNodes(topology: com.nous.widgetmcp.yuanzi.GraphTopology): List<GraphNode> {
         val paper = getColor(R.color.paper)
         return topology.nodes.map { node ->
             when (node.id) {
@@ -108,24 +108,24 @@ class MainActivity : Activity() {
                     textColor = paper,
                     radius = 56f
                 )
-                "hermes-core" -> {
-                    val connected = HermesConfig.lastSync > 0 && HermesConfig.lastError == null
+                "yuanzi-core" -> {
+                    val connected = YuanziConfig.lastSync > 0 && YuanziConfig.lastError == null
                     val color = when {
-                        !HermesConfig.enabled -> getColor(R.color.amber)
+                        !YuanziConfig.enabled -> getColor(R.color.amber)
                         connected -> getColor(R.color.sage)
                         else -> getColor(R.color.rust)
                     }
                     GraphNode(
-                        id = "hermes-core",
-                        label = "Hermes\n中枢",
-                        type = GraphNode.NodeType.HERMES,
+                        id = "yuanzi-core",
+                        label = "Yuanzi\n中枢",
+                        type = GraphNode.NodeType.YUANZI,
                         color = color,
                         textColor = paper,
                         radius = 48f
                     )
                 }
-                "hermes-browser" -> GraphNode(
-                    id = "hermes-browser",
+                "yuanzi-browser" -> GraphNode(
+                    id = "yuanzi-browser",
                     label = node.label,
                     type = GraphNode.NodeType.BROWSER,
                     color = getColor(R.color.clay_deep),
@@ -154,7 +154,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun mapTopologyToUiEdges(topology: com.nous.widgetmcp.hermes.GraphTopology): List<GraphEdge> {
+    private fun mapTopologyToUiEdges(topology: com.nous.widgetmcp.yuanzi.GraphTopology): List<GraphEdge> {
         val hairline = getColor(R.color.hairline)
         // 只保留原子级拓扑边，能力标签边太密， capabilities 放到节点点击 toast 里展示
         return topology.edges.filter { it.label == null }.map { edge ->
@@ -164,9 +164,9 @@ class MainActivity : Activity() {
 
     private fun defaultGraphNodes(): List<GraphNode> {
         val paper = getColor(R.color.paper)
-        val connected = HermesConfig.lastSync > 0 && HermesConfig.lastError == null
-        val hermesColor = when {
-            !HermesConfig.enabled -> getColor(R.color.amber)
+        val connected = YuanziConfig.lastSync > 0 && YuanziConfig.lastError == null
+        val yuanziColor = when {
+            !YuanziConfig.enabled -> getColor(R.color.amber)
             connected -> getColor(R.color.sage)
             else -> getColor(R.color.rust)
         }
@@ -180,15 +180,15 @@ class MainActivity : Activity() {
                 radius = 56f
             ),
             GraphNode(
-                id = "hermes-core",
-                label = "Hermes\n中枢",
-                type = GraphNode.NodeType.HERMES,
-                color = hermesColor,
+                id = "yuanzi-core",
+                label = "Yuanzi\n中枢",
+                type = GraphNode.NodeType.YUANZI,
+                color = yuanziColor,
                 textColor = paper,
                 radius = 48f
             ),
             GraphNode(
-                id = "hermes-browser",
+                id = "yuanzi-browser",
                 label = "浏览器",
                 type = GraphNode.NodeType.BROWSER,
                 color = getColor(R.color.clay_deep),
@@ -199,7 +199,7 @@ class MainActivity : Activity() {
     }
 
     private fun defaultGraphEdges(): List<GraphEdge> {
-        return listOf(GraphEdge("widgetmcp", "hermes-core", getColor(R.color.hairline)))
+        return listOf(GraphEdge("widgetmcp", "yuanzi-core", getColor(R.color.hairline)))
     }
 
     private fun localAddonNodes(): List<GraphNode> {
@@ -271,8 +271,8 @@ class MainActivity : Activity() {
         )
         val instances = try { ServiceLocator.controller.list() } catch (_: Exception) { emptyList() }
         instances.forEach { cfg ->
-            if (cfg.source == WidgetSource.HERMES) {
-                edges.add(GraphEdge("hermes-core", "widget_${cfg.widgetId}", hairline))
+            if (cfg.source == WidgetSource.YUANZI) {
+                edges.add(GraphEdge("yuanzi-core", "widget_${cfg.widgetId}", hairline))
             } else {
                 edges.add(GraphEdge("widgetmcp", "widget_${cfg.widgetId}", hairline))
             }
@@ -285,7 +285,7 @@ class MainActivity : Activity() {
             GraphNode.NodeType.CENTER -> {
                 // 双击空白处重置，中心节点点击无动作
             }
-            GraphNode.NodeType.HERMES -> showPage(2)
+            GraphNode.NodeType.YUANZI -> showPage(2)
             GraphNode.NodeType.BROWSER -> BrowserActivity.open(this)
             GraphNode.NodeType.ADD_TEMPLATE -> {
                 val typeId = node.payload as? String
@@ -302,7 +302,7 @@ class MainActivity : Activity() {
                             Toast.makeText(this, "已固定到桌面", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    is com.nous.widgetmcp.hermes.GraphTopology.Node -> {
+                    is com.nous.widgetmcp.yuanzi.GraphTopology.Node -> {
                         Toast.makeText(this, "${payload.label} · ${payload.capabilities.joinToString(", ")}", Toast.LENGTH_SHORT).show()
                     }
                     else -> {}
@@ -312,9 +312,9 @@ class MainActivity : Activity() {
         }
     }
 
-    // ==================== Hermes 状态卡 ====================
+    // ==================== Yuanzi 状态卡 ====================
 
-    private fun buildHermesStatusCard(): View {
+    private fun buildYuanziStatusCard(): View {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -328,9 +328,9 @@ class MainActivity : Activity() {
             setOnClickListener { showPage(2) }
         }
 
-        val connected = HermesConfig.lastSync > 0 && HermesConfig.lastError == null
+        val connected = YuanziConfig.lastSync > 0 && YuanziConfig.lastError == null
         val dotRes = when {
-            !HermesConfig.enabled -> R.drawable.app_dot_amber
+            !YuanziConfig.enabled -> R.drawable.app_dot_amber
             connected -> R.drawable.app_dot_sage
             else -> R.drawable.app_dot_rust
         }
@@ -344,13 +344,13 @@ class MainActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         val statusText = when {
-            !HermesConfig.enabled -> "已禁用，点击配置"
-            connected -> "已连接 ${HermesConfig.host}:${HermesConfig.port}"
-            HermesConfig.lastError != null -> "连接失败：${HermesConfig.lastError}"
+            !YuanziConfig.enabled -> "已禁用，点击配置"
+            connected -> "已连接 ${YuanziConfig.host}:${YuanziConfig.port}"
+            YuanziConfig.lastError != null -> "连接失败：${YuanziConfig.lastError}"
             else -> "等待同步…"
         }
         texts.addView(tv(statusText, 14f, getColor(R.color.ink)))
-        texts.addView(tv("Hermes 中枢", 12f, getColor(R.color.muted)).apply {
+        texts.addView(tv("Yuanzi 中枢", 12f, getColor(R.color.muted)).apply {
             setPadding(0, dp(2), 0, 0)
         })
         card.addView(texts)
@@ -497,16 +497,16 @@ class MainActivity : Activity() {
         return scroll
     }
 
-    // ==================== Hermes 设置页 ====================
+    // ==================== Yuanzi 设置页 ====================
 
-    private lateinit var hermesHostInput: EditText
-    private lateinit var hermesPortInput: EditText
-    private lateinit var hermesTokenInput: EditText
-    private lateinit var hermesTestResult: TextView
-    private lateinit var hermesSyncResult: TextView
-    private lateinit var hermesEventResult: TextView
+    private lateinit var yuanziHostInput: EditText
+    private lateinit var yuanziPortInput: EditText
+    private lateinit var yuanziTokenInput: EditText
+    private lateinit var yuanziTestResult: TextView
+    private lateinit var yuanziSyncResult: TextView
+    private lateinit var yuanziEventResult: TextView
 
-    private fun buildHermesSettings(): View {
+    private fun buildYuanziSettings(): View {
         val scroll = ScrollView(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -518,42 +518,42 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
             setOnClickListener { showPage(0) }
         })
-        layout.addView(tv("Hermes 中枢设置", 22f, getColor(R.color.ink)).apply {
+        layout.addView(tv("Yuanzi 中枢设置", 22f, getColor(R.color.ink)).apply {
             setTypeface(typeface, Typeface.BOLD)
         })
 
         layout.addView(section("连接地址"))
 
-        hermesHostInput = inputField("127.0.0.1", HermesConfig.host)
-        layout.addView(hermesHostInput)
-        hermesPortInput = inputField("8080", HermesConfig.port.toString()).apply {
+        yuanziHostInput = inputField("127.0.0.1", YuanziConfig.host)
+        layout.addView(yuanziHostInput)
+        yuanziPortInput = inputField("8080", YuanziConfig.port.toString()).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
         }
-        layout.addView(hermesPortInput)
-        hermesTokenInput = inputField("Token（可选）", HermesConfig.token).apply {
+        layout.addView(yuanziPortInput)
+        yuanziTokenInput = inputField("Token（可选）", YuanziConfig.token).apply {
             inputType = InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
-        layout.addView(hermesTokenInput)
+        layout.addView(yuanziTokenInput)
 
-        hermesTestResult = tv("", 14f, getColor(R.color.muted)).apply { setPadding(0, dp(8), 0, dp(8)) }
-        layout.addView(hermesTestResult)
+        yuanziTestResult = tv("", 14f, getColor(R.color.muted)).apply { setPadding(0, dp(8), 0, dp(8)) }
+        layout.addView(yuanziTestResult)
 
         layout.addView(outlineBtn("测试连接").apply {
-            setOnClickListener { testHermesConnection() }
+            setOnClickListener { testYuanziConnection() }
         })
 
         layout.addView(section("同步控制"))
         layout.addView(primaryBtn("立即同步").apply {
-            setOnClickListener { syncHermesNow() }
+            setOnClickListener { syncYuanziNow() }
         })
-        hermesSyncResult = tv("", 14f, getColor(R.color.muted)).apply { setPadding(0, dp(8), 0, dp(8)) }
-        layout.addView(hermesSyncResult)
+        yuanziSyncResult = tv("", 14f, getColor(R.color.muted)).apply { setPadding(0, dp(8), 0, dp(8)) }
+        layout.addView(yuanziSyncResult)
 
         layout.addView(outlineBtn("测试事件上报").apply {
-            setOnClickListener { testHermesEvent() }
+            setOnClickListener { testYuanziEvent() }
         })
-        hermesEventResult = tv("", 14f, getColor(R.color.muted)).apply { setPadding(0, dp(8), 0, dp(8)) }
-        layout.addView(hermesEventResult)
+        yuanziEventResult = tv("", 14f, getColor(R.color.muted)).apply { setPadding(0, dp(8), 0, dp(8)) }
+        layout.addView(yuanziEventResult)
 
         layout.addView(section("开关"))
         val toggleRow = LinearLayout(this).apply {
@@ -562,18 +562,18 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(14), dp(16), dp(14))
             setBackgroundResource(R.drawable.app_card_bg)
         }
-        toggleRow.addView(tv("启用 Hermes 轮询", 15f, getColor(R.color.ink)).apply {
+        toggleRow.addView(tv("启用 Yuanzi 轮询", 15f, getColor(R.color.ink)).apply {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
-        val toggle = Switch(this).apply { isChecked = HermesConfig.enabled }
+        val toggle = Switch(this).apply { isChecked = YuanziConfig.enabled }
         toggle.setOnCheckedChangeListener { _, checked ->
-            HermesConfig.enabled = checked
+            YuanziConfig.enabled = checked
             if (checked) {
-                HermesSyncService.start(this@MainActivity)
-                HermesPollScheduler.scheduleNext(this@MainActivity)
+                YuanziSyncService.start(this@MainActivity)
+                YuanziPollScheduler.scheduleNext(this@MainActivity)
             } else {
-                HermesSyncService.stop(this@MainActivity)
-                HermesPollScheduler.cancel(this@MainActivity)
+                YuanziSyncService.stop(this@MainActivity)
+                YuanziPollScheduler.cancel(this@MainActivity)
             }
         }
         toggleRow.addView(toggle)
@@ -600,55 +600,55 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun testHermesConnection() {
-        saveHermesInputs()
-        hermesTestResult.text = "测试中…"
-        hermesTestResult.setTextColor(getColor(R.color.muted))
+    private fun testYuanziConnection() {
+        saveYuanziInputs()
+        yuanziTestResult.text = "测试中…"
+        yuanziTestResult.setTextColor(getColor(R.color.muted))
         Thread {
-            val result = HermesApi.checkHealth()
+            val result = YuanziApi.checkHealth()
             runOnUiThread {
                 result.fold(
                     onSuccess = {
-                        hermesTestResult.text = "✓ 连接成功"
-                        hermesTestResult.setTextColor(getColor(R.color.sage_deep))
+                        yuanziTestResult.text = "✓ 连接成功"
+                        yuanziTestResult.setTextColor(getColor(R.color.sage_deep))
                     },
                     onFailure = { e ->
-                        hermesTestResult.text = "✕ ${e.message ?: "连接失败"}"
-                        hermesTestResult.setTextColor(getColor(R.color.rust_deep))
+                        yuanziTestResult.text = "✕ ${e.message ?: "连接失败"}"
+                        yuanziTestResult.setTextColor(getColor(R.color.rust_deep))
                     }
                 )
             }
         }.start()
     }
 
-    private fun syncHermesNow() {
-        saveHermesInputs()
-        hermesSyncResult.text = "同步中…"
-        hermesSyncResult.setTextColor(getColor(R.color.muted))
+    private fun syncYuanziNow() {
+        saveYuanziInputs()
+        yuanziSyncResult.text = "同步中…"
+        yuanziSyncResult.setTextColor(getColor(R.color.muted))
         Thread {
-            val result = HermesSync.syncOnce(this)
+            val result = YuanziSync.syncOnce(this)
             runOnUiThread {
                 result.fold(
                     onSuccess = { count ->
-                        hermesSyncResult.text = "✓ 同步完成，${count} 个 widget"
-                        hermesSyncResult.setTextColor(getColor(R.color.sage_deep))
+                        yuanziSyncResult.text = "✓ 同步完成，${count} 个 widget"
+                        yuanziSyncResult.setTextColor(getColor(R.color.sage_deep))
                         refreshHome()
                     },
                     onFailure = { e ->
-                        hermesSyncResult.text = "✕ ${e.message ?: "同步失败"}"
-                        hermesSyncResult.setTextColor(getColor(R.color.rust_deep))
+                        yuanziSyncResult.text = "✕ ${e.message ?: "同步失败"}"
+                        yuanziSyncResult.setTextColor(getColor(R.color.rust_deep))
                     }
                 )
             }
         }.start()
     }
 
-    private fun testHermesEvent() {
-        saveHermesInputs()
-        hermesEventResult.text = "上报中…"
-        hermesEventResult.setTextColor(getColor(R.color.muted))
+    private fun testYuanziEvent() {
+        saveYuanziInputs()
+        yuanziEventResult.text = "上报中…"
+        yuanziEventResult.setTextColor(getColor(R.color.muted))
         Thread {
-            val event = HermesEvent(
+            val event = YuanziEvent(
                 source = "app",
                 toolId = "widget/click",
                 args = mapOf(
@@ -657,28 +657,28 @@ class MainActivity : Activity() {
                     "action" to "test"
                 )
             )
-            val result = HermesApi.reportEvent(event)
+            val result = YuanziApi.reportEvent(event)
             runOnUiThread {
                 result.fold(
                     onSuccess = {
-                        hermesEventResult.text = "✓ 上报成功"
-                        hermesEventResult.setTextColor(getColor(R.color.sage_deep))
+                        yuanziEventResult.text = "✓ 上报成功"
+                        yuanziEventResult.setTextColor(getColor(R.color.sage_deep))
                         refreshHome()
                     },
                     onFailure = { e ->
-                        hermesEventResult.text = "✕ ${e.message ?: "上报失败"}"
-                        hermesEventResult.setTextColor(getColor(R.color.rust_deep))
+                        yuanziEventResult.text = "✕ ${e.message ?: "上报失败"}"
+                        yuanziEventResult.setTextColor(getColor(R.color.rust_deep))
                     }
                 )
             }
         }.start()
     }
 
-    private fun saveHermesInputs() {
-        HermesConfig.setEndpoint(
-            host = hermesHostInput.text.toString().trim().ifEmpty { "127.0.0.1" },
-            port = hermesPortInput.text.toString().trim().toIntOrNull() ?: 8080,
-            token = hermesTokenInput.text.toString().trim()
+    private fun saveYuanziInputs() {
+        YuanziConfig.setEndpoint(
+            host = yuanziHostInput.text.toString().trim().ifEmpty { "127.0.0.1" },
+            port = yuanziPortInput.text.toString().trim().toIntOrNull() ?: 8080,
+            token = yuanziTokenInput.text.toString().trim()
         )
     }
 

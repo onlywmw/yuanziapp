@@ -5,7 +5,7 @@ import android.util.Log
 import com.nous.widgetmcp.data.repo.WidgetRepositoryImpl
 import com.nous.widgetmcp.domain.contract.WidgetRepository
 import com.nous.widgetmcp.domain.usecase.WidgetController
-import com.nous.widgetmcp.hermes.HermesConfig
+import com.nous.widgetmcp.yuanzi.YuanziConfig
 import java.io.File
 
 /**
@@ -36,7 +36,7 @@ object ServiceLocator {
         bootTime = System.currentTimeMillis()
         AppLogger.init(File(app.filesDir, "logs"))
         CredentialStore.init(app)
-        HermesConfig.init(app)
+        YuanziConfig.init(app)
         AppLogger.i("INIT", "starting")
 
         // [核心] 存储层

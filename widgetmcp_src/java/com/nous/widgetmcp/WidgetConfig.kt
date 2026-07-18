@@ -1,6 +1,6 @@
 package com.nous.widgetmcp
 
-enum class WidgetSource { UI, MCP, API, CLI, HERMES }
+enum class WidgetSource { UI, MCP, API, CLI, YUANZI }
 enum class Freshness { FRESH, STALE, ERROR }
 
 data class DisplayConfig(
@@ -21,7 +21,7 @@ data class WidgetConfig(
     val source: WidgetSource = WidgetSource.UI,
     val credentialRef: String? = null,
     val lastError: String? = null,
-    val hermesId: String? = null
+    val yuanziId: String? = null
 ) {
     fun toJson(): String {
         val sb = StringBuilder("{")
@@ -34,7 +34,7 @@ data class WidgetConfig(
         sb.append("\"source\":\"${source.name}\",")
         credentialRef?.let { sb.append("\"credentialRef\":\"$it\",") }
         lastError?.let { sb.append("\"lastError\":\"$it\",") }
-        hermesId?.let { sb.append("\"hermesId\":\"$it\",") }
+        yuanziId?.let { sb.append("\"yuanziId\":\"$it\",") }
         sb.append("\"_\":0}")
         return sb.toString()
     }
@@ -53,7 +53,7 @@ data class WidgetConfig(
                     source = try { WidgetSource.valueOf(obj.optString("source", "UI")) } catch (_: Exception) { WidgetSource.UI },
                     credentialRef = obj.optString("credentialRef", null),
                     lastError = obj.optString("lastError", null),
-                    hermesId = obj.optString("hermesId", null)
+                    yuanziId = obj.optString("yuanziId", null)
                 )
             } catch (_: Exception) { null }
         }
