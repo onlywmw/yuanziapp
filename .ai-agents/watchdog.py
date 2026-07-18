@@ -35,6 +35,21 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 from config import SIGNALS
 
+# Locate gh.exe — not always in PATH on Windows
+_GH = "gh"
+import shutil as _shutil
+_found = _shutil.which("gh")
+if not _found:
+    for _c in [
+        os.path.expandvars(r"%LOCALAPPDATA%\bin\gh.exe"),
+        os.path.expandvars(r"%APPDATA%\bin\gh.exe"),
+    ]:
+        if os.path.isfile(_c):
+            _GH = _c
+            break
+else:
+    _GH = _found
+
 
 def ts() -> str:
     return datetime.now(timezone.utc).strftime("%H:%M:%S")
@@ -47,7 +62,7 @@ def color(text: str, code: int) -> str:
 
 def _gh_json(*args: str) -> Any:
     """Run gh CLI with --json and parse result."""
-    cmd = ["gh"] + list(args)
+    cmd = [_GH] + list(args)
     try:
         result = subprocess.run(
             cmd,
@@ -154,18 +169,12 @@ def main() -> None:
     # Startup self-check
     try:
         result = subprocess.run(
-            ["gh", "--version"], capture_output=True, text=True,
+            [_GH, "--version"], capture_output=True, text=True,
             encoding="utf-8", timeout=5
         )
         if result.returncode != 0:
             print(f"ERROR: gh CLI not working — {result.stderr.strip()}")
-            print("Make sure GitHub CLI is installed: winget install GitHub.cli")
             return
-    except FileNotFoundError:
-        print("ERROR: 'gh' command not found in PATH")
-        print("Make sure GitHub CLI is installed and in your PATH")
-        print("Download: https://cli.github.com")
-        return
     except Exception as e:
         print(f"ERROR: gh CLI check failed — {e}")
         return
