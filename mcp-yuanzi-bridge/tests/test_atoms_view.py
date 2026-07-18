@@ -81,14 +81,12 @@ def test_view_columns_match_legacy(conn):
 
 def test_view_never_returns_null(conn):
     """加固3：缺 JSON 字段的原子，VIEW 列返回 'unknown'/'' 而不是 NULL。"""
-    conn.execute(
-        """
+    conn.execute("""
         INSERT INTO atom_registry
         (atom_id, name, version, purpose_json, architecture_json,
          ownership_json, lifecycle_json, signature_hash)
         VALUES ('com.example.sparse', '', '1.0.0', '{}', '{}', '{}', '{}', 'h1')
-        """
-    )
+        """)
     conn.commit()
     row = conn.execute(
         "SELECT * FROM atoms WHERE atom_id = 'com.example.sparse'"
