@@ -31,8 +31,10 @@ yuanziapp/
 ├── yuanzi-atoms/             # Yuanzi 核心原子服务
 ├── mcp-yuanzi-bridge/        # MCP 原子注册中心与桥接
 ├── widgetmcp_src/            # Android 客户端源码
+├── scripts/                  # 开发辅助脚本（adb 同步等）
 ├── atoms/                    # 基础示例原子
 ├── atom-registry-schema.json # 原子注册标准 Schema
+├── yuanzi-config.yaml        # 项目配置与同步清单
 ├── start_yuanzi_termux.sh    # Termux 启动脚本
 └── PROJECT_PLAN.md           # 项目计划表
 ```
@@ -64,6 +66,26 @@ yuanzi init com.example.my-atom
 cd com.example.my-atom
 yuanzi validate
 yuanzi test
+```
+
+### 5. 同步到 Android 平板
+
+确保平板通过 adb 连接，然后：
+
+```bash
+scripts/sync-to-device.sh
+```
+
+或使用 Python 脚本：
+
+```bash
+python scripts/sync-to-device.py
+```
+
+### 6. 在平板上启动 Yuanzi
+
+```bash
+sh /data/data/com.termux/files/home/yuanzi-project/start_yuanzi_termux.sh
 ```
 
 ## 注册中心

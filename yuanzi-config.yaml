@@ -1,0 +1,62 @@
+# Yuanzi 项目配置
+# 此文件会同步到 Android 平板，供 Termux 中的 Yuanzi 服务读取。
+
+project:
+  name: yuanzi
+  version: "0.1.0"
+
+registry:
+  db_path: "${YUANZI_DB_DIR}/agent.db"
+  core_url: "http://127.0.0.1:8080"
+
+sync:
+  # adb 可执行文件路径。如果 adb 已在 PATH 中，可保持 "adb"。
+  adb_path: "C:/aaaaa/Tsumugi的解锁小工具v2.9（完整版）/Tsumugi的解锁小工具v2.9（完整版）/adb.exe"
+  # 平板上的项目根目录（Termux 内部路径）
+  device_root: "/data/data/com.termux/files/home/yuanzi-project"
+  # 平板 Termux 用户，推送后用于 chown
+  device_user: "u0_a304"
+  # 不同步的文件/目录模式（支持 fnmatch 通配符）
+  ignore:
+    - ".git"
+    - ".venv"
+    - "venv"
+    - "__pycache__"
+    - "*.pyc"
+    - "*.pyo"
+    - ".pytest_cache"
+    - "logs"
+    - ".env"
+    - "*.pem"
+    - "*.key"
+    - "*.db"
+    - ".DS_Store"
+    - "Thumbs.db"
+  # 需要同步的条目：src 为本地相对路径，dst 为平板上的相对路径
+  items:
+    - src: "yuanzi-config.yaml"
+      dst: "yuanzi-config.yaml"
+    - src: "yuanzi-cli"
+      dst: "yuanzi-cli"
+    - src: "yuanzi-atoms"
+      dst: "yuanzi-atoms"
+    - src: "mcp-yuanzi-bridge"
+      dst: "mcp-yuanzi-bridge"
+    - src: "yuanzi-atom-templates"
+      dst: "yuanzi-atom-templates"
+    - src: "start_yuanzi_termux.sh"
+      dst: "start_yuanzi_termux.sh"
+
+atoms:
+  # 原子默认端口范围（当 meta.yaml 未指定端口时可用）
+  default_port_range: [9000, 9100]
+  # 是否在同步后自动启动原子（MVP 阶段建议 false）
+  auto_start: false
+
+environments:
+  base:
+    log_level: INFO
+  dev:
+    log_level: DEBUG
+  prod:
+    log_level: WARNING

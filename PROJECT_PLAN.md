@@ -20,8 +20,8 @@
 
 | 里程碑 | 目标 | 预计完成 | 状态 |
 |--------|------|----------|------|
-| M1 | 原子开发基础设施就绪 | 2026-07-25 | :construction: 进行中 |
-| M2 | 部署与配置管理就绪 | 2026-08-01 | :white_circle: 未开始 |
+| M1 | 原子开发基础设施就绪 | 2026-07-25 | :heavy_check_mark: 已完成 |
+| M2 | 部署与配置管理就绪 | 2026-08-01 | :construction: 进行中 |
 | M3 | 测试与质量门禁就绪 | 2026-08-08 | :white_circle: 未开始 |
 | M4 | 注册中心服务化 | 2026-08-22 | :white_circle: 未开始 |
 | M5 | 能力搜索与匹配 | 2026-09-05 | :white_circle: 未开始 |
@@ -63,8 +63,8 @@
 
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
-| 2.1 | 设计 `yuanzi-config.yaml` | P0 | 1 天 | :white_circle: 未开始 | 无 | 配置文件规范 |
-| 2.2 | 实现 adb 一键同步脚本 | P0 | 1 天 | :white_circle: 未开始 | 2.1 | `scripts/sync-to-device.sh` |
+| 2.1 | 设计 `yuanzi-config.yaml` | P0 | 1 天 | :heavy_check_mark: 已完成 | 无 | 配置文件规范 |
+| 2.2 | 实现 adb 一键同步脚本 | P0 | 1 天 | :heavy_check_mark: 已完成 | 2.1 | `scripts/sync-to-device.sh` |
 | 2.3 | 配置 Syncthing 同步方案 | P1 | 1 天 | :white_circle: 未开始 | 2.1 | 同步配置文档 |
 | 2.4 | 环境变量与密钥管理 | P0 | 1 天 | :white_circle: 未开始 | 2.1 | 密钥管理方案 |
 | 2.5 | Termux 服务守护 | P1 | 2 天 | :white_circle: 未开始 | 2.2 | 守护脚本 |
@@ -136,7 +136,8 @@
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
 | `yuanzi-cli init/validate/test` | P0 | :heavy_check_mark: 已完成 | 第一阶段核心，直接决定造原子体验 |
-| `yuanzi-config.yaml` + adb 同步 | P0 | :white_circle: 未开始 | Windows 开发机 ↔ 平板一键同步 |
+| `yuanzi-config.yaml` + adb 同步 | P0 | :heavy_check_mark: 已完成 | Windows 开发机 ↔ 平板一键同步 |
+| pre-commit + 代码格式化 | P0 | :white_circle: 未开始 | 代码质量门禁 |
 | pre-commit + 代码格式化 | P0 | :white_circle: 未开始 | 代码质量门禁 |
 | 修复原子分类误判 | P1 | :white_circle: 未开始 | 提升图谱分组准确性 |
 
