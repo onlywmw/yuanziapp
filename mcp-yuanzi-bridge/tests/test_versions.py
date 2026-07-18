@@ -109,10 +109,14 @@ def test_rollback_unknown_atom(conn):
     assert result["error"] == "version_not_found"
 
 
-def test_migration_backfills_existing_atoms(conn):
-    """迁移 003 会把迁移前已注册的原子回填进 atom_versions。"""
-    from migrations import applied_versions, migrate
+def test_migration_backfills_existing_atoms():
+    """迁移 003/005 会把迁移前已注册的原子回填进对应新结构。"""
+    from migrations import MIGRATIONS_DIR, applied_versions, migrate
 
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    # 用 001 基线 SQL 模拟旧库（而不是 ensure_registry_schema 的最新结构）
+    conn.executescript((MIGRATIONS_DIR / "001_init.sql").read_text(encoding="utf-8"))
     conn.execute(
         """
         INSERT INTO atom_registry
@@ -136,11 +140,11 @@ def test_migration_backfills_existing_atoms(conn):
     conn.commit()
 
     applied = migrate(conn)
-    assert applied == [1, 2, 3, 4]
+    assert applied == [1, 2, 3, 4, 5]
 
     versions = list_atom_versions(conn, "com.example.legacy")
     assert len(versions) == 1
     assert versions[0]["version"] == "1.0.0"
     assert versions[0]["signature_hash"] == "deadbeef"
     assert versions[0]["created_at"] == "2026-01-01T00:00:00+00:00"
-    assert applied_versions(conn) == [1, 2, 3, 4]
+    assert applied_versions(conn) == [1, 2, 3, 4, 5]

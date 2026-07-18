@@ -28,6 +28,11 @@ jobs:
           pip install -e yuanzi-cli[dev]
           pip install -r yuanzi-atom-templates/examples/com.example.sum/requirements.txt
 
+      - name: pip-audit (dependency vulnerabilities)
+        run: |
+          pip install pip-audit
+          pip-audit || echo "::warning::pip-audit found issues"
+
       - name: Black (check)
         run: black --check --config pyproject.toml .
 

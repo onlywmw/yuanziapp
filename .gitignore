@@ -73,3 +73,6 @@ widgetmcp_src/android.jar
 widgetmcp_src/libs/*.jar
 *.apk
 *.dex
+
+# 本地机器特定配置覆盖（BUG-011）
+yuanzi-config.local.yaml

@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from cookiecutter.exceptions import CookiecutterException, OutputDirExistsException
 from cookiecutter.main import cookiecutter
 
+from yuanzi_cli.meta import atom_id_error
 from yuanzi_cli.templates import default_template_dir
 
 app = typer.Typer()
@@ -37,6 +39,12 @@ def run_init(
     ),
 ) -> None:
     """Create a new Yuanzi atom from the official template."""
+    if atom_id:
+        error = atom_id_error(atom_id)
+        if error:
+            typer.echo(f"Error: invalid atom id: {error}", err=True)
+            raise typer.Exit(code=1)
+
     template = template_dir or default_template_dir()
     extra_context: dict[str, str] = {}
     no_input = False
@@ -48,10 +56,21 @@ def run_init(
     else:
         typer.echo(f"Scaffolding a new atom from {template}")
 
-    result = cookiecutter(
-        str(template),
-        output_dir=str(output_dir),
-        extra_context=extra_context,
-        no_input=no_input,
-    )
+    try:
+        result = cookiecutter(
+            str(template),
+            output_dir=str(output_dir),
+            extra_context=extra_context,
+            no_input=no_input,
+        )
+    except OutputDirExistsException:
+        typer.echo(
+            f"Error: output directory for '{atom_id}' already exists in "
+            f"{output_dir.resolve()}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    except CookiecutterException as exc:
+        typer.echo(f"Error: failed to scaffold atom: {exc}", err=True)
+        raise typer.Exit(code=1)
     typer.echo(f"Created atom at: {result}")

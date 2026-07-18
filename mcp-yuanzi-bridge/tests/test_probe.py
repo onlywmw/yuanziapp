@@ -28,7 +28,7 @@ def _atom(atom_id="com.example.probe", runtime=None):
         "name": "Probe",
         "version": "1.0.0",
         "description": "probe target",
-        "purpose": {"functions": [{"name": "ping"}]},
+        "purpose": {"functions": [{"name": f"ping_{atom_id}"}]},
         "architecture": {"type": "python_script", "runtime": "python3.12"},
         "ownership": {"author": "test", "license": "MIT"},
         "runtime": runtime,
@@ -181,3 +181,115 @@ def test_probe_falls_back_to_endpoint(conn, monkeypatch):
     _stub_urlopen(monkeypatch, fake)
     probe_atom(conn, "com.example.probe")
     assert seen == ["http://127.0.0.1:9000/x"]
+
+
+# ---------- BUG-014/017/018/019/020/021/022 回归 ----------
+
+
+def test_probe_invalid_scheme_no_crash(conn):
+    """BUG-014/020：file:// 不崩溃、不发请求、记 invalid_url。"""
+    _register(conn, runtime={"health_url": "file:///C:/Windows/win.ini"})
+    result = probe_atom(conn, "com.example.probe")
+    assert not result["success"]
+    assert result["error"] == "invalid_url"
+    assert result["new_status"] == "registered"  # 生命周期不被非法 URL 改写
+
+    atom = get_atom(conn, "com.example.probe")
+    assert atom["runtime"]["last_probe_status"] == "invalid_url"
+
+
+def test_probe_batch_isolates_bad_atoms(conn):
+    """BUG-014：一个坏原子不中断批量探测。"""
+    _register(conn, "com.example.a", runtime={"health_url": "file:///etc/passwd"})
+    _register(conn, "com.example.b")
+
+    def fake(url, timeout=None):
+        class R:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        return R()
+
+    import registry as reg
+
+    orig = reg.urllib.request.urlopen
+    reg.urllib.request.urlopen = fake
+    try:
+        results = probe_atoms(conn)
+    finally:
+        reg.urllib.request.urlopen = orig
+
+    by_id = {r["atom_id"]: r for r in results}
+    assert by_id["com.example.a"]["error"] == "invalid_url"
+    assert by_id["com.example.b"]["ok"]
+
+
+def test_probe_crash_leaves_probing_marker(conn, monkeypatch):
+    """BUG-017：探测中途崩溃，原子停留在 probing 可识别。"""
+    _register(conn)
+
+    def boom(url, timeout=None):
+        raise RuntimeError("unexpected explosion")
+
+    monkeypatch.setattr("urllib.request.urlopen", boom)
+    results = probe_atoms(conn)  # 批量层隔离异常
+    assert results[0]["error"] == "probe_exception"
+
+    atom = get_atom(conn, "com.example.probe")
+    assert atom["lifecycle"]["status"] == "probing"
+
+
+def test_probe_audit_throttled_when_nothing_changes(conn, monkeypatch):
+    """BUG-022：状态与探测结果不变时不重复记审计。"""
+    _register(conn)
+    _stub_urlopen(monkeypatch, urllib.error.URLError("down"))
+    probe_atom(conn, "com.example.probe")  # registered -> unreachable，记一条
+    probe_atom(conn, "com.example.probe")  # unreachable -> unreachable，不记
+    probe_atom(conn, "com.example.probe")  # 同上，不记
+
+    rows = conn.execute(
+        "SELECT COUNT(*) FROM atom_audit_log WHERE action='probe'"
+    ).fetchone()
+    assert rows[0] == 1
+
+
+def test_probe_no_endpoint_writes_audit(conn):
+    """BUG-018：no_endpoint 也记一条探测审计。"""
+    _register(conn, runtime={})
+    probe_atom(conn, "com.example.probe")
+    row = conn.execute(
+        "SELECT detail FROM atom_audit_log WHERE action='probe'"
+    ).fetchone()
+    assert row is not None
+    assert "no_endpoint" in row[0]
+
+    # 第二次 no_endpoint 不重复记（节流）
+    probe_atom(conn, "com.example.probe")
+    count = conn.execute(
+        "SELECT COUNT(*) FROM atom_audit_log WHERE action='probe'"
+    ).fetchone()[0]
+    assert count == 1
+
+
+def test_probe_offline_to_unreachable_allowed(conn, monkeypatch):
+    """BUG-019：offline -> unreachable 是流转表内的合法转换。"""
+    _register(conn, status="offline")
+    _stub_urlopen(monkeypatch, urllib.error.URLError("down"))
+    result = probe_atom(conn, "com.example.probe")
+    assert result["new_status"] == "unreachable"
+
+
+def test_probe_status_change_records_audit(conn, monkeypatch):
+    """BUG-017 两阶段：probing 不出现在审计里，old/new 是真实状态。"""
+    _register(conn)
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+    probe_atom(conn, "com.example.probe")
+    row = conn.execute(
+        "SELECT old_status, new_status FROM atom_audit_log WHERE action='probe'"
+    ).fetchone()
+    assert tuple(row) == ("registered", "running")

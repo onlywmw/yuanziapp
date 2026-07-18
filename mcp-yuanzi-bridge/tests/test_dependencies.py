@@ -14,7 +14,7 @@ def _atom(atom_id, deps=()):
         "name": atom_id,
         "version": "1.0.0",
         "description": "",
-        "purpose": {"functions": [{"name": "f"}]},
+        "purpose": {"functions": [{"name": f"f_{atom_id}"}]},
         "architecture": {
             "type": "python_script",
             "runtime": "python3.12",

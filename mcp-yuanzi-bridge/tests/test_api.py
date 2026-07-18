@@ -128,7 +128,7 @@ def test_audit_trail_via_api(client):
 
 def test_dependencies_endpoint(client):
     client.post("/atoms", json=_atom("com.example.base"))
-    child = _atom("com.example.child")
+    child = _atom("com.example.child", functions=("child_fn",))
     child["architecture"]["dependencies"] = ["com.example.base"]
     client.post("/atoms", json=child)
 

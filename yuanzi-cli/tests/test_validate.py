@@ -78,3 +78,14 @@ def test_validate_clean_kernel_test_passes(tmp_path):
     atom = _make_atom(tmp_path, "import pytest\nfrom atom.core import handle\n")
     result = runner.invoke(app, ["validate", str(atom)])
     assert result.exit_code == 0, result.output
+
+
+def test_validate_rejects_uppercase_and_unicode_id(tmp_path):
+    for bad_id in ("COM.EXAMPLE.X", "com.中文.x"):
+        meta = tmp_path / "meta.yaml"
+        meta.write_text(
+            VALID_META.replace("com.example.mini", bad_id), encoding="utf-8"
+        )
+        result = runner.invoke(app, ["validate", str(tmp_path)])
+        assert result.exit_code == 1, bad_id
+        assert "validation failed" in result.output

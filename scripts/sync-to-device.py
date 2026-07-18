@@ -26,7 +26,21 @@ DEFAULT_CONFIG = "yuanzi-config.yaml"
 def load_config(path: Path) -> dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
+    # 机器特定的本地覆盖（不入库，见 .gitignore）
+    local = path.with_name("yuanzi-config.local.yaml")
+    if local.exists():
+        with open(local, "r", encoding="utf-8") as f:
+            raw = _deep_merge(raw, yaml.safe_load(f) or {})
     return _expand_env(raw)
+
+
+def _deep_merge(base: Any, override: Any) -> Any:
+    if isinstance(base, dict) and isinstance(override, dict):
+        merged = dict(base)
+        for key, value in override.items():
+            merged[key] = _deep_merge(merged[key], value) if key in merged else value
+        return merged
+    return override
 
 
 def _expand_env(value: Any) -> Any:

@@ -54,6 +54,26 @@ def test_install_hooks_no_config(tmp_path, monkeypatch):
     assert "no .pre-commit-config.yaml found" in result.output
 
 
+def test_find_repo_root_stops_at_git_boundary(tmp_path):
+    # 上层（模拟 home）有配置，但中间隔着另一个 git 仓库：不得越过
+    (tmp_path / ".pre-commit-config.yaml").write_text("repos: []\n")
+    repo = tmp_path / "other-repo"
+    nested = repo / "src"
+    nested.mkdir(parents=True)
+    (repo / ".git").mkdir()
+
+    assert install_hooks._find_repo_root(nested) is None
+
+
+def test_find_repo_root_prefers_config_over_git(tmp_path):
+    _config(tmp_path)
+    (tmp_path / ".git").mkdir()
+    nested = tmp_path / "a" / "b"
+    nested.mkdir(parents=True)
+
+    assert install_hooks._find_repo_root(nested) == tmp_path
+
+
 def test_install_hooks_success(tmp_path, monkeypatch):
     config = _config(tmp_path)
     calls = _stub_run(monkeypatch, {})

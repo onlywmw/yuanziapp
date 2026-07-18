@@ -1,8 +1,24 @@
 # server.py
+import os
+
 import core  # 导入我们的核心逻辑
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
+
+# --- 网络配置（BUG-005/009）：默认仅回环；端口可用 PORT 环境变量覆盖 ---
+HOST = os.environ.get("HOST", "127.0.0.1")
+PORT = int(os.environ.get("PORT", "9003"))
+
+
+# --- 可选鉴权：设置 YUANZI_TOKEN 后，/run 必须携带同名 header ---
+@app.before_request
+def _check_token():
+    token = os.environ.get("YUANZI_TOKEN")
+    if token and request.path == "/run":
+        if request.headers.get("Yuanzi-Token") != token:
+            return jsonify({"status": "error", "message": "unauthorized"}), 401
+    return None
 
 
 # --- 标准接口 1：健康检查 ---
@@ -40,5 +56,4 @@ def run():
 
 
 if __name__ == "__main__":
-    # 必须监听 0.0.0.0 才能被外部访问
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host=HOST, port=PORT)

@@ -12,11 +12,17 @@ app = typer.Typer()
 
 
 def _find_repo_root(start: Path) -> Path | None:
-    """Walk upwards from `start` looking for .pre-commit-config.yaml."""
+    """Walk upwards from `start` looking for .pre-commit-config.yaml.
+
+    遇到包含 .git 但没有配置的目录时停止——那是一个仓库边界，
+    不应把钩子装进不相关的上层仓库（BUG-015）。
+    """
     current = start.resolve()
     for candidate in (current, *current.parents):
         if (candidate / ".pre-commit-config.yaml").exists():
             return candidate
+        if (candidate / ".git").exists():
+            return None
     return None
 
 

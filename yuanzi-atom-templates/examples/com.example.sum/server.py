@@ -23,8 +23,13 @@ def load_meta() -> dict:
 
 META = load_meta()
 RUNTIME = META.get("runtime", {})
+
+# BUG-010：请求体上限，防止内存 DoS（可用环境变量调整）
+MAX_BODY_BYTES = int(os.environ.get("MAX_BODY_BYTES", 5 * 1024 * 1024))
+# BUG-012：默认对外返回通用错误，调试时设 YUANZI_DEBUG=1 才回传异常详情
+DEBUG = os.environ.get("YUANZI_DEBUG") == "1"
 PORT = int(os.environ.get("PORT", RUNTIME.get("port", 8080)))
-HOST = os.environ.get("HOST", RUNTIME.get("host", "0.0.0.0"))
+HOST = os.environ.get("HOST", RUNTIME.get("host", "127.0.0.1"))
 
 # Import kernel handler based on kernel_type.
 kernel_type = META.get("kernel_type", "python_script")
@@ -32,6 +37,12 @@ if kernel_type == "python_script":
     from atom.core import handle
 else:
     raise NotImplementedError(f"kernel_type '{kernel_type}' is not supported yet.")
+
+
+class _BodyTooLargeError(Exception):
+    def __init__(self, length: int):
+        super().__init__(f"body length {length} exceeds limit")
+        self.length = length
 
 
 class AtomHandler(BaseHTTPRequestHandler):
@@ -48,6 +59,8 @@ class AtomHandler(BaseHTTPRequestHandler):
 
     def _read_body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
+        if length > MAX_BODY_BYTES:
+            raise _BodyTooLargeError(length)
         if length == 0:
             return {}
         raw = self.rfile.read(length).decode("utf-8")
@@ -61,16 +74,37 @@ class AtomHandler(BaseHTTPRequestHandler):
         else:
             self._send_json(404, {"ok": False, "error": "not found"})
 
+    def _authorized(self) -> bool:
+        # 可选鉴权：设置 YUANZI_TOKEN 后，/run 必须携带同名 header
+        token = os.environ.get("YUANZI_TOKEN")
+        if not token:
+            return True
+        return self.headers.get("Yuanzi-Token") == token
+
     def do_POST(self) -> None:
         if self.path != "/run":
             self._send_json(404, {"ok": False, "error": "not found"})
+            return
+        if not self._authorized():
+            self._send_json(401, {"ok": False, "error": "unauthorized"})
             return
         try:
             payload = self._read_body()
             result = handle(payload)
             self._send_json(200, {"ok": True, "data": result})
+        except _BodyTooLargeError:
+            self._send_json(
+                413,
+                {
+                    "ok": False,
+                    "error": f"request body too large (limit {MAX_BODY_BYTES} bytes)",
+                },
+            )
         except Exception as exc:
-            self._send_json(400, {"ok": False, "error": str(exc)})
+            # BUG-012：异常详情只进服务端日志，对外返回通用错误
+            print(f"[{META.get('id', 'atom')}] handler error: {exc!r}", file=sys.stderr)
+            message = str(exc) if DEBUG else "internal error"
+            self._send_json(400, {"ok": False, "error": message})
 
 
 def main() -> int:

@@ -10,8 +10,9 @@ registry:
   core_url: "http://127.0.0.1:8080"
 
 sync:
-  # adb 可执行文件路径。如果 adb 已在 PATH 中，可保持 "adb"。
-  adb_path: "C:/aaaaa/Tsumugi的解锁小工具v2.9（完整版）/Tsumugi的解锁小工具v2.9（完整版）/adb.exe"
+  # adb 可执行文件路径。默认使用 PATH 中的 adb；
+  # 机器特定路径请写入未跟踪的 yuanzi-config.local.yaml 覆盖。
+  adb_path: "adb"
   # 平板上的项目根目录（Termux 内部路径）
   device_root: "/data/data/com.termux/files/home/yuanzi-project"
   # 平板 Termux 用户，推送后用于 chown

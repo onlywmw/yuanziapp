@@ -2,9 +2,31 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+# 反向域名风格：小写 ASCII 字母/数字开头，段内允许 - 和 _
+ATOM_ID_SEGMENT_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def atom_id_error(value: str) -> str | None:
+    """校验 atom id 格式，返回错误消息；合法时返回 None。"""
+    if not value:
+        return "atom id must not be empty"
+    parts = value.split(".")
+    if len(parts) < 2:
+        return "atom id must use reverse-domain notation (e.g. com.example.my-atom)"
+    for part in parts:
+        if not part:
+            return "atom id segments must not be empty"
+        if not ATOM_ID_SEGMENT_RE.match(part):
+            return (
+                f"atom id segment '{part}' must start with a lowercase letter "
+                "or digit and contain only [a-z0-9_-]"
+            )
+    return None
 
 
 class RuntimeConfig(BaseModel):
@@ -35,20 +57,9 @@ class AtomMeta(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_atom_id(cls, value: str) -> str:
-        if not value:
-            raise ValueError("atom id must not be empty")
-        parts = value.split(".")
-        if len(parts) < 2:
-            raise ValueError(
-                "atom id must use reverse-domain notation (e.g. com.example.my-atom)"
-            )
-        for part in parts:
-            if not part:
-                raise ValueError("atom id segments must not be empty")
-            if not all(c.isalnum() or c in "-_" for c in part):
-                raise ValueError(
-                    f"atom id segment '{part}' contains invalid characters"
-                )
+        error = atom_id_error(value)
+        if error:
+            raise ValueError(error)
         return value
 
     @field_validator("version")
