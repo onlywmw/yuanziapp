@@ -58,3 +58,19 @@ def test_cloud_before_ai_for_pricing():
 
 def test_fallback_integration():
     assert guess_category("mcp.widget", _funcs("render_panel")) == "Integration"
+
+
+def test_name_tokens_take_priority_over_function_names():
+    # atom_id 是 aws-iac，即使函数名含 documentation 也应按 IaC/Cloud 分类
+    assert (
+        guess_category("mcp.aws-iac", _funcs("search_cdk_documentation"))
+        == "Cloud & Storage"
+    )
+
+
+def test_aws_api_is_cloud_not_web():
+    assert guess_category("mcp.aws-api", _funcs("call_aws_api")) == "Cloud & Storage"
+
+
+def test_cloudtrail_is_observability():
+    assert guess_category("mcp.cloudtrail", _funcs("lookup_events")) == "Observability"

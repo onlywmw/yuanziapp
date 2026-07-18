@@ -92,21 +92,6 @@ CATEGORY_KEYWORDS: List[tuple] = [
         },
     ),
     (
-        "Web & Browser",
-        {
-            "browser",
-            "web",
-            "http",
-            "https",
-            "url",
-            "fetch",
-            "api",
-            "openapi",
-            "scrape",
-            "crawl",
-        },
-    ),
-    (
         "Cloud & Storage",
         {
             "cloud",
@@ -119,18 +104,33 @@ CATEGORY_KEYWORDS: List[tuple] = [
             "ecs",
             "eks",
             "lambda",
-            "cloudwatch",
-            "cloudtrail",
             "appsync",
             "container",
             "ecr",
             "docker",
             "cloudformation",
+            "cdk",
+            "iac",
             "terraform",
             "pricing",
             "billing",
             "location",
             "geocode",
+        },
+    ),
+    (
+        "Web & Browser",
+        {
+            "browser",
+            "web",
+            "http",
+            "https",
+            "url",
+            "fetch",
+            "api",
+            "openapi",
+            "scrape",
+            "crawl",
         },
     ),
     (
@@ -184,6 +184,8 @@ CATEGORY_KEYWORDS: List[tuple] = [
             "observability",
             "prometheus",
             "grafana",
+            "cloudwatch",
+            "cloudtrail",
             "tracing",
             "alert",
             "alerts",
@@ -192,14 +194,28 @@ CATEGORY_KEYWORDS: List[tuple] = [
 ]
 
 
-def guess_category(atom_id: str, functions: List[Dict[str, Any]]) -> str:
-    tokens = set(_TOKEN_RE.findall(atom_id.lower()))
-    for f in functions:
-        tokens.update(_TOKEN_RE.findall(f.get("name", "").lower()))
+def _match_category(tokens: set) -> str | None:
     for category, keywords in CATEGORY_KEYWORDS:
         if tokens & keywords:
             return category
-    return "Integration"
+    return None
+
+
+def guess_category(atom_id: str, functions: List[Dict[str, Any]]) -> str:
+    """两阶段分类：先只看 atom_id 的 token，再看 atom_id + 函数名。
+
+    atom_id 更能代表原子的用途（如 mcp.aws-iac），函数名只是辅助信号，
+    避免被 get_managed_policy_document 这类函数名带偏。
+    """
+    name_tokens = set(_TOKEN_RE.findall(atom_id.lower()))
+    category = _match_category(name_tokens)
+    if category:
+        return category
+
+    tokens = set(name_tokens)
+    for f in functions:
+        tokens.update(_TOKEN_RE.findall(f.get("name", "").lower()))
+    return _match_category(tokens) or "Integration"
 
 
 def guess_maturity(name: str) -> str:
