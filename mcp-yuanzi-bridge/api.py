@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Query
-from migrations import migrate
 from pydantic import BaseModel
 from registry import (
     compute_registry_stats,
+    ensure_registry_schema,
     get_atom,
     get_atom_version,
     get_audit_log,
@@ -54,7 +54,7 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
     app = FastAPI(title="Yuanzi Registry API", version="0.1.0")
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    migrate(conn)
+    ensure_registry_schema(conn)
 
     @app.get("/health")
     def health() -> Dict[str, str]:

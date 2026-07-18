@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import jsonschema
 from registry import (
     compute_signature,
     dump_registry,
@@ -346,19 +347,15 @@ def build_registry_atom(raw: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def validate_atom(atom: Dict[str, Any], schema: Dict[str, Any]) -> List[str]:
-    """简单字段级校验（不完全实现 JSON Schema）。"""
+    """用 atom-registry-schema.json 做真正的 JSON Schema 校验。
+
+    返回人类可读的错误列表；空列表表示通过。
+    """
+    validator = jsonschema.Draft7Validator(schema)
     errors: List[str] = []
-    required = schema.get("required", [])
-    for k in required:
-        if k not in atom or atom[k] in (None, "", {}):
-            errors.append(f"Missing required field: {k}")
-    for k in ["purpose", "architecture", "ownership", "lifecycle", "signature"]:
-        if k in atom and not isinstance(atom[k], dict):
-            errors.append(f"Field {k} must be an object")
-    if "atom_id" in atom:
-        aid = atom["atom_id"]
-        if not aid or "." not in aid:
-            errors.append("atom_id must be a reverse-domain style string")
+    for error in sorted(validator.iter_errors(atom), key=lambda e: list(e.path)):
+        loc = ".".join(str(p) for p in error.absolute_path) or "(root)"
+        errors.append(f"{loc}: {error.message}")
     return errors
 
 

@@ -52,6 +52,14 @@ def _register(conn, atom_id="com.example.probe", runtime=None, status="registere
         registry.set_atom_status(conn, atom_id, status)
 
 
+def _register_distinct(conn, atom_id, runtime, fn_name):
+    """Register an atom whose capability fingerprint is unique (fn_name)."""
+    atom = _atom(atom_id, runtime)
+    atom["purpose"]["functions"] = [{"name": fn_name}]
+    submit_atom(conn, atom)
+    review_atom(conn, atom_id, approved=True)
+
+
 class _FakeResponse:
     def __init__(self, status=200):
         self.status = status
@@ -181,3 +189,89 @@ def test_probe_falls_back_to_endpoint(conn, monkeypatch):
     _stub_urlopen(monkeypatch, fake)
     probe_atom(conn, "com.example.probe")
     assert seen == ["http://127.0.0.1:9000/x"]
+
+
+def test_probe_rejects_file_scheme_bug014(conn, monkeypatch):
+    """BUG-014: file:// endpoint crashed probe_atom with TypeError.
+
+    Now a non-http(s) scheme is refused without any request and recorded
+    as probe_status='invalid_url' instead of raising.
+    """
+    _register(conn, runtime={"health_url": "file:///C:/Windows/win.ini"})
+    called = []
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda url, timeout=None: called.append(url) or _FakeResponse(200),
+    )
+
+    result = probe_atom(conn, "com.example.probe")
+    assert result["success"] and not result["ok"]
+    assert result["probe_status"] == "invalid_url"
+    assert called == []  # 未发起任何请求
+
+    atom = get_atom(conn, "com.example.probe")
+    assert atom["runtime"]["last_probe_status"] == "invalid_url"
+    assert atom["runtime"]["consecutive_failures"] == 1
+
+
+def test_probe_rejects_non_http_schemes_bug020(conn, monkeypatch):
+    """BUG-020: registry data is untrusted; only http/https may be probed.
+
+    gopher/ftp/etc. must be rejected and recorded, never requested —
+    otherwise batch probing becomes an intranet scanner.
+    """
+    called = []
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda url, timeout=None: called.append(url) or _FakeResponse(200),
+    )
+    targets = [
+        ("com.example.gopher", "gopher://internal.host/1"),
+        ("com.example.ftp", "ftp://10.0.0.5/pub"),
+    ]
+    for i, (aid, url) in enumerate(targets):
+        _register_distinct(conn, aid, {"health_url": url}, f"f{i}")
+        result = probe_atom(conn, aid)
+        assert result["success"] and not result["ok"]
+        assert result["probe_status"] == "invalid_url"
+    assert called == []
+
+
+def test_probe_atoms_isolates_atom_errors_bug014(conn, monkeypatch):
+    """BUG-014: one bad row must not abort the whole batch probe."""
+    _register_distinct(
+        conn, "com.example.bad", {"health_url": "file:///etc/passwd"}, "bad"
+    )
+    _register_distinct(
+        conn, "com.example.good", {"health_url": "http://127.0.0.1:9000/h"}, "good"
+    )
+    _stub_urlopen(monkeypatch, lambda url: _FakeResponse(200))
+
+    results = probe_atoms(conn)
+    assert len(results) == 2
+    by_id = {r["atom_id"]: r for r in results}
+    assert by_id["com.example.bad"]["probe_status"] == "invalid_url"
+    assert by_id["com.example.good"]["ok"]
+
+
+def test_probe_atoms_records_unexpected_error_bug014(conn, monkeypatch):
+    """BUG-014: unexpected per-atom exceptions are recorded, not raised."""
+    _register_distinct(
+        conn, "com.example.boom", {"health_url": "http://127.0.0.1:9000/h"}, "boom"
+    )
+    _register_distinct(
+        conn, "com.example.fine", {"health_url": "http://127.0.0.1:9001/h"}, "fine"
+    )
+
+    def fake_urlopen(url, timeout=None):
+        if "9000" in url:
+            raise ValueError("unexpected parser explosion")
+        return _FakeResponse(200)
+
+    _stub_urlopen(monkeypatch, fake_urlopen)
+    results = probe_atoms(conn)
+    assert len(results) == 2
+    by_id = {r["atom_id"]: r for r in results}
+    assert by_id["com.example.boom"]["error"] == "probe_error"
+    assert "unexpected parser explosion" in by_id["com.example.boom"]["message"]
+    assert by_id["com.example.fine"]["ok"]

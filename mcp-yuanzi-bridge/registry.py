@@ -11,7 +11,9 @@ import hashlib
 import json
 import logging
 import sqlite3
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -167,6 +169,45 @@ def ensure_registry_schema(conn: sqlite3.Connection) -> None:
             created_at TEXT
         )
         """)
+    # Safety net for the additive M4/M5 tables (normally introduced by the
+    # SQL migrations 003/004 through the functional ``migrate()`` API).
+    conn.execute(f"""
+        CREATE TABLE IF NOT EXISTS {VERSIONS_TABLE} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            atom_id TEXT NOT NULL,
+            version TEXT NOT NULL,
+            name TEXT,
+            description TEXT,
+            purpose_json TEXT,
+            architecture_json TEXT,
+            ownership_json TEXT,
+            classification_json TEXT,
+            compliance_json TEXT,
+            quality_json TEXT,
+            runtime_json TEXT,
+            signature_hash TEXT,
+            content_hash TEXT,
+            identity_hash TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE (atom_id, version)
+        )
+        """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS function_embeddings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            atom_id TEXT NOT NULL,
+            function_name TEXT NOT NULL,
+            text TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            dim INTEGER NOT NULL,
+            vector_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE (atom_id, function_name, model)
+        )
+        """)
     conn.commit()
 
 
@@ -303,6 +344,7 @@ def submit_atom(
     atom["signature"]["identity_hash"] = compute_identity_hash(atom)
 
     result = _insert_or_update(conn, atom, signature, actor)
+    _archive_version(conn, atom, signature)
     _audit(
         conn,
         atom_id,
@@ -314,6 +356,62 @@ def submit_atom(
     )
     result["success"] = True
     return result
+
+
+def _archive_version(
+    conn: sqlite3.Connection, atom: Dict[str, Any], signature: str
+) -> None:
+    """Archive the submitted content as a version snapshot.
+
+    Upserts on (atom_id, version): re-submitting the same version refreshes
+    the snapshot while keeping the original created_at.
+    """
+    now = now_iso()
+    lifecycle = atom.get("lifecycle", {})
+    conn.execute(
+        f"""
+        INSERT INTO {VERSIONS_TABLE}
+        (atom_id, version, name, description, purpose_json, architecture_json,
+         ownership_json, classification_json, compliance_json, quality_json,
+         runtime_json, signature_hash, content_hash, identity_hash,
+         created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(atom_id, version) DO UPDATE SET
+            name=excluded.name,
+            description=excluded.description,
+            purpose_json=excluded.purpose_json,
+            architecture_json=excluded.architecture_json,
+            ownership_json=excluded.ownership_json,
+            classification_json=excluded.classification_json,
+            compliance_json=excluded.compliance_json,
+            quality_json=excluded.quality_json,
+            runtime_json=excluded.runtime_json,
+            signature_hash=excluded.signature_hash,
+            content_hash=excluded.content_hash,
+            identity_hash=excluded.identity_hash,
+            updated_at=excluded.updated_at
+        """,
+        (
+            atom["atom_id"],
+            atom.get("version", "1.0.0"),
+            atom.get("name", ""),
+            atom.get("description", ""),
+            json.dumps(atom.get("purpose", {}), ensure_ascii=False),
+            json.dumps(atom.get("architecture", {}), ensure_ascii=False),
+            json.dumps(atom.get("ownership", {}), ensure_ascii=False),
+            json.dumps(atom.get("classification", {}), ensure_ascii=False),
+            json.dumps(atom.get("compliance", {}), ensure_ascii=False),
+            json.dumps(atom.get("quality", {}), ensure_ascii=False),
+            json.dumps(atom.get("runtime", {}), ensure_ascii=False),
+            signature,
+            atom.get("signature", {}).get("content_hash") or compute_content_hash(atom),
+            atom.get("signature", {}).get("identity_hash")
+            or compute_identity_hash(atom),
+            lifecycle.get("created_at") or now,
+            now,
+        ),
+    )
+    conn.commit()
 
 
 def review_atom(
@@ -382,9 +480,11 @@ def set_atom_status(
 ) -> Dict[str, Any]:
     """在注册后变更原子运行状态：running / offline / deprecated。"""
     allowed_transitions = {
-        "registered": ["running", "offline", "deprecated"],
-        "running": ["offline", "deprecated", "registered"],
-        "offline": ["running", "deprecated", "registered"],
+        "registered": ["probing", "running", "unreachable", "offline", "deprecated"],
+        "probing": ["running", "unreachable", "offline", "deprecated"],
+        "running": ["probing", "unreachable", "offline", "deprecated", "registered"],
+        "unreachable": ["probing", "running", "offline", "deprecated"],
+        "offline": ["probing", "running", "deprecated", "registered"],
         "deprecated": ["registered"],
     }
     row = conn.execute(
@@ -530,23 +630,26 @@ def dump_registry(
 
 
 def list_atom_versions(conn: sqlite3.Connection, atom_id: str) -> List[Dict[str, Any]]:
-    """Return all recorded versions for an atom, newest first."""
+    """Return all recorded versions for an atom, oldest first."""
     rows = conn.execute(
-        f"""SELECT version, signature_hash, content_hash, changelog,
-                   purpose_json, created_at
+        f"""SELECT version, name, description, purpose_json, signature_hash,
+                   content_hash, identity_hash, created_at, updated_at
             FROM {VERSIONS_TABLE}
             WHERE atom_id = ?
-            ORDER BY created_at DESC""",
+            ORDER BY created_at ASC, id ASC""",
         (atom_id,),
     ).fetchall()
     return [
         {
             "version": r["version"],
-            "signature": r["signature_hash"],
-            "content_hash": r["content_hash"],
-            "changelog": r["changelog"],
+            "name": r["name"],
+            "description": r["description"],
             "purpose": json.loads(r["purpose_json"]) if r["purpose_json"] else {},
+            "signature_hash": r["signature_hash"],
+            "content_hash": r["content_hash"],
+            "identity_hash": r["identity_hash"],
             "created_at": r["created_at"],
+            "updated_at": r["updated_at"],
         }
         for r in rows
     ]
@@ -555,7 +658,7 @@ def list_atom_versions(conn: sqlite3.Connection, atom_id: str) -> List[Dict[str,
 def get_atom_version(
     conn: sqlite3.Connection, atom_id: str, version: str
 ) -> Optional[Dict[str, Any]]:
-    """Return a specific version snapshot for an atom."""
+    """Return a specific version snapshot for an atom (JSON fields parsed)."""
     row = conn.execute(
         f"""SELECT * FROM {VERSIONS_TABLE}
             WHERE atom_id = ? AND version = ?""",
@@ -563,7 +666,7 @@ def get_atom_version(
     ).fetchone()
     if not row:
         return None
-    return dict(row)
+    return _row_to_atom(row)
 
 
 def rollback_atom(
@@ -578,40 +681,29 @@ def rollback_atom(
             "message": f"Version {version} not found for '{atom_id}'",
         }
 
-    # Rebuild atom dict from the version snapshot
+    current = get_atom(conn, atom_id)
+    current_version = (current or {}).get("version", "")
+    current_lifecycle = (current or {}).get("lifecycle", {})
+
+    # Rebuild atom dict from the version snapshot; lifecycle status is
+    # preserved (a rollback must not drag the atom back to 'submitted').
+    lifecycle = dict(current_lifecycle)
+    lifecycle["status"] = current_lifecycle.get("status", "registered")
+    lifecycle["updated_at"] = now_iso()
+
     atom = {
         "atom_id": atom_id,
         "name": snapshot["name"],
         "version": snapshot["version"],
         "description": snapshot["description"],
-        "purpose": (
-            json.loads(snapshot["purpose_json"]) if snapshot["purpose_json"] else {}
-        ),
-        "architecture": (
-            json.loads(snapshot["architecture_json"])
-            if snapshot["architecture_json"]
-            else {}
-        ),
-        "ownership": (
-            json.loads(snapshot["ownership_json"]) if snapshot["ownership_json"] else {}
-        ),
-        "classification": (
-            json.loads(snapshot["classification_json"])
-            if snapshot["classification_json"]
-            else {}
-        ),
-        "compliance": (
-            json.loads(snapshot["compliance_json"])
-            if snapshot["compliance_json"]
-            else {}
-        ),
-        "quality": (
-            json.loads(snapshot["quality_json"]) if snapshot["quality_json"] else {}
-        ),
-        "runtime": (
-            json.loads(snapshot["runtime_json"]) if snapshot["runtime_json"] else {}
-        ),
-        "lifecycle": {"status": "registered"},
+        "purpose": snapshot.get("purpose") or {},
+        "architecture": snapshot.get("architecture") or {},
+        "ownership": snapshot.get("ownership") or {},
+        "classification": snapshot.get("classification") or {},
+        "compliance": snapshot.get("compliance") or {},
+        "quality": snapshot.get("quality") or {},
+        "runtime": snapshot.get("runtime") or {},
+        "lifecycle": lifecycle,
     }
 
     signature = compute_signature(atom)
@@ -622,8 +714,8 @@ def rollback_atom(
         conn,
         atom_id,
         "rollback",
-        None,
-        "registered",
+        current_version,
+        version,
         actor,
         f"rolled back to version {version}",
     )
@@ -635,61 +727,145 @@ def rollback_atom(
 # M4.4: 健康探针
 # ============================================================
 
+_PROBEABLE_STATUSES = {"registered", "probing", "running", "unreachable", "offline"}
+
+# 信任边界（BUG-020）：health_url/endpoint 来自注册数据，可能由批量导入等
+# 不可信来源写入。探测只允许 http/https，其他 scheme（file、gopher、ftp…）
+# 一律拒绝并记录为 invalid_url，绝不发起请求，避免批量探测沦为内网扫描器。
+_ALLOWED_PROBE_SCHEMES = {"http", "https"}
+
 
 def probe_atom(
     conn: sqlite3.Connection,
     atom_id: str,
-    timeout: int = 5,
-    actor: str = "system",
+    timeout: float = 2.0,
+    actor: str = "probe",
 ) -> Dict[str, Any]:
-    """Check the health status of a single atom via HTTP GET."""
+    """真实请求原子的 health_url（缺省用 endpoint），按结果更新状态。
+
+    - 2xx          -> running
+    - 其他 HTTP 码 -> unreachable（有进程监听但不健康）
+    - 连接错误/超时 -> unreachable
+    - 非 http(s) scheme -> 不发起请求，记 invalid_url（BUG-014/BUG-020）
+
+    探测结果写入 runtime_json（last_probe_at / last_probe_status /
+    last_probe_latency_ms / consecutive_failures），并记一条审计日志。
+    """
     atom = get_atom(conn, atom_id)
     if not atom:
-        return {"atom_id": atom_id, "status": "not_found", "ok": False}
-
-    runtime = atom.get("runtime", {})
-    endpoint = runtime.get("endpoint", "")
-    if not endpoint:
         return {
-            "atom_id": atom_id,
-            "status": "unreachable",
-            "ok": False,
-            "error": "no endpoint configured",
+            "success": False,
+            "error": "not_found",
+            "message": f"Atom '{atom_id}' not found",
         }
 
-    # Best-effort HTTP health check
-    ok = False
-    status_code = None
-    error = None
-    try:
-        req = urllib.request.Request(endpoint, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            status_code = resp.status
-            ok = 100 <= resp.status < 400
-    except Exception as exc:
-        error = str(exc)
+    runtime = atom.get("runtime") or {}
+    url = runtime.get("health_url") or runtime.get("endpoint")
+    if not url:
+        return {
+            "success": False,
+            "error": "no_endpoint",
+            "message": f"Atom '{atom_id}' has no health_url or endpoint",
+        }
 
+    lifecycle = atom.get("lifecycle", {})
+    old_status = lifecycle.get("status")
+
+    started = time.monotonic()
+    detail = ""
+    scheme = urllib.parse.urlparse(url).scheme.lower()
+    if scheme not in _ALLOWED_PROBE_SCHEMES:
+        ok = False
+        probe_status = "invalid_url"
+        detail = f"scheme '{scheme or '(none)'}' not allowed"
+    else:
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:
+                code = resp.status
+            ok = 200 <= code < 300
+            probe_status = "ok" if ok else f"http_{code}"
+        except urllib.error.HTTPError as exc:
+            ok = False
+            probe_status = f"http_{exc.code}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            ok = False
+            probe_status = "connection_error"
+            reason = getattr(exc, "reason", exc)
+            detail = str(reason)
+    latency_ms = round((time.monotonic() - started) * 1000, 1)
+
+    runtime["last_probe_at"] = now_iso()
+    runtime["last_probe_status"] = probe_status
+    runtime["last_probe_latency_ms"] = latency_ms
+    runtime["consecutive_failures"] = (
+        0 if ok else int(runtime.get("consecutive_failures", 0)) + 1
+    )
+
+    new_status = old_status
+    if old_status in _PROBEABLE_STATUSES:
+        new_status = "running" if ok else "unreachable"
+        lifecycle["status"] = new_status
+        lifecycle["updated_at"] = now_iso()
+
+    conn.execute(
+        f"UPDATE {REGISTRY_TABLE} SET runtime_json = ?, lifecycle_json = ?, updated_at = ? WHERE atom_id = ?",
+        (
+            json.dumps(runtime, ensure_ascii=False),
+            json.dumps(lifecycle, ensure_ascii=False),
+            now_iso(),
+            atom_id,
+        ),
+    )
+    conn.commit()
+    _audit(
+        conn,
+        atom_id,
+        "probe",
+        old_status,
+        new_status,
+        actor,
+        f"{probe_status} {latency_ms}ms {detail}".strip(),
+    )
     return {
+        "success": True,
         "atom_id": atom_id,
-        "name": atom.get("name"),
-        "endpoint": endpoint,
         "ok": ok,
-        "status_code": status_code,
-        "error": error,
-        "checked_at": now_iso(),
+        "probe_status": probe_status,
+        "latency_ms": latency_ms,
+        "old_status": old_status,
+        "new_status": new_status,
     }
 
 
 def probe_atoms(
     conn: sqlite3.Connection,
-    status: Optional[str] = None,
-    timeout: int = 5,
-    actor: str = "system",
+    atom_ids: Optional[List[str]] = None,
+    timeout: float = 2.0,
+    actor: str = "probe",
 ) -> List[Dict[str, Any]]:
-    """Health-check atoms (all or filtered by status)."""
-    atoms = list_atoms(conn, status=status)
-    atom_ids = [a["atom_id"] for a in atoms]
-    return [probe_atom(conn, aid, timeout=timeout, actor=actor) for aid in atom_ids]
+    """批量探测。atom_ids 为 None 时探测注册表里的所有原子。
+
+    单个原子的探测异常不会中断批量（BUG-014）：错误被记录到该原子的
+    结果里，其余原子继续探测。
+    """
+    if atom_ids is None:
+        atom_ids = [a["atom_id"] for a in list_atoms(conn)]
+    results: List[Dict[str, Any]] = []
+    for aid in atom_ids:
+        try:
+            results.append(probe_atom(conn, aid, timeout=timeout, actor=actor))
+        except Exception as exc:  # noqa: BLE001 - 隔离批量中的单行坏数据
+            logger.exception("probe_atom failed for %s", aid)
+            results.append(
+                {
+                    "success": False,
+                    "atom_id": aid,
+                    "ok": False,
+                    "error": "probe_error",
+                    "message": str(exc),
+                }
+            )
+    return results
 
 
 # ============================================================
@@ -698,44 +874,46 @@ def probe_atoms(
 
 
 def resolve_dependencies(conn: sqlite3.Connection, atom_id: str) -> Dict[str, Any]:
-    """Resolve the dependency tree for an atom (topological order, one level).
+    """Resolve the dependency tree for an atom.
 
-    Returns ``ok`` for compatibility with probe/API callers.
+    Returns a topological ``order`` (dependencies first, the root atom last),
+    the ``missing`` atom ids referenced but not registered, and any
+    ``cycles`` detected (each rendered as the dependency path that closes
+    the loop, e.g. ``["a", "b", "a"]``).
     """
-    atom = get_atom(conn, atom_id)
-    if not atom:
-        return {"atom_id": atom_id, "error": "not_found", "ok": False}
+    order: List[str] = []
+    missing: List[str] = []
+    cycles: List[List[str]] = []
+    visited: set = set()
+    stack: List[str] = []
 
-    arch = atom.get("architecture", {})
-    deps = arch.get("dependencies", [])
+    def visit(aid: str) -> None:
+        if aid in stack:  # back edge -> cycle
+            cycles.append(stack[stack.index(aid) :] + [aid])
+            return
+        if aid in visited:
+            return
+        atom = get_atom(conn, aid)
+        if not atom:
+            if aid not in missing:
+                missing.append(aid)
+            return
+        stack.append(aid)
+        for dep_id in atom.get("architecture", {}).get("dependencies", []) or []:
+            visit(dep_id)
+        stack.pop()
+        visited.add(aid)
+        order.append(aid)
 
-    resolved = []
-    missing = []
-    for dep_id in deps:
-        dep = get_atom(conn, dep_id)
-        if dep:
-            resolved.append(
-                {
-                    "atom_id": dep["atom_id"],
-                    "name": dep.get("name"),
-                    "status": dep.get("lifecycle", {}).get("status"),
-                }
-            )
-        else:
-            missing.append(dep_id)
-
-    # Detect cycles by checking if this atom lists itself
-    has_cycle = atom_id in deps
+    visit(atom_id)
 
     return {
         "atom_id": atom_id,
-        "name": atom.get("name"),
-        "ok": len(missing) == 0 and not has_cycle,
-        "dependencies": resolved,
-        "missing_dependencies": missing,
-        "total_deps": len(deps),
-        "resolved_count": len(resolved),
-        "has_cycle": has_cycle,
+        "ok": not missing and not cycles,
+        "order": order,
+        "missing": missing,
+        "cycles": cycles,
+        "total_deps": len(order) - 1 if order else 0,
     }
 
 
