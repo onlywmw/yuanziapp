@@ -44,6 +44,7 @@ from registry import (
     rollback_atom,
     set_atom_status,
     submit_atom,
+    verify_audit_chain,
 )
 
 DEFAULT_DB = Path(__file__).with_name("registry.db")
@@ -273,6 +274,11 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
                 status_code=404, detail="Token not found or already revoked"
             )
         return {"success": True, "id": token_id}
+
+    @app.get("/audit/verify", dependencies=[admin])
+    def audit_verify() -> Dict[str, Any]:
+        """审计哈希链完整性校验（M6.4）。"""
+        return verify_audit_chain(conn)
 
     @app.get("/audit", dependencies=[viewer])
     def audit(atom_id: Optional[str] = Query(None)) -> List[Dict[str, Any]]:

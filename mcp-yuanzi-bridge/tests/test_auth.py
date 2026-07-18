@@ -159,3 +159,13 @@ def test_post_search_endpoint(client):
 
 def test_revoke_nonexistent_token_404(client):
     assert client.delete("/tokens/999", headers=_h(ADMIN_TOKEN)).status_code == 404
+
+
+def test_audit_verify_endpoint(client):
+    client.post("/atoms", json=_atom(), headers=_h(ADMIN_TOKEN))
+    # viewer 无权访问审计链校验
+    assert client.get("/audit/verify", headers=_h(VIEWER_TOKEN)).status_code == 403
+    r = client.get("/audit/verify", headers=_h(ADMIN_TOKEN))
+    assert r.status_code == 200
+    assert r.json()["valid"] is True
+    assert r.json()["total_rows"] >= 1

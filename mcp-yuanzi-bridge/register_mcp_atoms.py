@@ -19,6 +19,7 @@ from typing import Any, Dict, List
 import jsonschema
 from migrations import migrate
 from registry import (
+    backfill_audit_chain,
     backfill_content_hashes,
     compute_signature,
     dump_registry,
@@ -514,6 +515,9 @@ def main() -> int:
     backfilled = backfill_content_hashes(conn)
     if backfilled:
         print(f"Backfilled content hashes for {backfilled} atoms")
+    chained = backfill_audit_chain(conn)
+    if chained:
+        print(f"Backfilled audit chain for {chained} rows")
 
     success_count = 0
     failed: List[Dict[str, Any]] = []
