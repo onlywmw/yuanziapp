@@ -22,7 +22,7 @@
 |--------|------|----------|------|
 | M1 | 原子开发基础设施就绪 | 2026-07-25 | :heavy_check_mark: 已完成 |
 | M2 | 部署与配置管理就绪 | 2026-08-01 | :heavy_check_mark: 已完成 |
-| M3 | 测试与质量门禁就绪 | 2026-08-08 | :construction: 进行中 |
+| M3 | 测试与质量门禁就绪 | 2026-08-08 | :heavy_check_mark: 已完成 |
 | M4 | 注册中心服务化 | 2026-08-22 | :white_circle: 未开始 |
 | M5 | 能力搜索与匹配 | 2026-09-05 | :white_circle: 未开始 |
 | M6 | 安全与多租户 | 2026-09-19 | :white_circle: 未开始 |
@@ -80,7 +80,7 @@
 | 3.2 | 配置 pytest 测试框架 | P0 | 1 天 | :heavy_check_mark: 已完成 | 无 | `tests/` 结构 |
 | 3.3 | 配置 pre-commit 钩子 | P0 | 1 天 | :heavy_check_mark: 已完成 | 3.1, 3.2 | `.pre-commit-config.yaml` |
 | 3.4 | 实现 `yuanzi install-hooks` | P1 | 0.5 天 | :heavy_check_mark: 已完成 | 3.3 | CLI 命令 |
-| 3.5 | 原子 smoke test 规范 | P1 | 1 天 | :white_circle: 未开始 | 3.2 | 测试规范 |
+| 3.5 | 原子 smoke test 规范 | P1 | 1 天 | :heavy_check_mark: 已完成 | 3.2 | `docs/atom-smoke-test-spec.md` |
 | 3.6 | GitHub Actions CI 初版 | P2 | 2 天 | :heavy_check_mark: 已完成 | 3.3 | `.github/workflows/ci.yml` |
 
 ---

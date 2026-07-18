@@ -1,7 +1,7 @@
 """HTTP endpoint health tests.
 
-These tests assume `server.py` is already running on the configured port.
-Use pytest fixture or run server in a subprocess for integration tests.
+The `running_server` fixture starts `server.py` in a subprocess and waits
+for /health to respond; see docs/atom-smoke-test-spec.md.
 """
 
 import subprocess

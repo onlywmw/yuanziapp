@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import typer
@@ -31,6 +32,16 @@ REQUIRED_FILES = {
     ],
 }
 
+# 冒烟测试规范（docs/atom-smoke-test-spec.md §3）：内核冒烟必须离线，
+# 不允许 import server / 网络相关模块。
+KERNEL_TEST_FORBIDDEN_IMPORTS = (
+    "server",
+    "requests",
+    "urllib",
+    "http",
+    "socket",
+)
+
 
 def _missing_files(atom_dir: Path, kernel_type: str) -> list[str]:
     expected = REQUIRED_FILES.get(kernel_type, [])
@@ -40,6 +51,22 @@ def _missing_files(atom_dir: Path, kernel_type: str) -> list[str]:
         if not (atom_dir / rel).exists():
             missing.append(rel)
     return missing
+
+
+_IMPORT_RE = re.compile(r"^\s*(?:import|from)\s+([A-Za-z_][\w]*)")
+
+
+def _kernel_test_forbidden_imports(atom_dir: Path) -> list[str]:
+    """Return forbidden imports found in tests/test_kernel.py."""
+    test_file = atom_dir / "tests" / "test_kernel.py"
+    if not test_file.exists():
+        return []
+    found: list[str] = []
+    for line in test_file.read_text(encoding="utf-8").splitlines():
+        match = _IMPORT_RE.match(line)
+        if match and match.group(1) in KERNEL_TEST_FORBIDDEN_IMPORTS:
+            found.append(line.strip())
+    return found
 
 
 def run_validate(
@@ -83,5 +110,17 @@ def run_validate(
         for name in missing:
             typer.echo(f"  - {name}", err=True)
         raise typer.Exit(code=1)
+
+    if meta.kernel_type == "python_script":
+        forbidden = _kernel_test_forbidden_imports(atom_dir)
+        if forbidden:
+            typer.echo(
+                "Error: tests/test_kernel.py must stay offline "
+                "(see docs/atom-smoke-test-spec.md); forbidden imports:",
+                err=True,
+            )
+            for line in forbidden:
+                typer.echo(f"  - {line}", err=True)
+            raise typer.Exit(code=1)
 
     typer.echo(f"OK: {meta.id}@{meta.version} is a valid Yuanzi atom")

@@ -46,7 +46,9 @@ def _stub_run(monkeypatch, returncodes):
     return calls
 
 
-def test_install_hooks_no_config(tmp_path):
+def test_install_hooks_no_config(tmp_path, monkeypatch):
+    # 与文件系统环境无关：直接模拟"向上找不到配置"
+    monkeypatch.setattr(install_hooks, "_find_repo_root", lambda path: None)
     result = runner.invoke(app, ["install-hooks", str(tmp_path)])
     assert result.exit_code == 1
     assert "no .pre-commit-config.yaml found" in result.output
