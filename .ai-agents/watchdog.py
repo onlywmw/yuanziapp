@@ -22,7 +22,14 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 # Force UTF-8 to avoid Windows GBK emoji crashes
-os.environ["PYTHONIOENCODING"] = "utf-8"
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(
+        sys.stdout.buffer, encoding="utf-8", errors="replace"
+    )
+    sys.stderr = io.TextIOWrapper(
+        sys.stderr.buffer, encoding="utf-8", errors="replace"
+    )
 
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
@@ -94,7 +101,19 @@ def scan_for_signals(issue: Dict[str, Any]) -> List[str]:
 
 def _safe(text: str) -> str:
     """Strip emoji and non-ASCII from text for Windows terminal safety."""
-    return text.encode("ascii", errors="replace").decode("ascii")
+    try:
+        return text.encode("ascii", errors="replace").decode("ascii")
+    except Exception:
+        return str(text)
+
+
+def _print(*args: str, **kwargs: Any) -> None:
+    """Print that survives Windows GBK emoji crashes."""
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        safe_args = tuple(_safe(str(a)) for a in args)
+        print(*safe_args, **kwargs)
 
 
 def render_issue_card(issue: Dict[str, Any], signals: List[str]) -> None:
