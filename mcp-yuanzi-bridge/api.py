@@ -27,7 +27,21 @@ from auth import (
     revoke_token,
 )
 from embeddings import search_functions
+from engine import get_run, list_workflow_runs, run_workflow
 from fastapi import Depends, FastAPI, HTTPException, Query
+from federation import (
+    add_peer,
+    export_atoms,
+    list_peers,
+    remove_peer,
+    sync_peer,
+)
+from marketplace import (
+    add_review,
+    composite_score,
+    list_reviews,
+    marketplace_board,
+)
 from migrations import migrate
 from pydantic import BaseModel
 from registry import (
@@ -46,6 +60,7 @@ from registry import (
     submit_atom,
     verify_audit_chain,
 )
+from workflow import get_workflow, list_workflows, save_workflow, validate_workflow
 
 DEFAULT_DB = Path(__file__).with_name("registry.db")
 
@@ -60,6 +75,18 @@ class ReviewBody(BaseModel):
 class StatusBody(BaseModel):
     status: str
     detail: str = ""
+
+
+class PeerBody(BaseModel):
+    name: str
+    base_url: str
+    trust_level: str = "review"
+
+
+class AtomReviewBody(BaseModel):
+    author: str
+    rating: int
+    text: str = ""
 
 
 class TokenBody(BaseModel):
@@ -274,6 +301,118 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
                 status_code=404, detail="Token not found or already revoked"
             )
         return {"success": True, "id": token_id}
+
+    @app.post("/atoms/{atom_id}/reviews", status_code=201, dependencies=[registry_role])
+    def create_review(atom_id: str, body: AtomReviewBody) -> Dict[str, Any]:
+        result = add_review(conn, atom_id, body.author, body.rating, body.text)
+        if not result.get("success"):
+            code = 404 if result.get("error") == "not_found" else 400
+            raise HTTPException(
+                status_code=code, detail=result.get("message") or result.get("error")
+            )
+        return result
+
+    @app.get("/atoms/{atom_id}/reviews", dependencies=[viewer])
+    def reviews(atom_id: str) -> List[Dict[str, Any]]:
+        if not get_atom(conn, atom_id):
+            raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
+        return list_reviews(conn, atom_id)
+
+    @app.get("/atoms/{atom_id}/rating", dependencies=[viewer])
+    def rating(atom_id: str) -> Dict[str, Any]:
+        if not get_atom(conn, atom_id):
+            raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
+        return composite_score(conn, atom_id)
+
+    @app.get("/marketplace", dependencies=[viewer])
+    def marketplace(tab: str = "hot", limit: int = 20) -> List[Dict[str, Any]]:
+        if tab not in ("hot", "top", "new"):
+            raise HTTPException(status_code=400, detail="tab must be hot|top|new")
+        return marketplace_board(conn, tab=tab, limit=limit)
+
+    @app.post("/workflows", status_code=201, dependencies=[registry_role])
+    def create_workflow(definition: Dict[str, Any]) -> Dict[str, Any]:
+        result = save_workflow(conn, definition)
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=422,
+                detail={"errors": result["errors"], "warnings": result["warnings"]},
+            )
+        return result
+
+    @app.get("/workflows", dependencies=[viewer])
+    def workflows() -> List[Dict[str, Any]]:
+        return list_workflows(conn)
+
+    @app.get("/workflows/{workflow_id}", dependencies=[viewer])
+    def workflow_detail(workflow_id: str) -> Dict[str, Any]:
+        wf = get_workflow(conn, workflow_id)
+        if not wf:
+            raise HTTPException(
+                status_code=404, detail=f"Workflow '{workflow_id}' not found"
+            )
+        return wf
+
+    @app.post("/workflows/{workflow_id}/validate", dependencies=[viewer])
+    def workflow_validate(workflow_id: str) -> Dict[str, Any]:
+        wf = get_workflow(conn, workflow_id)
+        if not wf:
+            raise HTTPException(
+                status_code=404, detail=f"Workflow '{workflow_id}' not found"
+            )
+        return validate_workflow(wf["definition"])
+
+    @app.post("/workflows/{workflow_id}/run", dependencies=[registry_role])
+    def workflow_run(
+        workflow_id: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        run = run_workflow(conn, workflow_id, params=params)
+        if "not found" in (run.get("error") or ""):
+            raise HTTPException(status_code=404, detail=run["error"])
+        return run
+
+    @app.get("/workflows/{workflow_id}/runs", dependencies=[viewer])
+    def workflow_runs(workflow_id: str) -> List[Dict[str, Any]]:
+        return list_workflow_runs(conn, workflow_id)
+
+    @app.get("/runs/{run_id}", dependencies=[viewer])
+    def run_detail(run_id: str) -> Dict[str, Any]:
+        run = get_run(conn, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+        return run
+
+    @app.get("/federation/export", dependencies=[viewer])
+    def federation_export() -> Dict[str, Any]:
+        """对外共享的原子元数据（不含 runtime/endpoint）。"""
+        return {"atoms": export_atoms(conn)}
+
+    @app.post("/federation/peers", status_code=201, dependencies=[admin])
+    def create_peer(body: PeerBody) -> Dict[str, Any]:
+        result = add_peer(conn, body.name, body.base_url, body.trust_level)
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error"))
+        return result
+
+    @app.get("/federation/peers", dependencies=[viewer])
+    def peers() -> List[Dict[str, Any]]:
+        return list_peers(conn)
+
+    @app.delete("/federation/peers/{peer_id}", dependencies=[admin])
+    def delete_peer(peer_id: int) -> Dict[str, Any]:
+        if not remove_peer(conn, peer_id):
+            raise HTTPException(status_code=404, detail="Peer not found")
+        return {"success": True, "id": peer_id}
+
+    @app.post("/federation/sync/{peer_id}", dependencies=[admin])
+    def federation_sync(peer_id: int) -> Dict[str, Any]:
+        result = sync_peer(conn, peer_id)
+        if not result.get("success"):
+            code = 404 if result.get("error") == "peer_not_found" else 400
+            raise HTTPException(
+                status_code=code, detail=result.get("message") or result.get("error")
+            )
+        return result
 
     @app.get("/audit/verify", dependencies=[admin])
     def audit_verify() -> Dict[str, Any]:

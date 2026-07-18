@@ -227,3 +227,58 @@ def test_recommendations_and_combination_endpoints(client):
 
     assert client.get("/atoms/com.example.ghost/recommendations").status_code == 404
     assert client.get("/atoms/com.example.ghost/combination").status_code == 404
+
+
+def test_workflow_endpoints(client, tmp_path, monkeypatch):
+    wf = {
+        "workflow_id": "wf_api",
+        "name": "API 工作流",
+        "author": "test",
+        "nodes": [
+            {"id": "p1", "type": "param", "key": "expression", "value": "1+2"},
+            {"id": "n1", "atom_id": "system.math-calc"},
+        ],
+        "channels": [{"id": "c1", "type": "direct", "source": "p1", "target": "n1"}],
+    }
+    r = client.post("/workflows", json=wf)
+    assert r.status_code == 201, r.json()
+
+    assert client.get("/workflows").json()[0]["workflow_id"] == "wf_api"
+    assert client.post("/workflows/wf_api/validate").status_code == 200
+
+    run = client.post("/workflows/wf_api/run").json()
+    assert run["status"] == "SUCCESS"
+
+    runs = client.get("/workflows/wf_api/runs").json()
+    assert runs[0]["run_id"] == run["run_id"]
+    assert client.get(f"/runs/{run['run_id']}").json()["status"] == "SUCCESS"
+
+    # 非法定义 → 422
+    assert client.post("/workflows", json={"workflow_id": "x"}).status_code == 422
+
+
+def test_marketplace_endpoints(client):
+    client.post("/atoms", json=_atom())
+    r = client.post(
+        "/atoms/com.example.sum/reviews",
+        json={"author": "张三", "rating": 5, "text": "好用"},
+    )
+    assert r.status_code == 201
+
+    reviews = client.get("/atoms/com.example.sum/reviews").json()
+    assert reviews[0]["author"] == "张三"
+
+    rating = client.get("/atoms/com.example.sum/rating").json()
+    assert rating["parts"]["community"] == 5.0
+
+    board = client.get("/marketplace", params={"tab": "top"}).json()
+    assert board[0]["atom_id"] == "com.example.sum"
+
+    assert client.get("/marketplace", params={"tab": "bogus"}).status_code == 400
+    assert (
+        client.post(
+            "/atoms/com.example.sum/reviews",
+            json={"author": "x", "rating": 9},
+        ).status_code
+        == 400
+    )

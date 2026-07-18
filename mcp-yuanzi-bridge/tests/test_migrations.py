@@ -84,8 +84,8 @@ def _create_legacy_atoms_table(conn):
 
 def test_fresh_db_migrates_to_latest(conn):
     applied = migrate(conn)
-    assert applied == [1, 2, 3, 4, 5, 6, 7, 8]
-    assert current_version(conn) == 8
+    assert applied == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    assert current_version(conn) == 11
     assert _object_type(conn, "atom_registry") == "table"
     assert _object_type(conn, "atoms") == "view"
 
@@ -93,7 +93,7 @@ def test_fresh_db_migrates_to_latest(conn):
 def test_migrate_is_idempotent(conn):
     migrate(conn)
     assert migrate(conn) == []
-    assert applied_versions(conn) == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert applied_versions(conn) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     assert pending_migrations(conn) == []
 
 
@@ -103,7 +103,7 @@ def test_legacy_db_gets_baseline_and_view(conn):
     _create_legacy_atoms_table(conn)
 
     applied = migrate(conn)
-    assert applied == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert applied == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
     desc = conn.execute(
         "SELECT description FROM schema_migrations WHERE version = 1"
@@ -149,4 +149,4 @@ def test_atoms_view_updates_live(conn):
 def test_discover_migrations_sorted():
     versions = [v for v, _, _ in discover_migrations()]
     assert versions == sorted(versions)
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
