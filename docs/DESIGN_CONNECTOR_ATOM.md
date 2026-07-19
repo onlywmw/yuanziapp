@@ -53,28 +53,8 @@ iPhone 有 CoreLocation    → connector.location-ios
     "os_version": ">=11",
     "hardware": ["gps"]
   },
-  "implements": "schema.location-v1",
-  "schema_version": "1.2.0"
+  "implements": "schema.location-v1"
 }
-```
-
-### 版本管理
-
-```
-同一功能有多个 schema 版本时:
-  连接器必须声明 schema_version
-  系统优先选择实现最新版本的连接器
-  旧版本连接器标记为 deprecated
-```
-
-### 自动匹配优先级
-
-```
-同平台多个连接器可选时:
-  1. schema_version 最新 > 旧
-  2. 用户历史使用 > 未使用
-  3. 社区评分高 > 低
-  4. preferred 标记 > 未标记
 ```
 
 
