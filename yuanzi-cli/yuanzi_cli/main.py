@@ -8,6 +8,7 @@ from typing import Optional
 import typer
 
 from yuanzi_cli import __version__
+from yuanzi_cli.commands.atom import app as atom_app
 from yuanzi_cli.commands.init import run_init
 from yuanzi_cli.commands.install_hooks import run_install_hooks
 from yuanzi_cli.commands.test import run_test
@@ -52,6 +53,10 @@ def init(
 ) -> None:
     """Scaffold a new atom from the official template."""
     run_init(atom_id, template_dir, output_dir)
+
+
+# v2.1 §7：固定 7 文件脚手架；既有 `yuanzi init`（cookiecutter）保留兼容
+app.add_typer(atom_app, name="atom")
 
 
 @app.command()
