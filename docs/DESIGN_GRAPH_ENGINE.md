@@ -102,7 +102,33 @@ API:
   updateDataFlow(edgeId: String, progress: Float): void  ← 粒子位置
 ```
 
-### 2.5 ForceLayout (力导向布局)
+### 2.5 通道运行时渲染
+
+工作流执行时, 通道不只是数据流过——是可见的。Renderer 负责通道的视觉状态。
+
+```
+执行前 (静态):
+  连线: 虚线, 灰色, 标注通道类型
+
+执行中 (数据流过):
+  连线: 实线, 颜色=数据类型, 动画=流速
+  通道节点短暂出现 (像一个半透明的菱形):
+    显示: "映射: body → text · 12ms"
+    然后消失
+
+执行后:
+  成功: 连线变为绿色, 显示耗时
+  失败: 连线变为红色, 显示错误类型
+  降级: 连线变为 amber, 显示 fallback 原因
+  跳过: 连线变为灰色虚线
+
+点击通道节点:
+  展开详情: 输入采样、输出采样、耗时、重试次数
+```
+
+通道渲染状态由 `GraphStore` 中的 `channelStates` 维护, 执行引擎更新状态, Renderer 每帧读取并绘制。
+
+### 2.6 ForceLayout (力导向布局)
 
 ```
 算法: Barnes-Hut 优化力导向
@@ -127,7 +153,7 @@ API:
   isStable(): Boolean
 ```
 
-### 2.6 Renderer (Canvas 渲染器)
+### 2.7 Renderer (Canvas 渲染器)
 
 ```
 绘制顺序 (每帧):
@@ -148,7 +174,7 @@ API:
 每帧耗时目标: < 16ms (60fps)
 ```
 
-### 2.7 Camera (视口)
+### 2.8 Camera (视口)
 
 ```
 状态:
@@ -169,7 +195,7 @@ API:
   velocity < 0.5 → 停止
 ```
 
-### 2.8 Interaction (手势)
+### 2.9 Interaction (手势)
 
 ```
 手势处理:
@@ -196,7 +222,7 @@ API:
     → 选中框内所有注册原子
 ```
 
-### 2.9 Animation (动画引擎)
+### 2.10 Animation (动画引擎)
 
 ```
 动画类型:
@@ -225,7 +251,7 @@ AnimationQueue:
   · 完成自动移出队列
 ```
 
-### 2.10 Virtualization (虚拟化)
+### 2.11 Virtualization (虚拟化)
 
 ```
 视口裁剪:
