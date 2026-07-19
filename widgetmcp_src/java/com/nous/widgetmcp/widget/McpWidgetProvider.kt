@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import com.nous.widgetmcp.*
+import com.nous.widgetmcp.ui.GraphFlowBus
 import com.nous.widgetmcp.yuanzi.YuanziConfig
 import com.nous.widgetmcp.yuanzi.YuanziPollScheduler
 import com.nous.widgetmcp.yuanzi.YuanziSync
@@ -117,12 +118,16 @@ class McpWidgetProvider : AppWidgetProvider() {
                     ServiceLocator.controller.push(internalId,
                         WidgetData.Number(balance.totalBalance.toDoubleOrNull() ?: 0.0, "CNY"))
                     WidgetRenderer.refreshBySystemId(context, systemId)
+                    // M8：widget 数据刷新成功 → 组件核心 ↔ 该 widget 节点边上的光尾粒子
+                    GraphFlowBus.post("widgetmcp", "widget_$internalId")
                 }
             } catch (e: Exception) {
                 AppLogger.e("FETCH", "legacy fail: ${e.message}", e)
                 ServiceLocator.controller.push(internalId,
                     WidgetData.Text("刷新失败: ${e.message ?: "未知"}"))
                 WidgetRenderer.refreshBySystemId(context, systemId)
+                // M8：widget 数据刷新失败同样触发边流动（失败也是一次真实执行结果）
+                GraphFlowBus.post("widgetmcp", "widget_$internalId")
             }
         }
     }

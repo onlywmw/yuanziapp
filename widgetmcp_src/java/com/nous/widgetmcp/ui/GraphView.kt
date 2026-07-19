@@ -25,6 +25,7 @@ import com.nous.widgetmcp.graph.engine.TemplateHooks
 import com.nous.widgetmcp.graph.templates.DefaultTemplate
 import com.nous.widgetmcp.graph.templates.GraphTemplate
 import com.nous.widgetmcp.graph.templates.MutableParamsTemplate
+import com.nous.widgetmcp.graph.templates.ParticleAwareTemplate
 import com.nous.widgetmcp.graph.templates.TemplateParams
 import kotlin.math.max
 import kotlin.math.min
@@ -128,12 +129,14 @@ class GraphView @JvmOverloads constructor(
         this.edges.addAll(edges)
         nodes.forEach { nodeMap[it.id] = it }
 
+        // 图谱重建，先清空旧图残留粒子（默认 NoOp 为空操作）；
+        // 必须放在下方模板钩子之前，否则钩子里刚发射的爆发粒子会被一并清掉
+        hooks.particleSystem.clear()
+
         template?.let { t ->
             addedNodes.forEach { t.onNodeAppear(it, hooks.animator) }
             removedNodes.forEach { t.onNodeDisappear(it, hooks.animator) }
         }
-        // 图谱重建，清空残留粒子（默认 NoOp 为空操作）
-        hooks.particleSystem.clear()
 
         resetLayout()
         invalidate()
@@ -147,6 +150,8 @@ class GraphView @JvmOverloads constructor(
     /** 注册模板（可重复注册，同 id 覆盖）。 */
     fun registerTemplate(t: GraphTemplate) {
         templateRegistry[t.id] = t
+        // 粒子感知模板：注册时补注当前粒子系统（可能先于 installParticleSystem 注册）
+        (t as? ParticleAwareTemplate)?.particleSystem = hooks.particleSystem
     }
 
     /** 应用已注册的模板；id 未注册时忽略。应用后加载该模板的默认参数。 */
@@ -171,6 +176,9 @@ class GraphView @JvmOverloads constructor(
     /** 安装粒子系统实现（graph/engine/ParticleSystem.kt 就绪后接入）。 */
     fun installParticleSystem(ps: ParticleSystem) {
         hooks.particleSystem = ps
+        // 同步注入所有已注册的粒子感知模板
+        // （onNodeAppear / onNodeDisappear / onDragEnd 钩子只拿得到 AnimationQueue）
+        templateRegistry.values.forEach { (it as? ParticleAwareTemplate)?.particleSystem = ps }
     }
 
     /** 参数面板写入口：更新当前模板参数并触发重绘。 */
@@ -229,6 +237,20 @@ class GraphView @JvmOverloads constructor(
     fun sendDataFlow(edge: GraphEdge, progress: Float) {
         template?.onDataFlow(edge, progress, hooks.particleSystem)
         invalidate()
+    }
+
+    /**
+     * 便捷重载：按两端节点 id 查找真实存在的边（方向不限），找到才触发数据流；
+     * 找不到返回 false 且不发射任何粒子 —— 绝不伪造装饰性数据流。
+     * 供 GraphFlowBus 等只握有节点 id 的事件源使用。
+     */
+    fun sendDataFlowBetween(nodeA: String, nodeB: String, progress: Float = 0.5f): Boolean {
+        val edge = edges.firstOrNull {
+            (it.sourceId == nodeA && it.targetId == nodeB) ||
+                (it.sourceId == nodeB && it.targetId == nodeA)
+        } ?: return false
+        sendDataFlow(edge, progress)
+        return true
     }
 
     private fun resetLayout() {

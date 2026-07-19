@@ -2,6 +2,7 @@ package com.nous.widgetmcp.yuanzi
 
 import android.content.Context
 import com.nous.widgetmcp.*
+import com.nous.widgetmcp.ui.GraphFlowBus
 import com.nous.widgetmcp.widget.WidgetBinding
 
 /**
@@ -25,6 +26,9 @@ object YuanziSync {
             applyRemoteWidgets(context, remote)
             YuanziConfig.lastSync = System.currentTimeMillis()
             YuanziConfig.lastError = null
+            // M8：本轮成功与中枢通信（/agent/widgets 响应到达）
+            // → 中枢 ↔ 组件核心边上的光尾粒子（图里没有该边时静默不发射）
+            GraphFlowBus.post("yuanzi-core", "widgetmcp")
             Result.success(remote.size)
         } catch (e: Exception) {
             YuanziConfig.lastError = e.message
@@ -118,6 +122,10 @@ object YuanziSync {
             else -> WidgetData.Text("")
         }
         ctrl.push(internalId, data)
+        // M8：Yuanzi 新数据写入该 widget → 中枢 ↔ 该 widget 节点边上的光尾粒子
+        // （边 id 与 MainActivity.localAddonEdges 的 "widget_<internalId>" 对应；
+        //  图里若没有这条边 —— 如节点尚未加载 —— GraphView 侧静默不发射）
+        GraphFlowBus.post("yuanzi-core", "widget_$internalId")
     }
 
     private fun mapYuanziType(type: String): String {
@@ -145,6 +153,9 @@ object YuanziSync {
         val internalId = WidgetBinding.internalId(context, systemWidgetId) ?: return
         val cfg = ctrl.snapshot(internalId)?.config ?: return
         val yuanziId = cfg.yuanziId ?: return
+
+        // M8：widget 点击上报（上行事件）→ 该 widget ↔ 中枢边上的光尾粒子
+        GraphFlowBus.post("widget_$internalId", "yuanzi-core")
 
         // 乐观更新：先显示加载中
         WidgetRenderer.showLoading(context, systemWidgetId)

@@ -65,6 +65,20 @@ interface GraphTemplate {
 }
 
 /**
+ * 可感知粒子系统的模板（M8 粒子版接线用）。
+ *
+ * GraphTemplate 的交互钩子（onNodeAppear / onNodeDisappear / onDragEnd）
+ * 只拿得到 AnimationQueue，拿不到粒子系统；实现本接口后，引擎在
+ * 注册模板与安装粒子系统两个时点把当前 ParticleSystem 注入，
+ * 模板据此在节点位置发射爆发粒子。
+ * 未注入（为 null，或注入的是 NoOpParticleSystem）时模板必须退化为
+ * 无粒子行为 —— 零破坏原则。
+ */
+interface ParticleAwareTemplate {
+    var particleSystem: ParticleSystem?
+}
+
+/**
  * 参数可直接写入的模板（M8 接线用）。
  *
  * 参数面板 / 引擎在参数变更时同步更新 [params]，模板在渲染路径逐帧读取，

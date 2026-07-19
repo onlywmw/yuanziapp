@@ -8,6 +8,7 @@ import android.graphics.PointF
 import android.os.SystemClock
 import com.nous.widgetmcp.graph.engine.AnimationQueue
 import com.nous.widgetmcp.graph.engine.Camera
+import com.nous.widgetmcp.graph.engine.DefaultParticleSystem
 import com.nous.widgetmcp.graph.engine.GraphState
 import com.nous.widgetmcp.graph.engine.GraphStore
 import com.nous.widgetmcp.graph.engine.ParticleSystem
@@ -46,10 +47,17 @@ import kotlin.math.sin
  *
  * 线程约定：所有方法在 UI 线程调用（与现有 GraphView 一致）。
  */
-class ObsidianTemplate : GraphTemplate, MutableParamsTemplate {
+class ObsidianTemplate : GraphTemplate, MutableParamsTemplate, ParticleAwareTemplate {
 
     override val id: String = "obsidian"
     override val name: String = "Obsidian 星系"
+
+    /**
+     * 引擎注入的粒子系统（ParticleAwareTemplate）。
+     * onNodeAppear / onNodeDisappear / onDragEnd 钩子只拿得到 AnimationQueue，
+     * 爆发粒子经此引用发射；为 null（或 NoOp）时静默跳过，行为与注入前一致。
+     */
+    override var particleSystem: ParticleSystem? = null
 
     /**
      * 当前生效参数。接口仅要求 [getDefaultParams]，但参数面板/引擎拿到具体
@@ -78,6 +86,8 @@ class ObsidianTemplate : GraphTemplate, MutableParamsTemplate {
     override fun renderNode(canvas: Canvas, node: GraphNode, state: RenderState) {
         // 缓存位置引用，供 renderEdge 取端点坐标
         nodePositions[node.id] = node.pos
+        // 缓存节点引用，供 onDataFlow 解析端点坐标与节点色（陶土/鼠尾草暖色粒子）
+        nodeRefs[node.id] = node
 
         val t = restoreProgress()
         val d = density
@@ -217,16 +227,21 @@ class ObsidianTemplate : GraphTemplate, MutableParamsTemplate {
     }
 
     // ------------------------------------------------------------------
-    // 交互钩子：安全默认实现（引擎默认行为接管，留待后续版本注入审美）
+    // 交互钩子：粒子版本（M8 数据流 / 爆发粒子）
     // ------------------------------------------------------------------
 
     override fun onNodeAppear(node: GraphNode, animator: AnimationQueue) {
-        // 安全默认：不自定义入场动画（贝塞尔飞入 + 光尾留待粒子版本）
+        // 节点出现：从节点位置迸发一簇较大的放射状粒子（恒星点亮）
+        emitNodeBurst(node, BURST_COUNT_APPEAR)
     }
 
     override fun onNodeDisappear(node: GraphNode, animator: AnimationQueue) {
-        // 安全默认：不自定义消失动画（爆炸粒子留待粒子版本）；
+        // 节点消失：在节点最后位置迸发一簇粒子（恒星熄灭）。
+        // 注意：此时节点可能即将从 store 移除，但传入的是移除前快照的旧对象，
+        // pos / color 仍然可取（GraphView.setData 在清空前捕获 removedNodes）。
+        emitNodeBurst(node, BURST_COUNT_DISAPPEAR)
         // 仅清理内部视觉状态，避免已删除节点的条目泄漏
+        nodeRefs.remove(node.id)
         nodePositions.remove(node.id)
         connectionCounts.remove(node.id)
         nodeAlphaOv.remove(node.id)
@@ -248,11 +263,55 @@ class ObsidianTemplate : GraphTemplate, MutableParamsTemplate {
     }
 
     override fun onDragEnd(node: GraphNode, animator: AnimationQueue) {
-        // 安全默认：弹簧回弹（带过冲）由引擎默认动画负责
+        // 拖拽收尾：轻量迸发（弹簧回弹本身仍由引擎默认动画负责）
+        emitNodeBurst(node, BURST_COUNT_DRAG_END)
     }
 
     override fun onDataFlow(edge: GraphEdge, progress: Float, animator: ParticleSystem) {
-        // 安全默认：无数据流粒子（红色动脉 / 蓝色静脉光粒子留待粒子版本）
+        // 数据流：沿边在 progress 处发射一簇彗星式光尾粒子 —— 头部密、
+        // 沿 progress 上游补两簇递减密度的尾迹，伪造"血液流过血管"的拖尾感。
+        val t = progress.coerceIn(0f, 1f)
+        val dps = animator as? DefaultParticleSystem
+        if (dps == null) {
+            // 接口退化路径（NoOp / 其他实现）：只保证语义正确的单次发射
+            animator.emitFlow(edge, t)
+            return
+        }
+        val a = nodeRefs[edge.sourceId]
+        val b = nodeRefs[edge.targetId]
+        if (a == null || b == null) {
+            // 首帧渲染前尚无节点缓存：退化为边色单簇，端点解析交给粒子系统的 nodeResolver
+            dps.emitFlow(edge, t, FLOW_HEAD_COUNT)
+            return
+        }
+        // 颜色取两端节点中感知亮度更高的一端（陶土/鼠尾草暖色，深空背景上保证醒目；
+        //  DESIGN_GRAPH_REFERENCE：数据流像血液，但颜色是陶土和鼠尾草的温润）
+        val color = brighterColor(a.color, b.color)
+        dps.emitFlow(a.pos.x, a.pos.y, b.pos.x, b.pos.y, t, color, FLOW_HEAD_COUNT)
+        if (t >= FLOW_TRAIL_STEP) {
+            dps.emitFlow(a.pos.x, a.pos.y, b.pos.x, b.pos.y, t - FLOW_TRAIL_STEP, color, FLOW_TRAIL_COUNT)
+        }
+        if (t >= FLOW_TRAIL_STEP * 2) {
+            dps.emitFlow(a.pos.x, a.pos.y, b.pos.x, b.pos.y, t - FLOW_TRAIL_STEP * 2, color, FLOW_TRAIL_COUNT / 2)
+        }
+    }
+
+    /** 爆发粒子：有具体实现时按 count 发射，否则退化为接口默认强度；无粒子系统时静默跳过。 */
+    private fun emitNodeBurst(node: GraphNode, count: Int) {
+        val ps = particleSystem ?: return
+        val dps = ps as? DefaultParticleSystem
+        if (dps != null) dps.emitBurst(node, count) else ps.emitBurst(node)
+    }
+
+    /** 取两个 ARGB 颜色中感知亮度更高的一端（Rec.601 亮度近似）。 */
+    private fun brighterColor(c1: Int, c2: Int): Int {
+        fun lum(c: Int): Float {
+            val r = (c ushr 16) and 0xFF
+            val g = (c ushr 8) and 0xFF
+            val b = c and 0xFF
+            return 0.299f * r + 0.587f * g + 0.114f * b
+        }
+        return if (lum(c1) >= lum(c2)) c1 else c2
     }
 
     // ------------------------------------------------------------------
@@ -336,6 +395,9 @@ class ObsidianTemplate : GraphTemplate, MutableParamsTemplate {
 
     /** 节点位置引用缓存（PointF 为可变对象，引用实时跟随物理布局）。 */
     private val nodePositions = mutableMapOf<String, PointF>()
+
+    /** 节点引用缓存（onDataFlow 取端点坐标与节点色用；onNodeDisappear 时清除）。 */
+    private val nodeRefs = mutableMapOf<String, GraphNode>()
 
     // 集成点：GraphStore 访问器若与设计假设不同，只需调整这两个函数
     private fun allNodes(store: GraphStore): List<GraphNode> = store.nodes
@@ -490,6 +552,16 @@ class ObsidianTemplate : GraphTemplate, MutableParamsTemplate {
         const val RESTORE_MS = 200L
         const val BREATH_PERIOD_MS = 3000L
         const val BREATH_AMPLITUDE = 0.1f
+
+        // 粒子：爆发强度（出现 > 消失 > 拖拽收尾）
+        const val BURST_COUNT_APPEAR = 32
+        const val BURST_COUNT_DISAPPEAR = 28
+        const val BURST_COUNT_DRAG_END = 14
+
+        // 粒子：数据流彗星簇（头部密度 + 尾迹间距/密度）
+        const val FLOW_HEAD_COUNT = 5
+        const val FLOW_TRAIL_STEP = 0.08f
+        const val FLOW_TRAIL_COUNT = 3
 
         // ColorScheme 调色板（深空背景上的柔和星色）
         val PATH_PALETTE = listOf(

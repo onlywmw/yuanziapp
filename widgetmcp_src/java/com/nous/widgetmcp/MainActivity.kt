@@ -21,6 +21,7 @@ import com.nous.widgetmcp.yuanzi.YuanziPollScheduler
 import com.nous.widgetmcp.yuanzi.YuanziSync
 import com.nous.widgetmcp.yuanzi.YuanziSyncService
 import com.nous.widgetmcp.ui.GraphEdge
+import com.nous.widgetmcp.ui.GraphFlowBus
 import com.nous.widgetmcp.ui.GraphNode
 import com.nous.widgetmcp.ui.GraphView
 import com.nous.widgetmcp.browser.BrowserActivity
@@ -72,8 +73,23 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // M8 接线④：数据流事件总线 —— 后台真实数据事件（Yuanzi 同步 / widget 刷新 /
+        // 点击上报）转发到图谱，经 sendDataFlowBetween 找真实存在的边发射光尾粒子
+        if (::graphView.isInitialized) {
+            GraphFlowBus.register(object : GraphFlowBus.Listener {
+                override fun onDataFlow(sourceId: String, targetId: String) {
+                    graphView.sendDataFlowBetween(sourceId, targetId)
+                }
+            })
+        }
         // 从设置页返回或后台切回时刷新首页状态
         refreshHome()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 退到后台即摘监听：总线事件静默丢弃，也避免持有已暂停页面的 View 引用
+        GraphFlowBus.register(null)
     }
 
     private fun refreshHome() {
