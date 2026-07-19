@@ -1,0 +1,16 @@
+{
+  "height": 0,
+  "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "timestamp": "2026-07-19T00:00:00Z",
+  "merkle_root": "2882639d35c61f6e917ef79e74925f611b65c6d03bb63b1a41a26ff2cf7ddbf9",
+  "transactions": [
+    {
+      "type": "notarize",
+      "atom_id": "yuanzi.chain",
+      "signature_hash": "genesis",
+      "author": "Yuanzi",
+      "action": "genesis",
+      "description": "Yuanzi Chain genesis"
+    }
+  ]
+}
