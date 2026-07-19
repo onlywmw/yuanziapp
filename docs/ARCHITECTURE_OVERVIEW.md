@@ -19,10 +19,7 @@
 
 | 文档 | 内容 |
 |------|------|
-| CHANNEL_MODEL.md | 通道: 直通/映射/转换/合并/分流 |
-| ATOM_CONNECTION_RULES.md | 原子依赖层级规则 + 5 种危险链 |
-| WORKFLOW_CONNECTION_RULES.md | 工作流连线: 类型匹配 + 无效连线速查 |
-| DESIGN_WORKFLOW_RESILIENCE.md | 工作流容错: retry/fallback/skip/timeout/abort |
+| DESIGN_CHANNEL_SPEC.md | 通道技术规格: 5种通道/映射语法/合并时序/分流路由/容错/版本 |
 
 ## 三、图谱引擎
 
