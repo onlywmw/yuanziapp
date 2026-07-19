@@ -25,6 +25,7 @@
 | DESIGN_RESONANCE_SPEC.md | 共振规范: 5 类维度/计算实现/权重学习 |
 | DESIGN_PERSON_ATOM.md | 人原子: 两层场/档案/隐私 |
 | REGISTERED_ATOM_RULES.md | 注册规则 — 作者第一 |
+| DESIGN_ATOM_RUNTIME_ENGINE.md | 运行时引擎: 发现/安装/调度/销毁 |
 
 ### 通道体系
 
