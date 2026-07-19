@@ -1,7 +1,6 @@
 # 原子分类体系
 
-> **定位**: 所有原子的完整分类 — 从 v1 两层的 ADR 到 v2 五类 + 连接器 + 人原子
-> **合并**: ADR_ATOM_MODEL(v1) + DESIGN_ATOM_V2_CLASSIFICATION(v2)
+> **定位**: 原子分类的权威定义。原子清单见 DESIGN_ATOM_CATALOG.md。
 
 ---
 
