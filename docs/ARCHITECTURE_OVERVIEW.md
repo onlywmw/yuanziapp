@@ -9,18 +9,13 @@
 | 文档 | 内容 |
 |------|------|
 | ADR_ATOM_MODEL.md | 原子分层: 基础原子 + 注册原子 |
+| DESIGN_ATOM_FOUNDATION_V2.md | 原子基座: 生命周期 / I/O Schema / 版本 / 依赖 / 安全 / 测试 / 星级 |
 | DESIGN_ATOM_V2_CLASSIFICATION.md | 五类原子: 工具/感知/融合/决策/执行 |
 | BASE_ATOMS_SPEC.md | 13 个基础工具原子规格 |
 | ATOM_SENSOR_LAYER.md | 12 个感知/融合/决策/执行原子 |
 | REGISTERED_ATOM_RULES.md | 注册原子规则 — 作者第一 |
 
-## 二、原子灵魂与可见性
-
-| 文档 | 内容 |
-|------|------|
-| DESIGN_SOUL_VISIBILITY.md | 六字段/浮现算法/作者指南/校验/混音台联动 |
-
-## 三、连线与通道
+## 二、连线与通道
 
 | 文档 | 内容 |
 |------|------|
@@ -29,7 +24,7 @@
 | WORKFLOW_CONNECTION_RULES.md | 工作流连线: 类型匹配 + 无效连线速查 |
 | DESIGN_WORKFLOW_RESILIENCE.md | 工作流容错: retry/fallback/skip/timeout/abort |
 
-## 四、图谱引擎
+## 三、图谱引擎
 
 | 文档 | 内容 |
 |------|------|
@@ -38,7 +33,7 @@
 | GRAPH_MIXER_MODEL.md | 管道↔作品视角混合器 |
 | GRAPH_PARAMETER_PANEL.md | 8 推子 + 4 配色 + 5 预设 |
 
-## 五、阶段设计
+## 四、阶段设计
 
 | 文档 | 状态 |
 |------|------|
@@ -49,7 +44,7 @@
 | DESIGN_M8_HUMAN_EXPERIENCE.md | 📐 |
 | DESIGN_M8_IMPLEMENTATION.md | 📐 |
 
-## 六、终端 & APK
+## 五、终端 & APK
 
 | 文档 | 内容 |
 |------|------|
@@ -58,7 +53,7 @@
 | DESIGN_FRONTEND_UI.md | Android UI 视觉规格 |
 | APK_BUILD_GUIDE.md | 构建指南 |
 
-## 七、AI & 区块链 & 体验
+## 六、AI & 区块链 & 体验
 
 | 文档 | 内容 |
 |------|------|
@@ -66,7 +61,7 @@
 | DESIGN_ATOM_NOTARIZATION.md | 原子公证 — 自己的链 |
 | DESIGN_EXPERIENCE_SCENARIOS.md | 8 个场景 15 个体验缺口 |
 
-## 八、质量治理
+## 七、质量治理
 
 | 文档 | 内容 |
 |------|------|
@@ -75,7 +70,8 @@
 | ISOLATION_HARDENING_PLAN.md | 隔离加固 4 步方案 |
 | SMOKE_TEST_SPEC.md | 冒烟测试规范 |
 | FULL_VERIFICATION_PLAN.md | 全量验证方案 |
+| SOUL_DISASSEMBLE_PLAN.md | "灵魂"概念拆解执行方案 |
 
 ---
 
-> 35 份 · 原子体系 → 灵魂 → 连线 → 图谱 → 阶段 → 终端 → AI/链 → 治理
+> 35 份 · 原子体系 → 连线与通道 → 图谱引擎 → 阶段设计 → 终端 → AI/链 → 治理
