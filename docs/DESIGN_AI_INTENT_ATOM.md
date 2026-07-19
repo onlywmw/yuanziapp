@@ -2,6 +2,7 @@
 
 > **v2 · 2026-07-19 按审计结论优化，与实现同步**
 > 审计依据: design-doc-review/11-AI意图原子.md
+> **v2.1 · 2026-07-19 Phase 2 已落地 (ONNX provider 接入 base-atoms/ai/), 模型选型定稿见 §三**
 
 > **定位**: 本地运行, 理解人的自然语言 → 匹配原子/工作流
 > **类型归属**: 原子分类 v2「决策」类 · intelligence 为子型/标签 (非第六类)
@@ -22,7 +23,7 @@
 人说的话
     │
     ▼
-system.ai ──────→ 理解意图          【已实现 · 规则版, 见 base-atoms/ai/】
+system.ai ──────→ 理解意图          【已实现 · 规则+ONNX 双轨, 见 base-atoms/ai/】
     │                "我想听适合下雨天的歌"
     │                → intent: play_music
     │                → params: {mood: melancholy, scene: rainy_day}
@@ -83,14 +84,13 @@ atom_id:   system.ai
   地位:    默认实现, 任何环境可用, source="rules"
   落地:    base-atoms/ai/
 
-轨道 2 · ONNX Python provider (桌面/服务端, 可选增强)
+轨道 2 · ONNX Python provider (桌面/服务端, 可选增强, 已落地)
   依赖:    onnxruntime (可选安装, 不装不影响轨道 1)
   模型:    AI_MODEL_PATH 环境变量指定本地模型路径
   回退:    未装 onnxruntime 或未设 AI_MODEL_PATH → 自动回退规则轨
   推理:    永远本地, source="onnx"
   适用:    桌面 / 服务端 Python 环境
-  选型:    需中文意图分类模型 + 中文分词方案
-           (distilbert 为英文体系, 不直接适用, 选型待论证)
+  选型:    BAAI/bge-small-zh-v1.5 嵌入 + 原型相似度 (已定稿, 见本节附)
 
 轨道 3 · APK 侧 Java AAR (远期)
   形态:    Java 侧 onnxruntime-android AAR + Python 仅做前/后处理
@@ -100,13 +100,48 @@ atom_id:   system.ai
            → "Chaquopy 内嵌 Python → ONNX Runtime" 路线不可行, 已废弃
   模型:    随 APK assets 打包, 需哈希/签名校验
            (供应链校验属 M6 威胁模型补充项)
+  复用:    与轨道 2 同一份 int8 ONNX (bge-small-zh-v1.5),
+           onnxruntime-android AAR 直接加载, 端侧行为与桌面同源
 
 已删除: 方案 C (用户本地 Claude CLI) — 本质是云端 API 调用,
         违反"不上云"原则, 本版移除。
 ```
 
-**默认策略**: 有 ONNX 环境走轨道 2, 否则轨道 1 兜底; 两条轨的输出契约一致,
+**默认策略 (Phase 2 定稿)**: 规则快路径优先 — 关键词命中即 <1ms 返回;
+规则未命中且 ONNX 可用时由模型补语义泛化; 两条轨输出契约一致,
 仅 `source` 字段区分 (`rules` | `onnx`)。
+
+**模型选型定稿 (2026-07-19, Phase 2)**
+
+```
+定稿:    BAAI/bge-small-zh-v1.5
+         · MIT 协议, 可商用
+         · 24M 参数, 512 维句向量
+         · fp32 ONNX ~100MB / int8 量化 ~25MB
+         · HF 有现成 ONNX (Xenova/bge-small-zh-v1.5), 无需自行导出
+
+路线:    嵌入 + 原型相似度 (零训练数据)
+         · 每意图配置数条例句作为原型, 离线算好原型向量
+         · query 过模型取句向量, 与原型做余弦相似度
+         · 最高相似度即 confidence, 低于阈值 → intent=unknown
+         · 新增意图只需加例句, 无需标注语料与训练
+
+取舍:    MiniRBT-H256 / RBT3 微调分类路线精度上限更高, 但需标注语料;
+         当前零语料, 微调路线留作有语料后的升级路径。
+
+叠加策略 (双轨分工):
+         · 规则快路径优先 — 命中关键词 <1ms 返回, 可解释可单测
+         · 模型补语义泛化 — 兜住换说法/口语化的规则未命中 query
+         · 参数提取保持规则正则 — 小模型槽位抽取不稳,
+           正则确定性高、可测试, 职责不混入模型
+
+模型获取与集成:
+         · 下载: python base-atoms/ai/download_model.py
+                 (拉取 HF Xenova/bge-small-zh-v1.5 现成 ONNX 到本地)
+         · 启用: AI_MODEL_PATH 指向本地模型文件,
+                 AI_ONNX_THRESHOLD 调相似度阈值 (未设取实现内置默认)
+         · 模型文件不入 git (体积大且可再生, gitignore 排除)
+```
 
 ## 四、意图 → 原子的映射
 
@@ -170,9 +205,9 @@ query → 原子匹配实现。
 ## 六、模型训练/更新
 
 ```
-初始模型 (仅轨道 2/3 涉及):
-  预训练中文意图分类模型 (选型待论证, 见 §三轨道 2)
-  覆盖 20-30 个常见意图
+初始模型 (仅轨道 2/3 涉及, 选型已定稿见 §三):
+  BAAI/bge-small-zh-v1.5 句向量嵌入, 零训练原型相似度
+  意图数随例句配置扩展, 当前覆盖 6 类中文意图
 
 个性化:
   人使用越多 → 越准确
@@ -198,7 +233,7 @@ query → 原子匹配实现。
   "附近" + "好吃的" in query → intent=search, category=food
 
 规则匹配率: ~60-70%
-模型匹配率: ~90%+ (轨道 2/3 目标值, 待选型后实测)
+模型匹配率: ~90%+ (轨道 2/3 目标值, 选型已定稿, 待真机实测)
 ```
 
 ## 八、架构
@@ -220,7 +255,8 @@ query → 原子匹配实现。
 │           │ M5 /search 检索   │              │
 │           └───────────────────┘              │
 └──────────────────────────────────────────────┘
-轨道 3 (APK · 远期): Java onnxruntime-android AAR, Python 仅前/后处理
+轨道 3 (APK · 远期): Java onnxruntime-android AAR 加载同一份 int8 ONNX,
+Python 仅前/后处理
 ```
 
 ## 九、实施
@@ -231,13 +267,14 @@ Phase 1: 规则版 — 已落地
   · 关键词 → 意图映射表, 零依赖零模型
   · I/O 契约按 §二 定稿, source="rules"
 
-Phase 2: ONNX provider 接入 (桌面/服务端)
-  · onnxruntime 可选依赖, AI_MODEL_PATH 环境变量
-  · 缺省/加载失败自动回退规则轨
-  · 中文意图模型选型 + 导出 ONNX
+Phase 2: ONNX provider 接入 (桌面/服务端) — 已落地
+  · base-atoms/ai/ (OnnxProvider: bge-small-zh-v1.5 嵌入 + 原型相似度)
+  · onnxruntime 可选依赖, AI_MODEL_PATH / AI_ONNX_THRESHOLD 环境变量
+  · 缺库/缺模型/加载失败自动回退规则轨, source 区分 rules|onnx
+  · download_model.py 拉取 HF 现成 ONNX, 模型文件不入 git
 
-Phase 3: APK AAR 集成 (远期)
-  · Java 侧 onnxruntime-android AAR
+Phase 3: APK AAR 集成 (远期, 规划中)
+  · Java 侧 onnxruntime-android AAR 加载同一份 int8 ONNX
   · 模型随 APK 打包 + 哈希/签名校验
 ```
 
