@@ -1,6 +1,12 @@
 #!/bin/bash
 # 一键构建: 从 proot 源码 → 编译 → 安装
 # 用法: bash /root/widget-mcp/build.sh
+#
+# 注意: 本脚本是 Termux/proot 时代的辅助同步 + 手工 aapt2 链路，仅同步
+# Kotlin/资源源码，不含 Chaquopy 插件与内嵌 Python 打包。
+# Chaquopy 迁移后真实构建入口是 Gradle（widgetmcp_src/settings.gradle +
+# app/build.gradle，仓库未附 gradlew，需系统 Gradle）；本脚本仅保留给
+# 无 Gradle 的 Termux 环境做源码同步与应急手编。
 set -e
 
 SRC=/root/widget-mcp/app/src/main
@@ -17,6 +23,9 @@ tar czf /tmp/src.tar.gz \
   java/com/nous/widgetmcp/data/repo/*.kt \
   java/com/nous/widgetmcp/widget/*.kt \
   java/com/nous/widgetmcp/yuanzi/*.kt \
+  java/com/nous/widgetmcp/ui/*.kt \
+  java/com/nous/widgetmcp/browser/*.kt \
+  java/com/nous/widgetmcp/graph/ \
   java/com/nous/widgetmcp/*.kt \
   res/
 

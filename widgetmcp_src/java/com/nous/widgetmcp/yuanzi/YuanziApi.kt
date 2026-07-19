@@ -13,8 +13,10 @@ import java.nio.charset.Charset
 /**
  * Yuanzi HTTP 客户端
  *
- * 默认访问 127.0.0.1:8080，所有请求携带 Yuanzi-API: v1 版本头。
- * 如配置了 token，额外携带 Yuanzi-Token。
+ * 双 baseUrl 拆分（端口口径以代码现实为准）：
+ *  - Yuanzi Core（默认 127.0.0.1:8080）：/graph、/agent/event、/agent/command/*、/agent/widgets。
+ *  - 注册中心（默认 127.0.0.1:8081）：/health、/search。
+ * 所有请求携带 Yuanzi-API: v1 版本头；如配置了 token，额外携带 Yuanzi-Token。
  */
 object YuanziApi {
     private const val API_VERSION = "v1"
@@ -56,7 +58,11 @@ object YuanziApi {
         }
     }
 
-    fun checkHealth(): Result<String> = withConnection("/health", "GET") { conn ->
+    /** 注册中心 /health（:8081），用于启动握手与连通性检查。 */
+    fun checkHealth(): Result<String> = withConnection(
+        "/health", "GET",
+        baseUrl = YuanziConfig.registryBaseUrl
+    ) { conn ->
         val body = conn.inputStream.bufferedReader().readText()
         Result.success(body)
     }
@@ -82,10 +88,11 @@ object YuanziApi {
         }
     }
 
-    /** 语义搜索原子功能（M5 任务 5.4），对应注册中心 GET /search。 */
+    /** 语义搜索原子功能（M5 任务 5.4），对应注册中心 GET /search（:8081，后端同时提供 POST）。 */
     fun searchAtoms(query: String, limit: Int = 10): Result<List<YuanziSearchResult>> = withConnection(
         "/search?q=" + URLEncoder.encode(query, "UTF-8") + "&limit=" + limit,
-        "GET"
+        "GET",
+        baseUrl = YuanziConfig.registryBaseUrl
     ) { conn ->
         val body = conn.inputStream.bufferedReader().readText()
         val json = JSONObject(body)
@@ -112,11 +119,12 @@ object YuanziApi {
     private fun <T> withConnection(
         path: String,
         method: String,
+        baseUrl: String = YuanziConfig.coreBaseUrl,
         writeBody: ((HttpURLConnection) -> Unit)? = null,
         block: (HttpURLConnection) -> Result<T>
     ): Result<T> {
         if (!YuanziConfig.enabled) return Result.failure(Exception("Yuanzi disabled"))
-        val url = URL(YuanziConfig.baseUrl + path)
+        val url = URL(baseUrl + path)
         var conn: HttpURLConnection? = null
         return try {
             // 本地回环直接连接，绕过系统全局 HTTP 代理
