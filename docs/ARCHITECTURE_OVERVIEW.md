@@ -67,11 +67,9 @@
 | 文档 | 内容 |
 |------|------|
 | DESIGN_GRAPH_ENGINE.md | 图谱 SDK: 三层/11模块/力导向/虚拟化 |
+| DESIGN_GRAPH_CONTROLS.md | 混音台 + 参数面板 + 配色方案 |
+| DESIGN_M8_TEMPLATE_SYSTEM.md | 模板系统: 钩子接口/Obsidian星系/模板切换 |
 | DESIGN_GRAPH_REFERENCE.md | Obsidian 风格视觉方案 (给设计师) |
-| GRAPH_MIXER_MODEL.md | 管道↔作品视角混合器 |
-| GRAPH_PARAMETER_PANEL.md | 8 推子/4 配色/5 预设 |
-| DESIGN_M8_HUMAN_EXPERIENCE.md | 模板钩子/Obsidian星系/极客细节 |
-| DESIGN_M8_IMPLEMENTATION.md | M8 实施方案 |
 
 ---
 
