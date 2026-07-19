@@ -81,3 +81,4 @@ yuanzi-config.local.yaml
 base-atoms/ai/models/
 *.onnx
 *.onnx.tmp
+notary_ledger.jsonl
