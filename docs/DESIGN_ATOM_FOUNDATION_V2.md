@@ -99,7 +99,34 @@
 
 ---
 
-## 3. 版本语义
+## 3. 分类扩展字段
+
+原子 `classification` 下新增可选字段, 用于描述原子的使用场景和风格,
+帮助搜索、推荐和展示。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| style | string[] | 风格标签, 最多 3 个。可选值: 极简/可靠/专业/优雅/强大/轻量/创意/温馨/硬核/极客/玩趣/实验 |
+| audience | string[] | 目标受众, 最多 3 个。可选值: 后端开发/前端开发/数据工程/设计师/作家/学生/所有人/极客/运维/研究员/创作者 |
+| mood | string | 使用基调, 单选。可选值: 专注/平静/精力充沛/轻松愉快/严肃认真/受启发 |
+| quality | string | 品质等级, 单选。默认 functional。可选值: experimental/functional/polished/battle-tested/handcrafted |
+| use_case | string[] | 使用场景, 最多 3 个。可选值: 日常工作/生产环境/学习/原型开发/创意项目/紧急救火 |
+| narrative | string | 作者手写叙事, 10-200 字 |
+
+```
+校验规则:
+  - style/audience/use_case 超过上限 → 拒绝注册
+  - narrative 和 description 完全一致 → 警告
+  - narrative 含明显占位词 (test/测试/123/todo) → 警告
+  - quality=handcrafted → Audit 审核
+  - quality=experimental 且 use_case=production → 冲突警告
+```
+
+所有字段可选, 不填不影响注册。
+
+---
+
+## 4. 版本语义
 
 ### 自动废弃通知
 
@@ -132,7 +159,7 @@
 
 ---
 
-## 4. 安全
+## 5. 安全
 
 ### 一键修复
 
@@ -179,7 +206,7 @@
 
 ---
 
-## 5. 测试
+## 6. 测试
 
 ### 沙箱执行
 
@@ -223,7 +250,7 @@ L2 (敏感) 及以上原子在测试时:
 
 ---
 
-## 6. 星级
+## 7. 星级
 
 ### SLA 指标
 
@@ -255,7 +282,7 @@ L2 (敏感) 及以上原子在测试时:
 
 ---
 
-## 7. CLI 脚手架
+## 8. CLI 脚手架
 
 ```
 yuanzi atom init weather-sensor
