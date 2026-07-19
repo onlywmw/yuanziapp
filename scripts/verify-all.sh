@@ -1,7 +1,9 @@
 #!/bin/bash
 # Yuanzi 全量验证脚本
 # Usage: bash scripts/verify-all.sh
-set -e
+# 注意：不使用 set -e —— 本脚本通过 PASS/FAIL 计数自行汇总错误，
+# 每项检查失败时仍需继续执行后续检查并落入 fail 分支（修复 BUG-035 死分支）。
+# 脚本末尾按 FAIL 计数决定退出码。
 
 PYTHON="${PYTHON:-python}"
 PASS=0
@@ -98,8 +100,9 @@ echo ""
 # ============================================
 echo "--- Phase 3: Schema Authority ---"
 
-# registry.py 不应有 CREATE TABLE
-DDL_COUNT=$(grep -c "CREATE TABLE" mcp-yuanzi-bridge/registry.py 2>/dev/null || echo 0)
+# registry 包（原 registry.py，2026-07-19 拆包）不应有 CREATE TABLE
+# grep -c 无匹配时也会打印 0 但退出码为 1，用 || true 吞掉退出码避免输出重复
+DDL_COUNT=$(grep -rc "CREATE TABLE" mcp-yuanzi-bridge/registry/ 2>/dev/null | grep -v ':0$' | wc -l || true)
 if [ "$DDL_COUNT" -eq 0 ]; then
     pass "registry.py: no CREATE TABLE"
 else

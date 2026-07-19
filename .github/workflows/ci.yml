@@ -27,7 +27,6 @@ jobs:
           pip install black ruff requests
           pip install -e yuanzi-cli[dev]
           pip install -r yuanzi-atom-templates/examples/com.example.sum/requirements.txt
-          pip install -r atoms/atom-template/requirements.txt
           pip install -r mcp-yuanzi-bridge/requirements.txt
 
       - name: pip-audit (dependency vulnerabilities)
@@ -55,10 +54,7 @@ jobs:
       - name: base-atoms tests
         run: python -m pytest base-atoms/tests -q --tb=short
 
-      # ---- example atom smoke tests (M3 3.5) ----
-
-      - name: Example atoms smoke tests
-        run: python -m pytest atoms/tests/ -v --tb=short
+      # ---- example atom smoke tests (atom-smoke-test-spec §7：CI 全量 validate + test) ----
 
       - name: yuanzi validate + test (com.example.sum)
         run: |

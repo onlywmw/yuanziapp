@@ -202,10 +202,9 @@ rec(
 )
 
 # TC-SEC-010 logging / audit (A09)
-audit_ok = all(
-    k in (REPO / "mcp-yuanzi-bridge" / "registry.py").read_text(encoding="utf-8")
-    for k in ["actor", "created_at", "AUDIT_TABLE"]
-)
+# registry.py 已拆为 registry/ 包（2026-07-19 加固1），审计实现位于 registry/audit.py
+audit_src = (REPO / "mcp-yuanzi-bridge" / "registry" / "audit.py").read_text(encoding="utf-8")
+audit_ok = all(k in audit_src for k in ["actor", "created_at", "AUDIT_TABLE"])
 atoms_have_accesslog = any(
     "log_message" in s.read_text(encoding="utf-8") for s in ATOMS.glob("*/server.py")
 )
