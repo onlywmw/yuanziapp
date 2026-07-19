@@ -66,6 +66,18 @@ from workflow import get_workflow, list_workflows, save_workflow, validate_workf
 DEFAULT_DB = Path(__file__).with_name("registry.db")
 
 
+def _with_side_effect(atom: Dict[str, Any]) -> Dict[str, Any]:
+    """原子视图暴露 side_effect 字段（P0-B）。
+
+    注册原子取 meta（submit 时已归一化并镜像进 classification），
+    基础原子（system.*）取 BASE_ATOM_SIDE_EFFECTS 常量表，缺省 impure。
+    """
+    from registry.core import resolve_side_effect  # 惰性导入，避免包循环
+
+    atom["side_effect"] = resolve_side_effect(atom)
+    return atom
+
+
 class ReviewBody(BaseModel):
     approved: bool
     reviewer: str = "api"
@@ -128,7 +140,11 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
         category: Optional[str] = None,
         search: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        return list_atoms(conn, status=status, category=category, search=search)
+        # P0-B：列表视图逐条带上 side_effect
+        return [
+            _with_side_effect(a)
+            for a in list_atoms(conn, status=status, category=category, search=search)
+        ]
 
     @app.post("/atoms", status_code=201, dependencies=[registry_role])
     def submit(atom: Dict[str, Any]) -> Dict[str, Any]:
@@ -157,7 +173,8 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
         atom = get_atom(conn, atom_id)
         if not atom:
             raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
-        return atom
+        # P0-B：详情视图带上 side_effect
+        return _with_side_effect(atom)
 
     @app.post("/atoms/{atom_id}/review", dependencies=[admin])
     def review(atom_id: str, body: ReviewBody) -> Dict[str, Any]:

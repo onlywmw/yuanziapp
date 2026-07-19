@@ -11,11 +11,16 @@ import sqlite3
 from typing import Any, Dict, List
 
 from registry import get_atom, list_atoms, now_iso
+from registry.core import resolve_side_effect
 
 W_AVAILABILITY = 0.3
 W_DOC = 0.2
 W_COMMUNITY = 0.4
 W_TEST = 0.1
+
+# 副作用标签权重（DESIGN_ATOM_FOUNDATION_V2 §6）：
+# pure（无副作用、可安全并行/重试/缓存）原子星级 +0.5
+PURE_SIDE_EFFECT_BONUS = 0.5
 
 
 def add_review(
@@ -143,10 +148,16 @@ def composite_score(conn: sqlite3.Connection, atom_id: str) -> Dict[str, Any]:
         + W_COMMUNITY * parts["community"]
         + W_TEST * parts["test"]
     )
+    # 副作用标签权重（DESIGN_ATOM_FOUNDATION_V2 §6）：pure 原子 +0.5
+    purity_bonus = (
+        PURE_SIDE_EFFECT_BONUS if resolve_side_effect(atom) == "pure" else 0.0
+    )
+    total += purity_bonus
     return {
         "atom_id": atom_id,
         "score": round(total, 2),
         "parts": parts,
+        "purity_bonus": purity_bonus,
         "ratings": community,
     }
 

@@ -9,11 +9,143 @@ import json
 import os
 import sqlite3
 import threading
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .audit import _audit
 from .hashing import compute_content_hash, compute_identity_hash, compute_signature
 from .schema import REGISTRY_TABLE, RESERVED_PREFIXES, VERSIONS_TABLE, now_iso
+
+
+# ---------------------------------------------------------------------------
+# P0-B：注册验证（JSON Schema）+ 副作用标签（DESIGN_ATOM_FOUNDATION_V2 §2/§6）
+# ---------------------------------------------------------------------------
+
+# 仓库根 atom-registry-schema.json 是唯一 schema 权威（P0-A 同步维护 I/O 枚举）
+_SCHEMA_PATH = Path(__file__).resolve().parents[2] / "atom-registry-schema.json"
+
+# 副作用标签（跨代理定稿契约，不得改名）：
+# 字段名 side_effect，枚举 ["pure", "impure"]，缺省 "impure"
+SIDE_EFFECT_PURE = "pure"
+SIDE_EFFECT_IMPURE = "impure"
+SIDE_EFFECT_VALUES = (SIDE_EFFECT_PURE, SIDE_EFFECT_IMPURE)
+DEFAULT_SIDE_EFFECT = SIDE_EFFECT_IMPURE
+
+# 14 个内置基础原子的副作用标签常量表（基础原子不入注册表，标签走常量）。
+# 文档只点名 math-calc / string-split / json-parse 为 pure（无副作用、无状态，
+# 可安全并行/重试/缓存）；其余一律保守标 impure——含 string-match、
+# hash-digest、date-time 与 ai。
+BASE_ATOM_SIDE_EFFECTS: Dict[str, str] = {
+    "system.math-calc": SIDE_EFFECT_PURE,
+    "system.string-split": SIDE_EFFECT_PURE,
+    "system.json-parse": SIDE_EFFECT_PURE,
+    "system.file-read": SIDE_EFFECT_IMPURE,
+    "system.file-write": SIDE_EFFECT_IMPURE,
+    "system.file-dir": SIDE_EFFECT_IMPURE,
+    "system.http-get": SIDE_EFFECT_IMPURE,
+    "system.http-post": SIDE_EFFECT_IMPURE,
+    "system.encrypt-aes": SIDE_EFFECT_IMPURE,
+    "system.decrypt-aes": SIDE_EFFECT_IMPURE,
+    "system.string-match": SIDE_EFFECT_IMPURE,
+    "system.hash-digest": SIDE_EFFECT_IMPURE,
+    "system.date-time": SIDE_EFFECT_IMPURE,
+    "system.ai": SIDE_EFFECT_IMPURE,
+}
+
+# 模块级缓存编译后的校验器；False 为负缓存（加载失败，退化为不校验）
+_META_VALIDATOR: Any = None
+
+
+def _get_meta_validator() -> Any:
+    """加载 atom-registry-schema.json 并编译 Draft7 校验器（模块级缓存编译）。
+
+    schema 文件缺失或解析失败时返回 None——注册主流程不因环境缺文件
+    而整体崩溃（与 notarize 钩子"失败不影响主流程"的思路一致）。
+    """
+    global _META_VALIDATOR
+    if _META_VALIDATOR is None:
+        try:
+            import jsonschema  # 惰性导入：register_mcp_atoms.py 同款依赖
+
+            schema = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
+            _META_VALIDATOR = jsonschema.Draft7Validator(schema)
+        except Exception:  # noqa: BLE001 - 缺文件/坏 schema 时降级为不校验
+            _META_VALIDATOR = False
+    return _META_VALIDATOR or None
+
+
+def _is_legacy_tolerated(error: Any) -> bool:
+    """存量兼容窗口（P0）：四类历史欠账本轮不拦截，待存量 meta 补齐后收紧。
+
+    现有注册流程从未接过 schema 校验（审计发现 validate 只跑在批量脚本），
+    存量 meta 与测试 fixture 普遍缺以下字段，硬拒会误伤全部存量写入：
+
+    1. purpose.summary 缺失
+    2. purpose.functions[].description 缺失
+    3. architecture.interface 缺失
+    4. architecture.type 历史取值（如 python_script）不在 v2 枚举内
+    """
+    path = tuple(error.absolute_path)
+    if error.validator == "required":
+        # 缺字段错误的信息固定为 "'<name>' is a required property"
+        parts = error.message.split("'")
+        missing = parts[1] if len(parts) > 1 else ""
+        if path == ("purpose",) and missing == "summary":
+            return True
+        if path[:2] == ("purpose", "functions") and missing == "description":
+            return True
+        if path == ("architecture",) and missing == "interface":
+            return True
+    if error.validator == "enum" and path == ("architecture", "type"):
+        return True
+    return False
+
+
+def validate_atom_meta(atom: Dict[str, Any]) -> List[str]:
+    """按仓库根 atom-registry-schema.json 校验入参 meta（P0-B 注册验证接线）。
+
+    返回人类可读错误列表（"字段路径: 原因"，与 register_mcp_atoms.validate_atom
+    同款格式），空列表表示通过；兼容窗口内的存量欠账不拦截。
+    """
+    errors: List[str] = []
+    validator = _get_meta_validator()
+    if validator is not None:
+        for error in sorted(validator.iter_errors(atom), key=lambda e: list(e.path)):
+            if _is_legacy_tolerated(error):
+                continue
+            loc = ".".join(str(p) for p in error.absolute_path) or "(root)"
+            errors.append(f"{loc}: {error.message}")
+    # 副作用标签枚举硬校验（schema 由 P0-A 同步加入，此处兜底双保险）
+    side_effect = atom.get("side_effect")
+    if side_effect is not None and side_effect not in SIDE_EFFECT_VALUES:
+        errors.append(
+            f"side_effect: {side_effect!r} is not one of {list(SIDE_EFFECT_VALUES)}"
+        )
+    return errors
+
+
+def resolve_side_effect(atom: Dict[str, Any]) -> str:
+    """解析原子的副作用标签：基础原子取常量表，注册原子取 meta，缺省 impure。
+
+    注册原子在 submit_atom 归一化时已把 side_effect 镜像进 classification
+    （注册表无独立列，DDL 归 migrations/*.sql 权威，本轮不改），
+    读回时据此提升为顶层字段。
+
+    取值优先级：常量表 → 顶层 side_effect（定稿契约位置，同 CLI 模板）
+    → meta.side_effect（schema v2.1 的嵌套写法，宽容兼容）→ classification 镜像。
+    """
+    atom_id = atom.get("atom_id", "")
+    if atom_id in BASE_ATOM_SIDE_EFFECTS:
+        return BASE_ATOM_SIDE_EFFECTS[atom_id]
+    value = atom.get("side_effect")
+    if value is None:
+        meta = atom.get("meta")
+        if isinstance(meta, dict):
+            value = meta.get("side_effect")
+    if value is None:
+        classification = atom.get("classification") or {}
+        value = classification.get("side_effect")
+    return value if value in SIDE_EFFECT_VALUES else DEFAULT_SIDE_EFFECT
 
 
 def _insert_or_update(
@@ -219,6 +351,23 @@ def submit_atom(
     atom["signature"]["source"] = "auto-computed"
     atom["signature"]["content_hash"] = content_hash
     atom["signature"]["identity_hash"] = identity_hash
+
+    # P0-B：注册接入 JSON Schema 校验（审计发现 submit_atom 从未接线 validate）。
+    # 放在签名/生命周期自动补全之后、落库之前；失败返回错误 dict，不抛出。
+    errors = validate_atom_meta(atom)
+    if errors:
+        return {
+            "success": False,
+            "error": "schema_validation",
+            "message": "; ".join(errors),
+            "errors": errors,
+        }
+
+    # P0-B：副作用标签归一化——meta 缺 side_effect 时默认写入 impure；
+    # 注册表无独立列（DDL 归 migrations/*.sql 权威，本轮不改），
+    # 镜像进 classification_json 持久化，读回由 resolve_side_effect 提升。
+    atom["side_effect"] = atom.get("side_effect") or DEFAULT_SIDE_EFFECT
+    atom.setdefault("classification", {})["side_effect"] = atom["side_effect"]
 
     result = _insert_or_update(conn, atom, signature, actor)
     _archive_version(conn, atom, signature)
