@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import threading
 from typing import Any, Dict, List, Optional
 
 from .audit import _audit
@@ -243,7 +245,8 @@ def review_atom(
 ) -> Dict[str, Any]:
     """审核原子，通过后进入 registered 状态，拒绝进入 rejected 状态。"""
     row = conn.execute(
-        f"SELECT lifecycle_json FROM {REGISTRY_TABLE} WHERE atom_id = ?", (atom_id,)
+        f"SELECT lifecycle_json, classification_json FROM {REGISTRY_TABLE} WHERE atom_id = ?",
+        (atom_id,),
     ).fetchone()
     if not row:
         return {
@@ -287,7 +290,70 @@ def review_atom(
     )
     conn.commit()
     _audit(conn, atom_id, "review", old_status, lifecycle["status"], reviewer, comments)
+    # 区块链公证钩子（DESIGN_BLOCKCHAIN_NOTARY §二/§五）：
+    # 审核通过的资产类原子自动上链，默认后台线程执行、注册不阻塞；
+    # 公证的任何失败都不影响审核结果本身。
+    if lifecycle["status"] == "registered":
+        classification = json.loads(row[1]) if row[1] else {}
+        if classification.get("category") == "asset":
+            _trigger_notarize_on_register(conn, atom_id, reviewer)
     return {"success": True, "atom_id": atom_id, "status": lifecycle["status"]}
+
+
+# 置 1 时公证同步执行（测试确定性）；默认后台 daemon 线程，注册不阻塞
+NOTARIZE_SYNC_ENV = "YUANZI_NOTARIZE_SYNC"
+
+
+def _trigger_notarize_on_register(
+    conn: sqlite3.Connection, atom_id: str, reviewer: str
+) -> None:
+    """审核通过后触发资产类原子的链上公证（DESIGN_BLOCKCHAIN_NOTARY §二/§五）。
+
+    - 默认在后台 daemon 线程中用新连接执行，注册流程不阻塞；
+    - YUANZI_NOTARIZE_SYNC=1 时在当前连接上同步执行（测试确定性）；
+    - notarize 模块缺失或公证过程的任何异常都吞掉，绝不影响审核结果。
+    """
+    try:
+        import notarize  # 惰性导入，降低耦合（同 auth.py 里 from registry import _audit 的模式）
+    except Exception:  # noqa: BLE001 - 模块未落盘时静默跳过，不影响审核
+        return
+
+    def _run(target_conn: sqlite3.Connection) -> None:
+        try:
+            notarize.notarize_atom(target_conn, atom_id, "register", actor=reviewer)
+        except Exception:  # noqa: BLE001 - 公证失败绝不影响审核结果
+            pass
+
+    if os.environ.get(NOTARIZE_SYNC_ENV) == "1":
+        _run(conn)
+        return
+
+    # sqlite 连接不宜跨线程共享，后台线程新开连接；
+    # 无文件库（:memory: 等）无法开新连接，退化为同步执行
+    db_path = ""
+    try:
+        for db_row in conn.execute("PRAGMA database_list").fetchall():
+            if db_row[1] == "main":
+                db_path = db_row[2]
+                break
+    except Exception:  # noqa: BLE001
+        db_path = ""
+    if not db_path:
+        _run(conn)
+        return
+
+    def _background() -> None:
+        try:
+            bg_conn = sqlite3.connect(db_path)
+            bg_conn.row_factory = sqlite3.Row
+        except Exception:  # noqa: BLE001 - 连接失败只损失公证，不影响审核
+            return
+        try:
+            _run(bg_conn)
+        finally:
+            bg_conn.close()
+
+    threading.Thread(target=_background, daemon=True).start()
 
 
 # 统一的状态流转表：set_atom_status 与 probe_atom 的唯一事实来源（BUG-019）

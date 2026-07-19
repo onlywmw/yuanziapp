@@ -73,6 +73,11 @@ class ReviewBody(BaseModel):
     score: Optional[float] = None
 
 
+class NotarizeBody(BaseModel):
+    # 手动公证动作（DESIGN_BLOCKCHAIN_NOTARY §二）：补登/转让/版本/下架
+    action: str
+
+
 class StatusBody(BaseModel):
     status: str
     detail: str = ""
@@ -167,6 +172,52 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
         if not result.get("success"):
             raise HTTPException(status_code=404, detail=result.get("message"))
         return result
+
+    # 区块链公证允许的手动 action（DESIGN_BLOCKCHAIN_NOTARY §二）
+    NOTARIZE_ACTIONS = ("register", "transfer", "version", "deprecate")
+
+    def _load_notarize():
+        """惰性导入 notarize 模块（同 auth.py 里 from registry import _audit 的惰性导入模式）。
+
+        模块未落盘时返回 None，由路由报 501，不影响其余接口。
+        """
+        try:
+            import notarize
+
+            return notarize
+        except Exception:  # noqa: BLE001
+            return None
+
+    @app.get("/atoms/{atom_id}/verify", dependencies=[viewer])
+    def verify_atom_notarization(atom_id: str) -> Dict[str, Any]:
+        """链上公证验证（DESIGN_BLOCKCHAIN_NOTARY §六，viewer 可读）。"""
+        if not get_atom(conn, atom_id):
+            raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
+        notarize = _load_notarize()
+        if notarize is None:
+            raise HTTPException(status_code=501, detail="notarize module unavailable")
+        return notarize.verify_notarization(conn, atom_id)
+
+    @app.post("/atoms/{atom_id}/notarize")
+    def notarize_atom_manual(
+        atom_id: str,
+        body: NotarizeBody,
+        principal: Dict[str, Any] = Depends(auth.require_role(ROLE_ADMIN)),
+    ) -> Dict[str, Any]:
+        """手动触发公证记录：补登/转让/版本/下架（admin 专用，actor 取 token 身份）。"""
+        if body.action not in NOTARIZE_ACTIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"action must be one of {NOTARIZE_ACTIONS}",
+            )
+        if not get_atom(conn, atom_id):
+            raise HTTPException(status_code=404, detail=f"Atom '{atom_id}' not found")
+        notarize = _load_notarize()
+        if notarize is None:
+            raise HTTPException(status_code=501, detail="notarize module unavailable")
+        return notarize.notarize_atom(
+            conn, atom_id, body.action, actor=principal.get("subject", "api")
+        )
 
     @app.post("/atoms/{atom_id}/status", dependencies=[registry_role])
     def set_status(atom_id: str, body: StatusBody) -> Dict[str, Any]:
