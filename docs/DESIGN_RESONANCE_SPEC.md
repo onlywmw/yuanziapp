@@ -1,0 +1,61 @@
+# 原子共振规范
+
+> **定位**: 原子之间如何共振 — 维度定义 + 计算实现
+> **合并**: DESIGN_RESONANCE_DIMENSIONS + DESIGN_RESONANCE_IMPLEMENTATION
+
+---
+
+## 一、5 类维度
+
+```
+物理    强度·密度·节奏·变化率
+时间    时长·周期·持续性·转折点
+情绪    能量·开放度·熟悉度·新鲜度
+状态    专注度·移动性·社交性·舒适度
+关系    互补·因果·对比·协同
+```
+
+## 二、每个原子的场
+
+```python
+weather.field = {
+    "物理": {"强度": 0.8, "密度": 0.9, "节奏": 0.6},
+    "时间": {"持续": 2.0, "转折": 0.0},
+    "情绪": {"能量": 0.3, "开放度": 0.2}
+}
+
+music.field = {
+    "物理": {"密度": 0.9, "节奏": 0.5},
+    "情绪": {"能量": 0.4, "开放度": 0.3, "熟悉度": 0.9}
+}
+```
+
+## 三、共振计算
+
+```python
+def resonance(a, b):
+    total = 0.0
+    for cat_a, dims_a in a.field.items():
+        for cat_b, dims_b in b.field.items():
+            weight = 2.0 if cat_a == cat_b else 0.5
+            for na, va in dims_a.items():
+                for nb, vb in dims_b.items():
+                    w = a.weights.get((na, nb), 0.5)
+                    total += w * weight * va * vb
+    return total
+```
+
+```
+同类别 ×2, 跨类别 ×0.5
+12 原子 × 5 维度 × 66 对 = < 1ms
+```
+
+## 四、权重学习
+
+```
+初始所有权重 = 0.5
+用户接受 → 参与维度权重 +0.05
+用户忽略 → 参与维度权重 -0.03
+
+30 天后 weather 自己学会: "我的密度和 music 的密度最重要"
+```
