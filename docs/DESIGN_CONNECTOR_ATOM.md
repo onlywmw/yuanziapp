@@ -27,9 +27,11 @@ iPhone 有 CoreLocation    → connector.location-ios
   系统内置, 不可删, 通用逻辑
 
 注册原子:
-  ├── 连接器 (connector.*): 平台通路, 有作者, 可安装/删除
-  ├── 领域原子 (mcp.*): 数据库、云服务
+  ├── 连接器 (connector.*): 平台特定通路, 可安装/删除
+  ├── 领域原子 (mcp.*): 数据库、云服务等第三方服务 (也是注册原子)
   └── 终端原子: 商品、服务、作品
+
+连接器 ≠ 基础原子。它是注册原子的子类。
 ```
 
 ## 三、自动匹配
@@ -51,9 +53,30 @@ iPhone 有 CoreLocation    → connector.location-ios
     "os_version": ">=11",
     "hardware": ["gps"]
   },
-  "implements": "schema.location-v1"
+  "implements": "schema.location-v1",
+  "schema_version": "1.2.0"
 }
 ```
+
+### 版本管理
+
+```
+同一功能有多个 schema 版本时:
+  连接器必须声明 schema_version
+  系统优先选择实现最新版本的连接器
+  旧版本连接器标记为 deprecated
+```
+
+### 自动匹配优先级
+
+```
+同平台多个连接器可选时:
+  1. schema_version 最新 > 旧
+  2. 用户历史使用 > 未使用
+  3. 社区评分高 > 低
+  4. preferred 标记 > 未标记
+```
+
 
 ## 五、不只是硬件
 

@@ -61,7 +61,7 @@ vibrate        震动反馈
 system.ai      本地 ONNX 意图理解
 ```
 
-## 七、连接原子 (首批)
+## 七、连接原子 (注册原子的子类, 首批)
 
 ```
 connector.location-android    Android GPS
@@ -72,7 +72,17 @@ connector.tts-android         Android TTS
 connector.music-spotify       Spotify
 ```
 
-## 八、人原子 (1)
+## 八、领域原子示例 (mcp.*, 注册原子, 61+)
+
+```
+mcp.postgres    PostgreSQL 数据库
+mcp.mysql       MySQL 数据库
+mcp.s3          云存储
+mcp.iam         权限管理
+... (61 个)
+```
+
+## 九、人原子 (1)
 
 ```
 person-atom    系统中最丰富的场。两层档案。
