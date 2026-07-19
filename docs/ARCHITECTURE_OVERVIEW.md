@@ -68,6 +68,7 @@
 |------|------|
 | DESIGN_GRAPH_ENGINE.md | 渲染引擎 SDK: 三层/11模块/力导向/虚拟化 |
 | DESIGN_WORKFLOW_ENGINE.md | 执行引擎: 拓扑排序/并发/容错/日志 |
+| DESIGN_ATOM_GRAVITY.md | 星云引擎: 原子场/标签共振/集群自组织 (Phase1) → 向量引力 (Phase2) |
 | DESIGN_GRAPH_CONTROLS.md | 混音台 + 参数面板 + 配色方案 |
 | DESIGN_M8_TEMPLATE_SYSTEM.md | 模板系统: 钩子接口/Obsidian星系/模板切换 |
 | DESIGN_GRAPH_REFERENCE.md | Obsidian 风格视觉方案 (给设计师) |
