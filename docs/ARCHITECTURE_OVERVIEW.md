@@ -18,9 +18,7 @@
 
 | 文档 | 内容 |
 |------|------|
-| ATOM_SOUL_MODEL.md | 灵魂模型: 风格/受众/基调/品质/叙事 |
-| SOUL_MODEL_IMPLEMENTATION.md | 灵魂模型实施方案 |
-| ATOM_VISIBILITY_MODEL.md | 可见性: soul 饱满上浮, 空心下沉 |
+| DESIGN_SOUL_VISIBILITY.md | 六字段/浮现算法/作者指南/校验/混音台联动 |
 
 ## 三、连线与通道
 
