@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import secrets
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -31,9 +32,32 @@ _security = HTTPBearer(auto_error=False)
 
 ENV_TOKEN = "YUANZI_API_TOKEN"
 
+# 安全事件（401/403）写入 atom_audit_log 时使用的哨兵 atom_id（BUG-037）。
+# 该命名空间属于 RESERVED_PREFIXES，真实原子不可能占用此 id。
+SECURITY_ATOM_ID = "system.security"
+
+ACTION_AUTH_FAILED = "auth_failed"  # 401：缺失或无效凭证
+ACTION_AUTHZ_DENIED = "authz_denied"  # 403：已认证但角色不足
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _audit_security_event(
+    conn: sqlite3.Connection, action: str, actor: str, detail: str
+) -> None:
+    """把 401/403 拒绝事件写入既有审计链（BUG-037）。
+
+    沿用 atom_audit_log 表结构与哈希链格式（registry._audit）；
+    审计写入失败不阻断拒绝行为本身。
+    """
+    try:
+        from registry import _audit
+
+        _audit(conn, SECURITY_ATOM_ID, action, None, None, actor, detail)
+    except Exception as exc:  # noqa: BLE001 - 审计不可影响认证主流程
+        print(f"WARNING: failed to write security audit event: {exc}")
 
 
 def hash_token(token: str) -> str:
@@ -85,16 +109,26 @@ class Auth:
             return {"role": ROLE_ADMIN, "subject": "dev-mode"}
 
         if not credentials:
+            _audit_security_event(
+                self.conn, ACTION_AUTH_FAILED, "anonymous", "401 missing bearer token"
+            )
             raise HTTPException(status_code=401, detail="Missing Bearer token")
 
         env_token = os.environ.get(ENV_TOKEN)
-        if env_token and credentials.credentials == env_token:
+        # BUG-036：常量时间比较，避免时序侧信道泄露 env token。
+        # 统一编码为 UTF-8 bytes，行为与 == 一致（compare_digest 的 str 形式仅限 ASCII）。
+        if env_token and secrets.compare_digest(
+            credentials.credentials.encode("utf-8"), env_token.encode("utf-8")
+        ):
             return {"role": ROLE_ADMIN, "subject": "env-token"}
 
         db_token = _lookup_db_token(self.conn, credentials.credentials)
         if db_token:
             return {"role": db_token["role"], "subject": f"token-{db_token['id']}"}
 
+        _audit_security_event(
+            self.conn, ACTION_AUTH_FAILED, "anonymous", "401 invalid token"
+        )
         raise HTTPException(status_code=401, detail="Invalid token")
 
     def require_role(self, *roles: str):
@@ -109,10 +143,14 @@ class Auth:
                 for role in roles
             )
             if not allowed:
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Requires role: {' or '.join(roles)}",
+                detail = f"Requires role: {' or '.join(roles)}"
+                _audit_security_event(
+                    self.conn,
+                    ACTION_AUTHZ_DENIED,
+                    principal["subject"],
+                    f"403 {detail} (has {principal['role']})",
                 )
+                raise HTTPException(status_code=403, detail=detail)
             return principal
 
         return dependency
