@@ -1,21 +1,44 @@
-"""Yuanzi Chain — local single-node blockchain for atom notarization."""
+"""Yuanzi Chain — local single-node blockchain for atom notarization.
+
+Chain data lives in ``<home>/blocks/`` + ``<home>/chain_state.json``.
+``<home>`` defaults to this package directory (i.e. ``yuanzi_chain/`` inside
+the repository) and can be overridden with the ``YUANZI_CHAIN_HOME``
+environment variable (evaluated when a ``YuanziChain`` instance is created).
+
+Backup is opt-in: ``YUANZI_CHAIN_REPO`` must point to an *independent* git
+repository directory; the blocks/state are copied there and pushed. The
+current main repository is never pushed.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from merkle import hash_tx, merkle_root, merkle_proof, verify_proof
+try:
+    from .merkle import hash_tx, merkle_root, merkle_proof, verify_proof
+except ImportError:  # pragma: no cover - direct CLI run: python yuanzi_chain/chain.py
+    from merkle import hash_tx, merkle_root, merkle_proof, verify_proof
 
-CHAIN_DIR = Path(__file__).resolve().parent
-BLOCKS_DIR = CHAIN_DIR / "blocks"
-STATE_FILE = CHAIN_DIR / "chain_state.json"
-BACKUP_REPO = os.environ.get("YUANZI_CHAIN_REPO", "")
+_PKG_DIR = Path(__file__).resolve().parent
+
+
+def resolve_chain_home() -> Path:
+    """Return the chain data home directory.
+
+    ``YUANZI_CHAIN_HOME`` overrides the default (the package directory).
+    The directory contains ``blocks/`` and ``chain_state.json``.
+    """
+    env = os.environ.get("YUANZI_CHAIN_HOME", "").strip()
+    if env:
+        return Path(env).expanduser().resolve()
+    return _PKG_DIR
 
 
 def now_iso() -> str:
@@ -35,14 +58,31 @@ def hash_block(block: Dict[str, Any]) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+def _git_toplevel(cwd: Path) -> Optional[Path]:
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(cwd), capture_output=True, text=True, timeout=10,
+        )
+    except Exception:
+        return None
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    return Path(r.stdout.strip()).resolve()
+
+
 class YuanziChain:
-    def __init__(self, backup_repo: str = "") -> None:
-        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
-        self.backup_repo = backup_repo or BACKUP_REPO
+    def __init__(self, backup_repo: str = "", chain_home: Optional[str] = None) -> None:
+        home = Path(chain_home).expanduser().resolve() if chain_home else resolve_chain_home()
+        self.home = home
+        self.blocks_dir = home / "blocks"
+        self.state_file = home / "chain_state.json"
+        self.blocks_dir.mkdir(parents=True, exist_ok=True)
+        self.backup_repo = backup_repo or os.environ.get("YUANZI_CHAIN_REPO", "")
         self._ensure_genesis()
 
     def add_block(self, transactions: List[Dict[str, Any]]) -> str:
-        state = _rj(STATE_FILE)
+        state = _rj(self.state_file)
         prev = self.get_block(state["height"])
         block = {
             "height": state["height"] + 1,
@@ -51,18 +91,18 @@ class YuanziChain:
             "merkle_root": merkle_root(transactions),
             "transactions": transactions,
         }
-        _wj(BLOCKS_DIR / f"{block['height']:06d}.json", block)
+        _wj(self.blocks_dir / f"{block['height']:06d}.json", block)
         state.update(height=block["height"], head_hash=hash_block(block), updated_at=now_iso())
-        _wj(STATE_FILE, state)
+        _wj(self.state_file, state)
         self._backup(block)
         return hash_block(block)
 
     def get_block(self, height: int) -> Optional[Dict[str, Any]]:
-        p = BLOCKS_DIR / f"{height:06d}.json"
+        p = self.blocks_dir / f"{height:06d}.json"
         return _rj(p) if p.exists() else None
 
     def get_tx(self, tx_hash: str) -> Optional[Dict[str, Any]]:
-        for h in range(_rj(STATE_FILE)["height"], -1, -1):
+        for h in range(_rj(self.state_file)["height"], -1, -1):
             block = self.get_block(h)
             if not block:
                 continue
@@ -72,7 +112,7 @@ class YuanziChain:
         return None
 
     def verify_atom(self, atom_id: str) -> Dict[str, Any]:
-        state = _rj(STATE_FILE)
+        state = _rj(self.state_file)
         for h in range(state["height"], -1, -1):
             block = self.get_block(h)
             if not block:
@@ -94,7 +134,7 @@ class YuanziChain:
         return {"verified": False, "atom_id": atom_id, "error": "not found on chain"}
 
     def verify_full_chain(self) -> Dict[str, Any]:
-        state = _rj(STATE_FILE)
+        state = _rj(self.state_file)
         issues = []
         prev_hash = ""
         for h in range(state["height"] + 1):
@@ -113,27 +153,50 @@ class YuanziChain:
         return {"valid": len(issues) == 0, "total_blocks": state["height"] + 1, "chain_head": state["head_hash"], "issues": issues}
 
     def get_status(self) -> Dict[str, Any]:
-        s = _rj(STATE_FILE)
+        s = _rj(self.state_file)
         return {"height": s["height"], "head_hash": s["head_hash"], "total_blocks": s["height"] + 1, "updated_at": s["updated_at"]}
 
     def _ensure_genesis(self) -> None:
-        if STATE_FILE.exists():
+        if self.state_file.exists():
             return
         tx = [{"type": "notarize", "atom_id": "yuanzi.chain", "signature_hash": "genesis", "author": "Yuanzi", "action": "genesis", "description": "Yuanzi Chain genesis"}]
         block = {"height": 0, "prev_hash": "0" * 64, "timestamp": "2026-07-19T00:00:00Z", "merkle_root": merkle_root(tx), "transactions": tx}
-        _wj(BLOCKS_DIR / "000000.json", block)
-        _wj(STATE_FILE, {"height": 0, "head_hash": hash_block(block), "created_at": now_iso(), "updated_at": now_iso()})
+        _wj(self.blocks_dir / "000000.json", block)
+        _wj(self.state_file, {"height": 0, "head_hash": hash_block(block), "created_at": now_iso(), "updated_at": now_iso()})
 
     def _backup(self, block: Dict[str, Any]) -> None:
+        """Copy chain data into an independent backup git repo and push it.
+
+        Disabled by default. Only active when ``YUANZI_CHAIN_REPO`` (or the
+        ``backup_repo`` constructor arg) points to a directory that is its own
+        git repository. The current main repository is never pushed: the
+        backup is skipped when the target resolves to the same git top-level
+        as this package, or when the target contains this package / chain data.
+        """
         if not self.backup_repo:
             return
         try:
+            repo = Path(self.backup_repo).expanduser().resolve()
+            if not repo.is_dir() or not (repo / ".git").exists():
+                return
+            if repo == _PKG_DIR or repo in _PKG_DIR.parents:
+                return
+            if repo == self.home or repo in self.home.parents:
+                return
+            main_top = _git_toplevel(_PKG_DIR)
+            backup_top = _git_toplevel(repo)
+            if backup_top is None or backup_top != repo:
+                return  # must be its own repo root, not a subdir of another repo
+            if main_top is not None and backup_top == main_top:
+                return  # never push the main repository
+            shutil.copytree(self.blocks_dir, repo / "blocks", dirs_exist_ok=True)
+            shutil.copy2(self.state_file, repo / "chain_state.json")
             for cmd in [
                 ["git", "add", "blocks/", "chain_state.json"],
                 ["git", "commit", "-m", f"block #{block['height']}"],
                 ["git", "push", "origin", "main"],
             ]:
-                subprocess.run(cmd, cwd=str(CHAIN_DIR), capture_output=True, timeout=15)
+                subprocess.run(cmd, cwd=str(repo), capture_output=True, timeout=15)
         except Exception:
             pass
 

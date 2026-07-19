@@ -1,13 +1,19 @@
-"""区块链公证核心模块测试（notarize.py）。
+"""原子公证核心模块测试（notarize.py，DESIGN_ATOM_NOTARIZATION.md）。
 
-全部离线：LocalLedger 落临时账本文件（tmp_path），不触网；
-ArweaveProvider 只测可用性判定，不发起任何请求。
+全部离线 hermetic：LocalLedger 落临时账本文件（tmp_path）；链数据目录一律
+指向 tmp_path（YUANZI_CHAIN_HOME），不读仓库内真实 blocks、不触网。
+
+provider 选择契约（默认 yuanzi-chain 优先、local 回退、NOTARY_PROVIDER 强制、
+YuanziChainProvider 五件套）与链上 verify 语义见 test_notarize_yuanzi_chain.py；
+本文件主体用例强制 NOTARY_PROVIDER=local，聚焦公证/验证/防重放/审计等
+provider 无关语义。
 """
 
 from __future__ import annotations
 
 import json
 import sqlite3
+from pathlib import Path
 
 import pytest
 from migrations import migrate
@@ -15,7 +21,6 @@ from registry import AUDIT_TABLE, REGISTRY_TABLE, get_atom, submit_atom
 
 import notarize
 from notarize import (
-    ArweaveProvider,
     LocalLedgerProvider,
     build_notary_payload,
     get_provider,
@@ -24,6 +29,28 @@ from notarize import (
 )
 
 AUTHOR = "张三"
+
+
+def _yuanzi_chain_provider_cls():
+    """惰性取 YuanziChainProvider：实现未合入时单测试清晰失败，而非整文件收集错误。"""
+    cls = getattr(notarize, "YuanziChainProvider", None)
+    if cls is None:
+        pytest.fail("notarize.YuanziChainProvider 尚未实现（等待并行任务合入）")
+    return cls
+
+
+@pytest.fixture(autouse=True)
+def _isolated_chain_home(tmp_path, monkeypatch):
+    """本文件任何用例都不许碰仓库内真实链数据，也不许触发链备份推送。"""
+    monkeypatch.setenv("YUANZI_CHAIN_HOME", str(tmp_path / "yuanzi_chain_home"))
+    monkeypatch.delenv("YUANZI_CHAIN_REPO", raising=False)
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2]))
+    try:
+        import yuanzi_chain.chain as chain_mod
+
+        monkeypatch.setattr(chain_mod, "_chain", None)  # 逐用例重置链单例
+    except Exception:
+        pass  # 链包未就绪：相关用例会自行给出清晰失败
 
 
 def _atom(atom_id="com.zhangsan.premium-music", author=AUTHOR):
@@ -42,10 +69,9 @@ def _atom(atom_id="com.zhangsan.premium-music", author=AUTHOR):
 
 @pytest.fixture()
 def conn(tmp_path, monkeypatch):
-    """内存库 + 临时账本文件，强制 local provider，屏蔽 Arweave 环境。"""
+    """内存库 + 临时账本文件，强制 local provider（本文件聚焦 provider 无关语义）。"""
     monkeypatch.setenv("NOTARY_PROVIDER", "local")
     monkeypatch.setenv("NOTARY_LEDGER_PATH", str(tmp_path / "notary_ledger.jsonl"))
-    monkeypatch.delenv("ARWEAVE_JWK", raising=False)
     c = sqlite3.connect(":memory:")
     c.row_factory = sqlite3.Row
     migrate(c)
@@ -65,7 +91,7 @@ def _register_atom(conn, atom_id="com.zhangsan.premium-music"):
 def test_build_payload_fields_exact(conn):
     atom = _register_atom(conn)
     payload = build_notary_payload(atom, "register", actor="tester")
-    # 严格按文档§四：七个字段，不多不少
+    # 严格七字段（build_notary_payload 契约，不多不少）
     assert set(payload.keys()) == {
         "version",
         "atom_id",
@@ -115,7 +141,7 @@ def test_notarize_register_success(conn):
     assert result["payload"]["action"] == "register"
     assert result["notarized_at"]
 
-    # runtime_json.blockchain 按文档§七写入，blockchain_txs 追加完整记录
+    # runtime_json.blockchain 按 DESIGN_ATOM_NOTARIZATION.md 写入，blockchain_txs 追加完整记录
     atom = get_atom(conn, "com.zhangsan.premium-music")
     blockchain = atom["runtime"]["blockchain"]
     assert blockchain["network"] == "local"
@@ -162,7 +188,7 @@ def test_four_actions_append_not_overwrite(conn):
     atom = get_atom(conn, "com.zhangsan.premium-music")
     txs = atom["runtime"]["blockchain_txs"]
     assert [t["action"] for t in txs] == ["register", "transfer", "version", "deprecate"]
-    # blockchain 指向最新一笔，旧交易不被覆盖（文档§十）
+    # blockchain 指向最新一笔，旧交易不被覆盖（防重放语义）
     assert atom["runtime"]["blockchain"]["tx_hash"] == hashes[-1]
     # 每个 action 再公证都 skipped（防重放）
     for action in ("register", "transfer", "version", "deprecate"):
@@ -304,34 +330,49 @@ def test_audit_written_for_each_action(conn):
 # -------------------------------------------------------------- provider
 
 
-def test_get_provider_defaults_to_local_without_arweave(monkeypatch):
+def test_get_provider_prefers_yuanzi_chain_by_default(monkeypatch):
+    """默认选择：yuanzi-chain 可用时优先（不再默认 local）。"""
     monkeypatch.delenv("NOTARY_PROVIDER", raising=False)
-    monkeypatch.delenv("ARWEAVE_JWK", raising=False)
+    provider_cls = _yuanzi_chain_provider_cls()
+    provider = get_provider()
+    assert isinstance(provider, provider_cls)
+    assert provider.network == "yuanzi-chain"
+
+
+def test_get_provider_falls_back_to_local_when_chain_unavailable(monkeypatch):
+    """链不可用时默认回退 local 账本。"""
+    monkeypatch.delenv("NOTARY_PROVIDER", raising=False)
+    provider_cls = _yuanzi_chain_provider_cls()
+    monkeypatch.setattr(
+        provider_cls,
+        "is_available",
+        lambda self: (False, "yuanzi_chain_unavailable: simulated"),
+    )
     assert isinstance(get_provider(), LocalLedgerProvider)
 
 
 def test_get_provider_forced_by_env(monkeypatch):
+    """NOTARY_PROVIDER 仍可强制指定 local 或 yuanzi-chain。"""
     monkeypatch.setenv("NOTARY_PROVIDER", "local")
     assert isinstance(get_provider(), LocalLedgerProvider)
-    monkeypatch.setenv("NOTARY_PROVIDER", "arweave")
-    assert isinstance(get_provider(), ArweaveProvider)
-
-
-def test_arweave_unavailable_without_jwk(monkeypatch):
-    monkeypatch.delenv("ARWEAVE_JWK", raising=False)
-    available, reason = ArweaveProvider().is_available()
-    assert available is False
-    assert "ARWEAVE_JWK" in reason
+    monkeypatch.setenv("NOTARY_PROVIDER", "yuanzi-chain")
+    provider_cls = _yuanzi_chain_provider_cls()
+    assert isinstance(get_provider(), provider_cls)
 
 
 def test_notarize_fails_cleanly_when_provider_unavailable(conn, monkeypatch):
-    """强制 arweave 但缺私钥：ok:False + reason，绝不抛出。"""
-    monkeypatch.setenv("NOTARY_PROVIDER", "arweave")
-    monkeypatch.delenv("ARWEAVE_JWK", raising=False)
+    """强制 yuanzi-chain 但链不可用：ok:False + reason，绝不抛出。"""
+    provider_cls = _yuanzi_chain_provider_cls()
+    monkeypatch.setattr(
+        provider_cls,
+        "is_available",
+        lambda self: (False, "yuanzi_chain_unavailable: simulated"),
+    )
+    monkeypatch.setenv("NOTARY_PROVIDER", "yuanzi-chain")
     _register_atom(conn)
     result = notarize_atom(conn, "com.zhangsan.premium-music", action="register")
     assert result["ok"] is False
-    assert "arweave_unavailable" in result["reason"]
+    assert "yuanzi_chain_unavailable" in result["reason"]
     # 失败不留痕：runtime_json 未被写入
     atom = get_atom(conn, "com.zhangsan.premium-music")
     assert "blockchain" not in (atom.get("runtime") or {})

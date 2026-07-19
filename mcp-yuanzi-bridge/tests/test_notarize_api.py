@@ -1,12 +1,14 @@
-"""区块链公证：注册流程接入 + 验证接口集成测试（DESIGN_BLOCKCHAIN_NOTARY §二/§五/§六）。
+"""原子公证：注册流程接入 + 验证接口集成测试（DESIGN_ATOM_NOTARIZATION.md §二/§四/§五）。
 
 notarize 模块由并行代理实现；未落盘时整个模块跳过（importorskip），
 待该代理完成后复跑即转活。测试统一用 YUANZI_NOTARIZE_SYNC=1 走同步公证保证确定性。
+全部 hermetic：账本与链数据目录均落 tmp_path，不读仓库内真实 blocks、不触网。
 """
 
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -46,6 +48,19 @@ def _atom(atom_id, category=None):
 def client(tmp_path, monkeypatch):
     monkeypatch.delenv("YUANZI_API_TOKEN", raising=False)
     monkeypatch.setenv("YUANZI_NOTARIZE_SYNC", "1")  # 同步公证，测试确定性
+    # hermetic：不强制 provider（走默认 yuanzi-chain 优先、local 回退的真实路径），
+    # 但账本与链数据一律落 tmp_path，绝不碰仓库内真实数据；链备份推送关闭。
+    monkeypatch.delenv("NOTARY_PROVIDER", raising=False)
+    monkeypatch.setenv("NOTARY_LEDGER_PATH", str(tmp_path / "notary_ledger.jsonl"))
+    monkeypatch.setenv("YUANZI_CHAIN_HOME", str(tmp_path / "yuanzi_chain_home"))
+    monkeypatch.delenv("YUANZI_CHAIN_REPO", raising=False)
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2]))
+    try:
+        import yuanzi_chain.chain as chain_mod
+
+        monkeypatch.setattr(chain_mod, "_chain", None)  # 逐用例重置链单例
+    except Exception:
+        pass  # 链包未就绪：默认 provider 回退 local，用例仍可走通
     db = tmp_path / "notarize.db"
     conn = sqlite3.connect(str(db))
     migrate(conn)
@@ -106,6 +121,18 @@ def test_approve_non_asset_atom_skips_notarize(client):
     assert "blockchain" not in _get_atom(client, "com.example.noclass-a").get(
         "runtime", {}
     )
+
+
+@pytest.mark.parametrize("category", ["artwork", "service"])
+def test_approve_artwork_and_service_atoms_trigger_notarize(client, category):
+    """触发集合契约：category ∈ {asset, artwork, service} 审核通过均自动公证。"""
+    atom_id = f"com.example.{category}-trigger"
+    _submit_and_approve(client, atom_id, category)
+    chain = _get_atom(client, atom_id)["runtime"].get("blockchain")
+    assert chain is not None
+    assert chain.get("tx_hash")
+    assert chain.get("network")
+    assert chain.get("notarized_at")
 
 
 def test_rejected_asset_atom_not_notarized(client):

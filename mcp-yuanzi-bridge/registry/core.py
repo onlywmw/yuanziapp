@@ -384,6 +384,13 @@ def submit_atom(
     return result
 
 
+# 触发公证的 category 集合（DESIGN_ATOM_NOTARIZATION.md §二）。
+# 设计文档的 soul 规则（soul.narrative 与 soul.style 均非空）未实现：
+# atom-registry-schema.json 的 classification 只有 category/domain/tags/maturity，
+# 全仓库无任何 soul 数据与读写代码，该规则无输入可判定，故只保留 category 集合。
+NOTARIZE_CATEGORIES = frozenset({"asset", "artwork", "service"})
+
+
 def review_atom(
     conn: sqlite3.Connection,
     atom_id: str,
@@ -439,12 +446,12 @@ def review_atom(
     )
     conn.commit()
     _audit(conn, atom_id, "review", old_status, lifecycle["status"], reviewer, comments)
-    # 区块链公证钩子（DESIGN_BLOCKCHAIN_NOTARY §二/§五）：
-    # 审核通过的资产类原子自动上链，默认后台线程执行、注册不阻塞；
-    # 公证的任何失败都不影响审核结果本身。
+    # 原子公证钩子（DESIGN_ATOM_NOTARIZATION.md §二/§五）：
+    # 审核通过且 category 属于 NOTARIZE_CATEGORIES 的原子自动上链，
+    # 默认后台线程执行、注册不阻塞；公证的任何失败都不影响审核结果本身。
     if lifecycle["status"] == "registered":
         classification = json.loads(row[1]) if row[1] else {}
-        if classification.get("category") == "asset":
+        if classification.get("category") in NOTARIZE_CATEGORIES:
             _trigger_notarize_on_register(conn, atom_id, reviewer)
     return {"success": True, "atom_id": atom_id, "status": lifecycle["status"]}
 
@@ -456,7 +463,7 @@ NOTARIZE_SYNC_ENV = "YUANZI_NOTARIZE_SYNC"
 def _trigger_notarize_on_register(
     conn: sqlite3.Connection, atom_id: str, reviewer: str
 ) -> None:
-    """审核通过后触发资产类原子的链上公证（DESIGN_BLOCKCHAIN_NOTARY §二/§五）。
+    """审核通过后触发符合条件原子的链上公证（DESIGN_ATOM_NOTARIZATION.md §二/§五）。
 
     - 默认在后台 daemon 线程中用新连接执行，注册流程不阻塞；
     - YUANZI_NOTARIZE_SYNC=1 时在当前连接上同步执行（测试确定性）；
