@@ -25,7 +25,6 @@
 | DESIGN_RESONANCE_SPEC.md | 共振规范: 5 类维度/计算实现/权重学习 |
 | DESIGN_PERSON_ATOM.md | 人原子: 两层场/档案/隐私 |
 | REGISTERED_ATOM_RULES.md | 注册规则 — 作者第一 |
-| DESIGN_ATOM_RUNTIME_ENGINE.md | 运行时引擎: 发现/安装/调度/销毁 |
 
 ### 通道体系
 
@@ -68,6 +67,7 @@
 |------|------|
 | DESIGN_GRAPH_ENGINE.md | 渲染引擎 SDK: 三层/11模块/力导向/虚拟化 |
 | DESIGN_WORKFLOW_ENGINE.md | 执行引擎: 拓扑排序/并发/容错/日志 |
+| DESIGN_ATOM_RUNTIME_ENGINE.md | 运行时引擎: 发现/安装/调度/销毁 |
 | DESIGN_NEBULA_ENGINE.md | 星云引擎: 主循环 30s/采集/共振/聚类/输出/学习 |
 | DESIGN_ATOM_GRAVITY.md | 星云引擎总纲: 运行时原子怎么找到彼此 |
 | DESIGN_GRAPH_CONTROLS.md | 混音台 + 参数面板 + 配色方案 |
