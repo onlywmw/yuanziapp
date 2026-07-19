@@ -134,7 +134,25 @@ system.vibrate
   输出: {status}
 ```
 
-## 三、Schema 变更
+## 三、上下文注解
+
+```
+感知原子 (sensor)     = 上下文提供者 — 不被引用, 不直接输出给用户
+                         weather/location/clock 提供情境, 但不产生最终答案
+
+执行原子 (actuator)   = 最终输出 — 用户能感知到的东西
+                         music/notification/display 直接作用于用户
+
+工具原子 (function)   = 中间处理 — 既不是源头也不是终点
+                         json-parse/string-split 处理数据但不产生输出
+
+工作流自动识别:
+  · 感知原子并行运行, 谁先到谁先提供上下文
+  · 融合原子收集上下文 → 决策原子选择 → 执行原子输出
+  · 用户看到的只是执行原子的结果 (一首歌, 一条通知)
+```
+
+## 四、Schema 变更
 
 `atom-registry-schema.json` 中 `architecture.type` 枚举扩展:
 
