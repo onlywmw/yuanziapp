@@ -106,23 +106,74 @@
 偶尔改变一下集群的成员, 自然就有了意外。
 ```
 
-## 八、演进路线
+## 八、共振的深度
+
+标签重叠不够。同一个标签, 程度不同:
 
 ```
-Phase 1 (现在): 标签共振
-  原子输出标签 [rain, melancholy, afternoon]
-  共振 = 标签重叠数
-  简单, 直接, 先跑起来
+weather:  [rain, intensity=0.8, duration=2h]
+music:    [jazz, tempo=slow, complexity=high]
+
+rain × jazz → 没有共同标签
+但 rain.intensity(0.8) 和 jazz.tempo(slow) → 共振
+大雨的密度和慢爵士的节奏 → 不只是标签, 是维度的匹配
+```
+
+### 维度共振
+
+```
+每个标签带值, 不只是有/没有:
+
+weather 的场:
+  rain:          0.8   ← 大雨, 不是小雨
+  melancholic:   0.6   ← 有点, 不是极度
+  duration:      2.0   ← 持续 2 小时了
+
+music 的场:
+  jazz:          0.9   ← 很爵士
+  slow:          0.7   ← 慢节奏
+  complex:       0.8   ← 丰富层次
+
+calendar 的场:
+  free:          1.0   ← 完全空闲
+  weekend:       1.0   ← 是周末
+
+共振计算:
+  weather.rain(0.8) × music.slow(0.7) = 0.56    ← 雨声密度和慢节奏共振
+  weather.melancholic(0.6) × music.jazz(0.9) = 0.54  ← 忧郁和爵士共振
+  weather.duration(2.0) × calendar.free(1.0) = 2.0   ← 时间和空闲共振最强
+
+不是标签匹配。是维度值之间的乘积。
+时间维度主导了这次共振——2 小时空闲是最强的信号。
+```
+
+### 原子自带维度权重
+
+```
+每个原子知道自己的哪些维度对哪些原子重要:
+
+weather 知道:
+  对 music:   rain 强度最重要, melancholic 次之
+  对 calendar: duration 最重要
+  对 camera:  不重要 (不共振)
+
+这个权重是学出来的, 不是人定的。
+30 天后, weather 自己学会了: 
+  "这个人在意雨的强度, 不在意湿度"
+```
+
+## 九、演进路线
+
+```
+Phase 1 (现在): 维度共振
+  原子输出标签 + 值: {rain: 0.8, melancholic: 0.6, duration: 2h}
+  共振 = 维度值的加权乘积
+  每个原子自带维度权重 (初始均匀, 逐渐学习)
 
 Phase 2 (最终): 向量引力
   原子自己学习状态 → 128 维向量
-  共振 = 余弦相似度
-  不是人类定义的标签, 是原子自己的感知
-
-  128 个维度不是"雨"、"湿度"、"气压"
-  是原子自己对"这个雨"的理解
-  和 3 周前那个雨天的向量对比
-  和那天听到的音乐的向量对比
+  不再有"rain"、"melancholic"这些标签
+  128 个维度是原子自己对此刻的理解
   
   真正的物理 AI — 原子自己感知、自己理解、自己共振
 ```
