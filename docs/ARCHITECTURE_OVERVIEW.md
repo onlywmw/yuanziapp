@@ -1,6 +1,14 @@
 # Yuanzi 架构文档总目
 
-> 35 份 · 按三层架构 + 质量治理分组
+> 38 份 · 按三层架构 + 质量治理分组
+
+---
+
+## 架构导航
+
+| 文档 | 内容 |
+|------|------|
+| ARCHITECTURE_LAYERS.md | 三层架构: 基础层定义 → 发现层分发 → 引擎层组合 |
 
 ---
 
@@ -12,7 +20,9 @@
 |------|------|
 | ADR_ATOM_MODEL.md | 原子分层: 基础原子 + 注册原子 |
 | DESIGN_ATOM_FOUNDATION_V2.md | 基座: 生命周期/I-O Schema/版本/依赖/安全/测试/星级 |
-| DESIGN_ATOM_V2_CLASSIFICATION.md | 五类: 工具/感知/融合/决策/执行 |
+| DESIGN_ATOM_V2_CLASSIFICATION.md | 五类: 工具/感知/融合/决策/执行 + 连接器 |
+| DESIGN_CONNECTOR_ATOM.md | 连接原子: 借力设备已有能力 |
+| DESIGN_CONNECTOR_IMPLEMENTATION.md | 连接原子实现: compatibility 字段 |
 | BASE_ATOMS_SPEC.md | 13 个基础工具原子 |
 | ATOM_SENSOR_LAYER.md | 12 个感知/融合/决策/执行原子 |
 | REGISTERED_ATOM_RULES.md | 注册规则 — 作者第一 |
@@ -96,6 +106,7 @@
 | 文档 | 内容 |
 |------|------|
 | SOUL_DISASSEMBLE_PLAN.md | "灵魂"概念拆解执行 |
+| LEARN_FROM_CODEBASE_MEMORY.md | 借鉴: 安装体验/Web图谱/图查询 |
 
 ---
 
