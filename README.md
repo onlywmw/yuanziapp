@@ -2,128 +2,86 @@
 
 > **让每一个 AI 能力都成为一个可被发现、可被组合、可被验证的"原子"。**
 
-## 宗旨
+## 这是什么
 
-现有的 AI 工具生态是碎片化的——每个 MCP 服务器、API、脚本各自独立，互不知道对方存在。
-Yuanzi 解决这个问题：把能力拆成独立"原子"，通过注册中心统一管理，让它们能被**发现**（语义搜索）、
-能被**组合**（工作流编排）、能被**验证**（健康探针 + 签名去重）。
+Yuanzi 是一个**原子化 AI 工具生态系统**。把能力拆成独立"原子"——从文件读写到天气感知、从数据库查询到意图理解——通过注册中心统一管理，
+在 Android 设备上以知识图谱形式呈现。
 
-## 目标
+人可以自然语言搜索匹配的原子能力，拖动滑动条在"管道视角"和"作品视角"之间切换，
+创建自己的工作流，发布自己的作品，并通过区块链公证所有权。
 
-在 Android 设备上构建一个**可生长的 AI 工具生态系统**——61 个原子以知识图谱形式可视化呈现，
-用户可以自然语言搜索匹配的原子能力，最终像应用商店一样自由组合使用。
+## 原子体系
 
----
+```
+五类原子 (25 个):
+  工具 (13)     file-read, http-get, math-calc, encrypt-aes...
+  感知 (6)      location, camera, weather, device, clock
+  融合 (1)      context-fusion
+  决策 (1)      rule-engine
+  执行 (4)      music-player, notification, display, vibrate
+
+通道 (5 种):
+  直通线 / 映射线 / 转换线 / 合并线 / 分流线
+
+注册原子 (61+):
+  mcp.postgres, mcp.mysql, mcp.s3... 终端原子 (商品/服务/作品)
+```
+
+## 核心特性
+
+```
+· 知识图谱     Obsidian 风格, 暗色背景, 力导向布局, 节点发光
+· 视角混合器   一根滑动条: 管道视角 ↔ 作品视角
+· 参数面板     8 个推子 + 4 种配色一键切换
+· 原子灵魂     风格/受众/基调/品质/叙事 — 让原子切中人心
+· 工作流引擎   拓扑排序, 连线容错, 感知→融合→决策→执行全自动
+· AI 意图理解  本地 ONNX 模型, 理解自然语言 → 匹配工作流
+· 区块链公证   自己的链, 不可篡改的所有权证明
+· 作者第一     每个原子必须有作者, 人通过创造的工具连接彼此
+```
+
+## 技术栈
+
+```
+后端        Python 3.10+ / FastAPI / SQLite
+前端        Android (Kotlin) + Chaquopy (Python 内嵌 APK)
+测试        263 全部通过 · black + ruff 门禁 · CI 绿灯
+链          Yuanzi Chain (本地, Merkle 验证, 未来分布式)
+```
 
 ## 项目状态
 
-| 里程碑 | 目标 | 状态 |
-|--------|------|------|
-| M1 | 原子开发基础设施 | ✅ |
-| M2 | 部署与配置管理 | ✅ |
-| M3 | 测试与质量门禁 | ✅ |
-| M4 | 注册中心服务化 | ✅ |
-| M5 | 能力搜索与匹配 | ✅ |
-| M6 | 安全与多租户 | 📐 设计就绪 |
-| M7 | 原子市场与工作流 | ⭕ 未开始 |
+| 里程碑 | 进度 |
+|--------|------|
+| M1-M5 | ✅ 已完成 |
+| M6 安全 | ✅ 已完成 |
+| M7 原子市场与工作流 | 📐 设计就绪 |
+| M8 人机体验层 | 📐 设计就绪 |
 
-:point_right: **完整计划表请查看 [PROJECT_PLAN.md](./PROJECT_PLAN.md)**
+## 架构文档
 
----
-
-## 项目结构
+35 份设计文档 → [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md)
 
 ```
-yuanziapp/
-├── yuanzi-cli/               # 原子开发 CLI（init / validate / test）
-├── yuanzi-atom-templates/    # 标准化原子模板（Cookiecutter）
-├── yuanzi-atoms/             # Yuanzi 核心原子服务
-├── mcp-yuanzi-bridge/        # MCP 原子注册中心与桥接
-├── widgetmcp_src/            # Android 客户端源码
-├── scripts/                  # 开发辅助脚本（adb 同步等）
-├── atoms/                    # 基础示例原子
-├── atom-registry-schema.json # 原子注册标准 Schema
-├── yuanzi-config.yaml        # 项目配置与同步清单
-├── start_yuanzi_termux.sh    # Termux 启动脚本
-└── PROJECT_PLAN.md           # 项目计划表
+原子体系 → 灵魂与可见性 → 连线与通道 → 图谱引擎
+→ 阶段设计 → 终端 & APK → AI & 区块链 & 体验 → 质量治理
 ```
 
 ## 快速开始
 
-### 1. 在平板上启动 Yuanzi
-
 ```bash
-sh start_yuanzi_termux.sh
+# 测试
+python -m pytest mcp-yuanzi-bridge/tests/ base-atoms/tests/ yuanzi-cli/tests/ -q
+
+# 链
+python yuanzi_chain/chain.py status   # 查看链状态
+python yuanzi_chain/chain.py verify   # 验证链完整性
+
+# 验证全量
+bash scripts/verify-all.sh
+
+# 构建 APK → docs/APK_BUILD_GUIDE.md
 ```
-
-### 2. 安装 CLI
-
-```bash
-cd yuanzi-cli
-python -m pip install -e .
-```
-
-### 3. 创建新原子
-
-```bash
-yuanzi init com.example.my-atom
-```
-
-### 4. 校验并测试原子
-
-```bash
-cd com.example.my-atom
-yuanzi validate
-yuanzi test
-```
-
-### 5. 同步到 Android 平板
-
-确保平板通过 adb 连接，然后：
-
-```bash
-scripts/sync-to-device.sh
-```
-
-或使用 Python 脚本：
-
-```bash
-python scripts/sync-to-device.py
-```
-
-### 6. 在平板上启动 Yuanzi
-
-```bash
-sh /data/data/com.termux/files/home/yuanzi-project/start_yuanzi_termux.sh
-```
-
-## 代码质量门禁
-
-安装 pre-commit 钩子后，每次 `git commit` 会自动运行格式化、lint 和示例原子测试：
-
-```bash
-scripts/install-hooks.sh
-```
-
-手动跑所有检查：
-
-```bash
-pre-commit run --all-files
-```
-
-手动格式化全部代码：
-
-```bash
-scripts/format-all.sh
-```
-
-## 注册中心
-
-`mcp-yuanzi-bridge/` 包含：
-
-- `registry.py` — 原子注册中心核心
-- `register_mcp_atoms.py` — MCP 原子批量注册
-- `ATOM_REGISTRY_LEDGER.md` — 注册登记表
 
 ## 许可证
 
