@@ -50,6 +50,7 @@
 |------|------|
 | DESIGN_AI_INTENT_ATOM.md | 本地 ONNX 意图理解原子 |
 | DESIGN_ATOM_NOTARIZATION.md | 原子公证 — 自己的链 |
+| DESIGN_GRAPH_QUERY.md | 图查询: Cypher→SQLite |
 
 ---
 
@@ -58,7 +59,6 @@
 | 文档 | 内容 |
 |------|------|
 | DESIGN_M7_MARKETPLACE_WORKFLOW.md | 原子市场/工作流模板市场/评分/联邦注册 |
-| DESIGN_EXPERIENCE_SCENARIOS.md | 8 个场景 15 个体验缺口 |
 
 ---
 
@@ -101,6 +101,7 @@
 
 | 文档 | 内容 |
 |------|------|
+| DESIGN_EXPERIENCE_SCENARIOS.md | 8 个场景 15 个体验缺口 |
 | SOUL_DISASSEMBLE_PLAN.md | "灵魂"概念拆解执行 |
 | LEARN_FROM_CODEBASE_MEMORY.md | 借鉴: 安装体验/Web图谱/图查询 |
 
