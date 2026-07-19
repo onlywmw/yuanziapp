@@ -24,6 +24,10 @@ import com.nous.widgetmcp.ui.GraphEdge
 import com.nous.widgetmcp.ui.GraphNode
 import com.nous.widgetmcp.ui.GraphView
 import com.nous.widgetmcp.browser.BrowserActivity
+import com.nous.widgetmcp.graph.engine.DefaultParticleSystem
+import com.nous.widgetmcp.graph.templates.ObsidianTemplate
+import com.nous.widgetmcp.graph.templates.TemplateParams
+import com.nous.widgetmcp.graph.ui.ParameterPanel
 
 class MainActivity : Activity() {
 
@@ -32,6 +36,11 @@ class MainActivity : Activity() {
 
     private lateinit var homeView: View
     private lateinit var graphView: GraphView
+
+    // ---- M8 接线：参数面板 + 模板切换状态 ----
+    private var parameterPanel: ParameterPanel? = null
+    private var templateToggleBtn: Button? = null
+    private var obsidianActive = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,12 +91,70 @@ class MainActivity : Activity() {
             )
             setData(defaultGraphNodes(), defaultGraphEdges())
             onNodeClick = { node -> onGraphNodeClick(node) }
+
+            // M8 接线①：注册 Obsidian 模板（Default 已在 GraphView.init 注册）
+            registerTemplate(ObsidianTemplate())
+
+            // M8 接线②：安装粒子系统，nodeResolver 指向 GraphView 节点查找
+            installParticleSystem(DefaultParticleSystem().apply {
+                nodeResolver = { id -> findNode(id) }
+            })
         }
         loadGraphFromYuanzi()
         return FrameLayout(this).apply {
             addView(graphView)
             addView(buildSearchBar())
+            addView(buildGraphControls())
+
+            // M8 接线③：参数面板挂到首页根容器；attach 时恢复持久化参数并回调一次
+            val panel = ParameterPanel(this@MainActivity)
+            panel.blurTarget = graphView
+            panel.onParamsChanged = { p -> applyGraphParams(p) }
+            panel.attachTo(this)
+            parameterPanel = panel
         }
+    }
+
+    /** M8 参数写入口：同时更新引擎 hooks 与 Obsidian 模板实例，两边渲染都实时生效。 */
+    private fun applyGraphParams(p: TemplateParams) {
+        graphView.setTemplateParams(p)
+        (graphView.currentTemplate() as? ObsidianTemplate)?.params = p
+    }
+
+    /** 右下角悬浮入口：模板切换（Default ↔ Obsidian）+ 参数面板呼出。 */
+    private fun buildGraphControls(): View {
+        val tplBtn = Button(this).apply {
+            text = "✨ Obsidian"
+            setAllCaps(false)
+            setOnClickListener { toggleGraphTemplate(this) }
+        }
+        templateToggleBtn = tplBtn
+
+        val panelBtn = Button(this).apply {
+            text = "🎛 参数"
+            setAllCaps(false)
+            setOnClickListener { parameterPanel?.toggle() }
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.END
+            )
+            addView(tplBtn)
+            addView(panelBtn)
+        }
+    }
+
+    /** Default ↔ Obsidian 切换：全程只走 applyTemplate，无崩溃路径；切完把面板当前参数灌入新模板。 */
+    private fun toggleGraphTemplate(btn: Button) {
+        obsidianActive = !obsidianActive
+        graphView.applyTemplate(if (obsidianActive) "obsidian" else "default")
+        btn.text = if (obsidianActive) "◻ 基础几何" else "✨ Obsidian"
+        parameterPanel?.getParams()?.let { applyGraphParams(it) }
     }
 
     // ==================== 搜索入口（M5 任务 5.4） ====================
