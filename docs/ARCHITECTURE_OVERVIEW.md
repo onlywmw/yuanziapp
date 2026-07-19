@@ -18,17 +18,13 @@
 
 | 文档 | 内容 |
 |------|------|
-| ADR_ATOM_MODEL.md | 原子分层: 基础原子 + 注册原子 |
-| DESIGN_ATOM_FOUNDATION_V2.md | 基座: 生命周期/I-O Schema/版本/依赖/安全/测试/星级 |
-| DESIGN_ATOM_V2_CLASSIFICATION.md | 五类: 工具/感知/融合/决策/执行 + 连接器 |
+| DESIGN_ATOM_CLASSIFICATION.md | 原子分类: 两层/六类/特殊原子 |
+| DESIGN_ATOM_FOUNDATION_V2.md | 基座: 生命周期/I-O/版本/依赖/安全/测试/星级 |
+| DESIGN_ATOM_CATALOG.md | 原子目录: 28 个原子完整清单 |
 | DESIGN_CONNECTOR_ATOM.md | 连接原子: 借力设备已有能力 |
-| DESIGN_CONNECTOR_IMPLEMENTATION.md | 连接原子实现: compatibility 字段 |
-| BASE_ATOMS_SPEC.md | 13 个基础工具原子 |
-| ATOM_SENSOR_LAYER.md | 12 个感知/融合/决策/执行原子 |
-| REGISTERED_ATOM_RULES.md | 注册规则 — 作者第一 |
+| DESIGN_RESONANCE_SPEC.md | 共振规范: 5 类维度/计算实现/权重学习 |
 | DESIGN_PERSON_ATOM.md | 人原子: 两层场/档案/隐私 |
-| DESIGN_RESONANCE_DIMENSIONS.md | 5 类共振维度 |
-| DESIGN_RESONANCE_IMPLEMENTATION.md | 共振实现: 权重学习, <1ms |
+| REGISTERED_ATOM_RULES.md | 注册规则 — 作者第一 |
 
 ### 通道体系
 
