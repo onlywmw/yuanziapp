@@ -76,3 +76,8 @@ widgetmcp_src/libs/*.jar
 
 # 本地机器特定配置覆盖（BUG-011）
 yuanzi-config.local.yaml
+
+# AI 模型文件（system.ai ONNX，体积大、不入 git，由 download_model.py 拉取）
+base-atoms/ai/models/
+*.onnx
+*.onnx.tmp

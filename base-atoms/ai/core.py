@@ -4,9 +4,15 @@
 
 双轨实现（规则兜底为默认，ONNX 为可选增强，永远本地推理、不上云）：
 - RulesProvider：中文关键词 + 正则参数提取，纯标准库、零依赖、<1ms。
-- OnnxProvider：AI_MODEL_PATH 指向存在的本地模型且 onnxruntime 可导入时启用；
-  缺库 / 加载失败 / 推理未实现时静默回退规则，输出 source 记 'rules'。
+- OnnxProvider：AI_MODEL_PATH 指向存在的本地模型且 onnxruntime 可导入时启用。
+  选型 BAAI/bge-small-zh-v1.5（512 维句嵌入）+ prototypes.json 原型库余弦
+  相似度；规则快路径优先，规则 miss 时才走模型补语义泛化，参数提取沿用规则
+  正则。缺库 / 模型缺失 / 加载失败 / 推理异常时静默回退规则，输出 source 记
+  'rules'。相似度阈值取环境变量 AI_ONNX_THRESHOLD，默认 0.55。
 """
+import importlib.util
+import json
+import math
 import os
 import re
 
@@ -176,10 +182,15 @@ class RulesProvider:
 
 
 class OnnxProvider:
-    """可选增强：本地 ONNX 意图分类模型（Phase 2 预留）。
+    """可选增强：本地 ONNX 语义意图识别（Phase 2 实现）。
 
-    构造时导入 onnxruntime 并加载 AI_MODEL_PATH 指向的模型；
-    任何失败都抛给上层 get_provider() 静默回退规则。
+    bge-small-zh-v1.5 句嵌入 + 原型库相似度：
+    - 规则快路径优先：规则命中直接返回规则结果（source 记 'rules'）；
+    - 规则 miss 时编码 query 与原型例句（[CLS] 池化 + L2 归一化，bge 官方
+      做法），余弦相似度取最高分意图，source 记 'onnx'；
+    - 阈值 AI_ONNX_THRESHOLD（默认 0.55）以下判 unknown 低置信；
+    - 参数提取沿用规则正则；原型向量首次使用时惰性编码并缓存；
+    - 任何加载 / 推理异常都抛给 handler，静默回退规则兜底。
     """
 
     source = SOURCE_ONNX
@@ -188,13 +199,99 @@ class OnnxProvider:
         import onnxruntime  # 缺库时 ImportError → 上层回退规则
 
         self._session = onnxruntime.InferenceSession(
-            model_path, providers=["CPUExecutionProvider"]
+            str(model_path), providers=["CPUExecutionProvider"]
         )
+        self._model_path = str(model_path)
+        self._tokenizer = None  # 惰性加载（vocab.txt 与模型同目录）
+        self._prototypes = None  # 惰性编码缓存：intent → [单位向量, ...]
+        self._rules = RulesProvider()  # 快路径 + 参数提取复用
 
     def predict(self, query, context):
-        # TODO(phase-2): 分词 → session.run → intent/params 映射，
-        # 模型选型（中文意图分类）与语料来源待定，见设计文档 §三/§九
-        raise NotImplementedError("onnx inference not implemented yet")
+        # 快路径：规则命中直接用规则（<1ms，不碰模型）
+        rules_result = self._rules.predict(query, context)
+        if rules_result["intent"] != "unknown":
+            return rules_result
+        # 慢路径：ONNX 原型相似度补语义泛化
+        self._ensure_ready()
+        vec = self._encode(query)
+        intent, score = self._best_match(vec)
+        threshold = _onnx_threshold()
+        if intent is None or score < threshold:
+            # unknown 低置信：按相对阈值的接近程度缩放到 [0, 0.2]，
+            # 与规则 unknown（0.1）保持同一低置信语义
+            confidence = 0.2 * max(0.0, score) / max(threshold, 1e-6)
+            return _result("unknown", {}, confidence, self.source)
+        params = self._rules._extract(intent, query)
+        return _result(intent, params, score, self.source)
+
+    def _ensure_ready(self):
+        """首次 ONNX 推理前加载分词器并编码原型库；失败抛异常由 handler 回退。"""
+        if self._tokenizer is None:
+            vocab_path = os.path.join(os.path.dirname(self._model_path), "vocab.txt")
+            self._tokenizer = _load_tokenizer_class()(vocab_path)
+        if self._prototypes is None:
+            proto_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "prototypes.json"
+            )
+            with open(proto_path, encoding="utf-8") as f:
+                raw = json.load(f)
+            self._prototypes = {
+                intent: [self._encode(s) for s in examples]
+                for intent, examples in raw.items()
+            }
+
+    def _encode(self, text):
+        """文本 → [CLS] 池化 + L2 归一化的 512 维单位向量（bge 官方做法）。"""
+        inputs = self._tokenizer.encode(text)
+        feed = {name: _as_int_array(value) for name, value in inputs.items()}
+        outputs = self._session.run(None, feed)
+        cls_vec = outputs[0][0][0]  # last_hidden_state 的 [CLS] 位置
+        if hasattr(cls_vec, "tolist"):  # 兼容 numpy 输出与测试 mock 的嵌套列表
+            cls_vec = cls_vec.tolist()
+        return _l2_normalize([float(x) for x in cls_vec])
+
+    def _best_match(self, vec):
+        """与全部原型向量取余弦（双方已归一化 → 点积），返回 (意图, 最高分)。"""
+        best_intent, best_score = None, -1.0
+        for intent, protos in self._prototypes.items():
+            for proto in protos:
+                score = sum(a * b for a, b in zip(vec, proto))
+                if score > best_score:
+                    best_intent, best_score = intent, score
+        return best_intent, best_score
+
+
+def _onnx_threshold():
+    """相似度阈值：环境变量 AI_ONNX_THRESHOLD 可调，非法值回退默认 0.55。"""
+    try:
+        return float(os.environ.get("AI_ONNX_THRESHOLD", "0.55"))
+    except ValueError:
+        return 0.55
+
+
+def _l2_normalize(vec):
+    norm = math.sqrt(sum(x * x for x in vec))
+    if norm == 0.0:
+        return vec
+    return [x / norm for x in vec]
+
+
+def _as_int_array(rows):
+    """onnxruntime 需要 int64 numpy 输入；无 numpy（如测试 mock）退化为嵌套列表。"""
+    try:
+        import numpy as np
+    except ImportError:
+        return rows
+    return np.asarray(rows, dtype=np.int64)
+
+
+def _load_tokenizer_class():
+    """按文件路径加载同目录 tokenizer.py（core.py 常以非包方式被 importlib 载入）。"""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tokenizer.py")
+    spec = importlib.util.spec_from_file_location("ai_wordpiece_tokenizer", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.WordPieceTokenizer
 
 
 _RULES_PROVIDER = RulesProvider()
@@ -239,7 +336,7 @@ def handler(data):
         try:
             result = provider.predict(query, context or {})
         except Exception:
-            # ONNX 推理未实现或运行失败：静默回退规则兜底
+            # ONNX 推理 / 词表 / 原型库任何失败：静默回退规则兜底
             result = _RULES_PROVIDER.predict(query, context or {})
         return {"status": "success", "data": result}
     except Exception as e:
