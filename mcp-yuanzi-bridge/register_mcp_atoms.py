@@ -267,8 +267,9 @@ def build_registry_atom(raw: Dict[str, Any]) -> Dict[str, Any]:
             {
                 "name": fname,
                 "description": f.get("description", ""),
-                "input_schema": {"type": "object"},
-                "output_schema": {"type": "object"},
+                # v2.1：I/O 类型枚举为小写三值 json/stream/file_ref，默认 json
+                "input_schema": {"type": "json"},
+                "output_schema": {"type": "json"},
             }
         )
 

@@ -53,8 +53,30 @@
             "properties": {
               "name": { "type": "string" },
               "description": { "type": "string" },
-              "input_schema": { "type": "object" },
-              "output_schema": { "type": "object" }
+              "input_schema": {
+                "type": "object",
+                "description": "输入定义。type 为 I/O 类型枚举：json=结构化小数据（默认）/stream=流式不进内存/file_ref=对象存储URL；缺省视为 json",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["json", "stream", "file_ref"],
+                    "default": "json",
+                    "description": "I/O 类型，严格小写三值；stream 不参与内存加载，file_ref 指向临时对象存储"
+                  }
+                }
+              },
+              "output_schema": {
+                "type": "object",
+                "description": "输出定义。type 为 I/O 类型枚举：json=结构化小数据（默认）/stream=流式不进内存/file_ref=对象存储URL；缺省视为 json",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["json", "stream", "file_ref"],
+                    "default": "json",
+                    "description": "I/O 类型，严格小写三值；stream 不参与内存加载，file_ref 指向临时对象存储"
+                  }
+                }
+              }
             }
           }
         },
@@ -245,6 +267,12 @@
         "algorithm": { "type": "string" },
         "source": { "type": "string" }
       }
+    },
+    "side_effect": {
+      "type": "string",
+      "enum": ["pure", "impure"],
+      "default": "impure",
+      "description": "副作用标签（v2.1 新增，顶层字段）：pure=无副作用无状态，可安全并行/重试/缓存；impure=有副作用或依赖外部（默认值，未声明时由注册侧归一化归入）"
     },
     "version": {
       "type": "string",
