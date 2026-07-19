@@ -34,6 +34,12 @@ BASE_ATOM_IO: Dict[str, tuple] = {
     "system.hash-digest": ({"text"}, {"digest", "algorithm"}),
     "system.encrypt-aes": ({"text"}, {"ciphertext", "iv", "mode"}),
     "system.decrypt-aes": ({"ciphertext", "iv"}, {"text"}),
+    # AI 意图理解原子（DESIGN_AI_INTENT_ATOM）：输入 query（context 可选），
+    # 输出 intent/params/matched_atoms/matched_workflows/confidence/source
+    "system.ai": (
+        {"query"},
+        {"intent", "params", "matched_atoms", "matched_workflows", "confidence", "source"},
+    ),
 }
 
 # 允许来自系统配置/环境变量的参数（规则 2 的例外，速查表示例 2）

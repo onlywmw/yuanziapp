@@ -3,7 +3,7 @@
 > 系统内置原子：**不可注册、不可删除、随系统升级**。
 > 接口标准：`/health` `/meta` `/run` | `handler(data)` → `{status, data/message}`
 
-## 13 个基础原子
+## 14 个基础原子
 
 | 目录 | atom_id | 功能 | 端口 |
 |------|---------|------|------|
@@ -20,6 +20,7 @@
 | hash-digest | system.hash-digest | 哈希（sha256/sha512/md5） | 9011 |
 | encrypt-aes | system.encrypt-aes | AES-GCM 加密 | 9012 |
 | decrypt-aes | system.decrypt-aes | AES-GCM 解密 | 9013 |
+| ai | system.ai | 本地意图理解（规则兜底，可选 ONNX 增强） | 9014 |
 
 ## 安全约束
 
