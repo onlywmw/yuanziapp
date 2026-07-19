@@ -73,14 +73,12 @@
 
 ---
 
-## 四、终端 — APK 怎么构建、怎么部署
+## 四、终端 — APK 完整规格
 
 | 文档 | 内容 |
 |------|------|
-| DESIGN_APK_ARCHITECTURE.md | APK 客户端架构 |
-| DESIGN_CHAQUOPY_MIGRATION.md | Python 内嵌 APK |
-| DESIGN_FRONTEND_UI.md | Android UI 视觉规格 |
-| APK_BUILD_GUIDE.md | 构建指南 + 6 个坑 |
+| DESIGN_APK_SPEC.md | 架构 + 视觉 + 构建 — 一份文档涵盖 APK 全部 |
+| DESIGN_CHAQUOPY_MIGRATION.md | Python 内嵌 APK 方案 |
 
 ---
 
