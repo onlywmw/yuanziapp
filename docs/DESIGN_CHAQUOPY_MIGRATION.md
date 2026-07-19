@@ -38,13 +38,17 @@ API 通信从 `localhost HTTP` 变为 `进程内调用`。
 
 ---
 
+> 计数已按代码现状刷新：APK 内嵌 `app/src/main/python/migrations/` 为 11 个
+> （001–011，含 009_workflows、010_atom_reviews、011_federation_peers）；
+> mcp-yuanzi-bridge 仓库侧已增至 13 个（001–013），后续同步需跟随。
+
 ## 二、不变的部分
 
 ```
 ✅ registry.py (957 行)      — 一行不改
 ✅ api.py (200+ 行)          — 一行不改
 ✅ register_mcp_atoms.py     — 一行不改
-✅ migrations/*.sql (8 个)   — 一行不改
+✅ migrations/*.sql (11 个, 001–011) — 一行不改
 ✅ yuanzi-atoms/*/           — 一行不改
 ✅ base-atoms/*/             — 一行不改
 ✅ 277 测试                   — 一条不改
@@ -96,11 +100,20 @@ android {
                 install "fastapi"
                 install "uvicorn"
                 install "pydantic"
+                install "requests"
+                install "jsonschema"
+                install "pyyaml"
+                install "cryptography"
             }
         }
+        // ABI 裁剪: 只打 ARM 平板所需架构, 控制体积
+        ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
     }
 }
 ```
+
+> pip 清单已与 `app/build.gradle:23-31` 现状对齐：在最初的 fastapi/uvicorn/pydantic
+> 之上，实际还安装 requests/jsonschema/pyyaml/cryptography 四个包。
 
 ### 3.3 DB 路径变更
 
@@ -113,7 +126,8 @@ android {
   → /data/data/com.nous.widgetmcp/files/agent.db
 ```
 
-只有一处硬编码要改：`register_mcp_atoms.py` 中的 `DB_PATH`。
+共两处硬编码要改（均为 env `YUANZI_DB_PATH` 兜底 filesDir 的同一模式）：
+`register_mcp_atoms.py` 与 `generate_registry_ledger.py`。
 
 ```python
 # 改前
@@ -169,11 +183,14 @@ val atom = py.getModule("registry").callAttr("get_atom", "mcp.postgres")
 ## 五、依赖检查
 
 ```
-当前 Python 依赖:
+当前 Python 依赖 (与 app/build.gradle pip 清单一致):
   ✅ fastapi         ← 纯 Python, Chaquopy 支持
   ✅ uvicorn         ← 纯 Python, Chaquopy 支持
   ✅ pydantic        ← 纯 Python, Chaquopy 支持
   ✅ requests        ← 纯 Python, Chaquopy 支持
+  ✅ jsonschema      ← 纯 Python, Chaquopy 支持
+  ✅ pyyaml          ← 纯 Python (libyaml 可选), Chaquopy 支持
+  ⚠️ cryptography    ← 含 C 扩展, 但 Chaquopy 官方提供预编译 wheel, 可用
   ✅ cookiecutter    ← 纯 Python
   ✅ typer           ← 纯 Python
   ✅ sqlite3         ← 标准库, Chaquopy 内置
@@ -183,11 +200,16 @@ val atom = py.getModule("registry").callAttr("get_atom", "mcp.postgres")
   ❌ sentence-transformers ← M5 可选, 可装
 ```
 
-全部纯 Python 依赖。零 C 扩展。Chaquopy 完全兼容。
+除 cryptography 外全部纯 Python。cryptography 虽含 C 扩展，但 Chaquopy
+官方仓库提供其预编译包，无需本机编译——"零 C 扩展"的原结论按此修正。
 
 ---
 
 ## 六、APK 体积影响
+
+> 现状注记: `app/build.gradle:34` 已启用 ABI 裁剪
+> (`abiFilters arm64-v8a, armeabi-v7a`)，仅打两种 ARM 架构；
+> 下列估算为全 ABI 口径，裁剪后实际体积应低于此。
 
 ```
 Kotlin 代码 (编译后)     ~500KB

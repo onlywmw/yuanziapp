@@ -15,12 +15,13 @@ APK (Android UI)
   ├─ 知识图谱渲染       ← GraphView (基础原子灰底 + 注册原子白底 + 通道动画)
   ├─ 原子市场浏览       ← M7 市场视图 (评分/评论/排行)
   ├─ 工作流画布         ← M7 DAG 编辑器 (拖拽连线)
-  ├─ MCP Server         ← NanoHTTPD :8080 (widget 操作)
-  └─ REST Client        ← 调用 :8081 (原子查询/搜索)
+  ├─ MCP Server         ← NanoHTTPD :8766 (widget 操作, McpService 默认端口)
+  └─ REST Client        ← 调用 :8080 (Yuanzi Core /graph、/agent/*)
+                          调用 :8081 (注册中心 /health、/search 等)
 
-Python 后端 (Termux)
-  ├─ yuanzi-atoms/      ← 核心原子服务
-  ├─ api.py             ← FastAPI :8081
+Python 后端 (Chaquopy 内嵌于 APK)
+  ├─ yuanzi-atoms/      ← 核心原子服务 (Core :8080)
+  ├─ api.py             ← FastAPI 注册中心 :8081
   └─ agent.db           ← 注册中心
 ```
 
@@ -30,7 +31,29 @@ Python 后端 (Termux)
 
 ## 二、构建依赖
 
-### 必须手动准备的文件（不在 git 仓库中）
+### 真实构建入口：Gradle
+
+Chaquopy 迁移后，APK 构建的唯一真实入口是 Gradle：
+
+```
+widgetmcp_src/settings.gradle   ← rootProject "widgetmcp", include ':app'
+widgetmcp_src/app/build.gradle  ← com.android.application + kotlin-android
+                                  + com.chaquo.python 16.0.0 插件
+                                  (Kotlin 源指向 ../java，资源 ../res，
+                                   Python 源在 app/src/main/python)
+```
+
+```bash
+cd widgetmcp_src
+gradle :app:assembleDebug      # 仓库未附 gradlew，需本机已安装 Gradle
+```
+
+注意：仓库**没有 gradlew**，需使用系统 Gradle（版本需支持 Chaquopy 16.0.0 与
+compileSdk 34）。`build.sh` / `build_adb.sh` 是 Termux/proot 时代的**辅助同步
+脚本**（tar 同步源码 + 远端 aapt2/d8 手工链路），不含 Chaquopy 插件与内嵌
+Python 打包，无法产出当前形态的 APK，仅保留给无 Gradle 的环境应急。
+
+### 手工链路依赖（仅 build.sh 旧链路需要，不在 git 仓库中）
 
 | 文件 | 位置 | 获取方式 |
 |------|------|----------|
@@ -38,11 +61,14 @@ Python 后端 (Termux)
 | kotlin-stdlib | `widgetmcp_src/libs/kotlin-stdlib-1.9.20.jar` | Maven 下载 |
 | nanohttpd | `widgetmcp_src/libs/nanohttpd-2.3.1.jar` | Maven 下载 |
 
-### 构建命令
+Gradle 链路不需要手动准备上述 jar（Kotlin/依赖由插件自动解析），但需要
+Android SDK + 本机 Python 3.x（Chaquopy `buildPython` 指向）。
+
+### 旧手工链路命令（辅助，已非真实入口）
 
 ```bash
 cd widgetmcp_src
-sh build.sh          # 仅编译 APK
+sh build.sh          # 仅编译 APK（Termux/proot 远端手工链路）
 sh build_adb.sh      # 编译 + adb 安装到设备
 ```
 
@@ -51,28 +77,34 @@ sh build_adb.sh      # 编译 + adb 安装到设备
 ## 三、通信架构
 
 ```
-APK 内部                          Python 后端 (Termux)
-────────                          ──────────────────
-YuanziApi.kt ──→ REST :8081 ──→ api.py → registry.py → agent.db
-  (原子查询)     /atoms            (FastAPI)
-                /search
-                /health
+APK 内部                          Python 后端 (Chaquopy 内嵌)
+────────                          ─────────────────────────
+YuanziApi.kt ──→ Core :8080 ───→ yuanzi-atoms/core/main.py
+  (图谱/代理)    /graph           (/health、/graph、/register、
+                /agent/event      /agent/command、/agent/command/poll、
+                /agent/command/*  /agent/event)
 
-McpServer.kt ←── MCP :8080 ──→ widget 操作
-  (JSON-RPC)    widget.create
-                widget.update
+YuanziApi.kt ──→ REST :8081 ───→ api.py → registry.py → agent.db
+  (查询/搜索)    /health           (FastAPI 注册中心, 内嵌启动)
+                /search (GET/POST)
+                /atoms ...
+
+McpServer.kt ←── MCP :8766 ───→ widget 操作
+  (JSON-RPC)    widget.create     (McpService 默认 mcp_port=8766,
+                widget.update      SharedPreferences 可改)
                 widget.delete
 
-YuanziSync.kt ──→ :8081/stats ──→ 知识图谱数据
+YuanziSync.kt ──→ :8080/graph ──→ 知识图谱数据
   (图谱轮询)
 ```
 
-### 端口约定
+### 端口约定（以代码现实为准）
 
 | 端口 | 服务 | 说明 |
 |------|------|------|
-| 8080 | McpServer (APK 内嵌) | widget JSON-RPC |
-| 8081 | FastAPI (Python) | 原子 REST API |
+| 8766 | McpServer (APK 内嵌) | widget JSON-RPC，McpService 默认 `mcp_port` |
+| 8080 | Yuanzi Core (Python) | /graph、/agent/*，env `YUANZI_CORE_PORT` |
+| 8081 | 注册中心 FastAPI (Python) | /health、/search、/atoms 等，`api.start_server` 默认端口 |
 
 ### localhost 通信的特殊处理
 
@@ -80,7 +112,7 @@ YuanziSync.kt ──→ :8081/stats ──→ 知识图谱数据
 AndroidManifest.xml 必须声明:
   android:usesCleartextTraffic="true"
 
-原因: APK 和 Termux Python 服务都在同一设备上，
+原因: APK 与内嵌 Python 服务（Core :8080 / 注册中心 :8081）都在同一设备上，
      通过 http://127.0.0.1 通信，不走 TLS。
      没有这个声明，Android 9+ 会拦截 HTTP 请求。
 ```
@@ -147,15 +179,21 @@ GraphView 的 onNodeClick 需要检查节点类型:
 没有作者的原子 = 数据不完整。
 ```
 
-### 4. 端口 8080/8081 冲突
+### 4. 端口 8766/8080/8081 冲突
 
 ```
-如果设备上已有其他服务占用 8080 或 8081:
-  McpServer 端口在代码中硬编码 → 需要改为可配置
-  REST API 端口在 Termux 启动脚本中 → YUANZI_API_PORT 环境变量
+如果设备上已有其他服务占用这三个端口之一:
+  McpServer: 默认 8766，SharedPreferences "widget_mcp".mcp_port 可配置
+  Yuanzi Core: 默认 8080，env YUANZI_CORE_PORT 可改
+  注册中心: 默认 8081，api.start_server(port=...) 参数可改
+  APK 侧对应: YuanziConfig.port (Core) / YuanziConfig.registryPort (注册中心)
 ```
 
 ### 5. Termux 环境重置
+
+> 现状注记: Chaquopy 迁移后 Python 已内嵌 APK，Termux 进程被杀的场景不再适用；
+> 等价风险变为内嵌 Python 启动失败（PythonBridge.ensureStarted 返回 false），
+> 下述"检查 /health + 重试不崩溃"的防御逻辑仍然需要。
 
 ```
 Android 系统可能杀死 Termux 后台进程。
@@ -166,6 +204,9 @@ APK 需要:
 ```
 
 ### 6. 基础原子随 APK 版本升级
+
+> 现状注记: 当前 Kotlin 侧并无基础原子硬编码列表（全库 Grep 无 BASE_ATOM/file-read 痕迹），
+> 基础原子随内嵌 Python 源码（base-atoms/）进 APK，升级时一并更新。
 
 ```
 基础原子列表硬编码在 APK 中（不是从后端动态获取）:

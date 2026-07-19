@@ -1,9 +1,16 @@
 # M5 能力搜索与匹配 — 架构设计文档
 
-> **状态**: `📐 design-ready`
+> **状态**: `✅ 已实现`（代码领先文档，以代码为准）— 状态刷新于 2026-07-19
 > **作者**: Arch
 > **日期**: 2026-07-18
 > **依赖**: M4.3 REST API ✅（设计已就绪）
+
+> ⚠️ **实现状态横幅（2026-07-19）**：检索链路已实现且可跑（`tests/test_search.py`/`test_embeddings.py`），但技术路线整体改道，本文档契约（模型、表、端点、降级语义）与实现几乎不重合，以 `mcp-yuanzi-bridge/embeddings.py` / `api.py` / `recommend.py` 为准。主要偏差点：
+> 1. **技术路线改道**：实现为 Provider 抽象——`MockEmbeddingProvider`（hash-bow-v1，128 维）/ `OpenAIEmbeddingProvider`（远端 OpenAI 兼容接口），**无 MiniLM、无 BM25、无 0.7/0.3 融合排序**；改道未留 ADR。
+> 2. 表为 `function_embeddings`（**函数级**粒度，迁移 004）而非本文档的 `atom_embeddings` 原子级。
+> 3. 端点为 `GET/POST /search?q=&limit=&provider=`，**无 `/search/rebuild`、无 `/search/status`**；响应无 search_mode/took_ms 字段；批量建索引是独立脚本 `embed_atoms.py`。
+> 4. F4 实现为依赖/同类别加权推荐（`recommend.py`；路由 `/atoms/{id}/recommendations`、`/combination`），非本文档的共现推荐。
+> 5. 远端 embedding provider 与 M6 威胁模型（一切外联收敛）存在未讨论的冲突，待 Arch 裁决。
 
 ---
 

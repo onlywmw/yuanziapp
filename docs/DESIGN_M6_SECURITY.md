@@ -1,10 +1,17 @@
 # M6 安全与多租户 — 架构设计文档
 
-> **状态**: `📐 design-ready`
+> **状态**: `✅ 已实现`（代码领先文档，以代码为准）— 状态刷新于 2026-07-19
 > **作者**: Arch
 > **日期**: 2026-07-18
 > **前置**: M4.3 REST API ✅（但需按本设计加固）
 > **关联**: Audit #1 (BUG-007/008/020) · Audit #2 (BUG-023/024/025)
+
+> ⚠️ **实现状态横幅（2026-07-19）**：主体已全部落地且测试全绿——`auth.py` RBAC 四级角色、`/tokens` CRUD、probe scheme+CIDR 白名单、content_hash 物理列+查重+回填、`/audit/verify` 哈希链校验、base-atom 路径沙箱与 SSRF 防护均在代码中。阅读时以 `mcp-yuanzi-bridge/auth.py` / `registry.py` / `api.py` 为准。主要偏差点：
+> 1. **文档自身迁移编号打架**：§4 称审计链为迁移 006、§6 子任务表称 007；代码实际 005=content_hash、006=api_tokens、008=audit_chain。
+> 2. 威胁表"14 个路由"已过时：`api.py` 现 39 个路由（含 workflow/federation/marketplace）。
+> 3. token 存储设计仍写 `registry_meta`，代码已废弃该表，实际为 `api_tokens` 表（迁移 006）。
+> 4. **开发模式（无 token 全放行）仍是默认**：仓库内启动脚本均不设置 `YUANZI_API_TOKEN`，安全性依赖部署方自觉。
+> 5. 读路由实际全员强制 Bearer（仅 `/health` 豁免），"读路由可选认证"的旧口径作废（BUG-038 备档）。
 
 ---
 

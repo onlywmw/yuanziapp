@@ -1,9 +1,16 @@
 # M7 原子市场与工作流 — 架构设计文档
 
-> **状态**: `📐 design-ready`
+> **状态**: `✅ 已实现`（代码领先文档，以代码为准；Android 侧未开始）— 状态刷新于 2026-07-19
 > **作者**: Arch
 > **日期**: 2026-07-19
 > **前置**: M1-M6 全部完成
+
+> ⚠️ **实现状态横幅（2026-07-19）**：后端基本完成且与本文档对齐（`marketplace.py` 综合分权重一致、`workflow.py` 全部 5 条验证、`engine.py` 运行实例、`federation.py` 三级信任、迁移 009/010/011、REST 路由齐，测试全绿）；但**端到端尚未闭环**。主要偏差点：
+> 1. **Android 侧零落地**：`widgetmcp_src` 全部 .kt 中无 marketplace/workflow 任何引用，画布编辑器与市场界面未开始。
+> 2. 联邦"评分双向同步"（§5.2）未实现：`federation.py` 只同步原子元数据，无 rating/review 传输。
+> 3. 节点重试策略（§4.3 最多 3 次间隔递增）在 `engine.py` 中未实现（文档承诺，代码从简）。
+> 4. 注册原子不可执行：`engine.py` 仅支持 `system.*` 基础原子，注册原子抛 `ValueError("no live endpoint dispatch yet")`。
+> 5. 工作流示例 atom_id 用 `system.http-get` 命名，实际 base-atoms 目录为裸名（如 `http-get`），命名空间示例未对齐。
 
 ---
 

@@ -1,4 +1,4 @@
-:construction: **项目动态计划表** | 最后更新：2026-07-18
+:construction: **项目动态计划表** | 最后更新：2026-07-19（回填 M4~M8 实际完成状态，依据代码实测与 design-doc-review 审计）
 
 # Yuanzi 原子生态项目计划
 
@@ -23,10 +23,11 @@
 | M1 | 原子开发基础设施就绪 | 2026-07-25 | :heavy_check_mark: 已完成 |
 | M2 | 部署与配置管理就绪 | 2026-08-01 | :heavy_check_mark: 已完成 |
 | M3 | 测试与质量门禁就绪 | 2026-08-08 | :construction: 进行中 |
-| M4 | 注册中心服务化 | 2026-08-22 | :white_circle: 未开始 |
-| M5 | 能力搜索与匹配 | 2026-09-05 | :white_circle: 未开始 |
+| M4 | 注册中心服务化 | 2026-08-22 | :heavy_check_mark: 已完成（2026-07-19 回填：后端已实现，bridge 262 测试全绿；API 契约与文档有偏差，见 DESIGN_M4 文首横幅） |
+| M5 | 能力搜索与匹配 | 2026-09-05 | :heavy_check_mark: 已完成（2026-07-19 回填：检索链路可跑；技术路线已改道为 provider 抽象，见 DESIGN_M5 文首横幅） |
 | M6 | 安全与多租户 | 2026-09-19 | :heavy_check_mark: 已完成 |
 | M7 | 原子市场与工作流 | 2026-10-10 | :construction: 进行中（后端完成，Android 画布待做） |
+| M8 | 人机体验层 | — | :electric_plug: 代码已落地待接线（2026-07-19 回填：GraphTemplate/ObsidianTemplate/ParameterPanel 已实现但全仓零实例化，App 内用户不可达，见 DESIGN_M8 两份文档文首横幅） |
 
 ---
 
@@ -90,10 +91,10 @@
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
 | 4.1 | Schema 迁移系统 | P0 | 2 天 | :heavy_check_mark: 已完成 | 无 | `migrations/`（MigrationRunner + 001_initial + 002_add_meta） |
-| 4.2 | 原子版本化表 | P0 | 2 天 | :white_circle: 未开始 | 4.1 | `atom_versions` |
-| 4.3 | REST API（FastAPI） | P0 | 3 天 | :white_circle: 未开始 | 4.2 | `api.py` |
-| 4.4 | 健康探针系统 | P1 | 2 天 | :white_circle: 未开始 | 4.3 | probe 服务 |
-| 4.5 | 依赖图解析 | P1 | 2 天 | :white_circle: 未开始 | 4.2 | `resolve_dependencies()` |
+| 4.2 | 原子版本化表 | P0 | 2 天 | :heavy_check_mark: 已完成 | 4.1 | `atom_versions`（迁移 003/007，2026-07-19 回填） |
+| 4.3 | REST API（FastAPI） | P0 | 3 天 | :heavy_check_mark: 已完成 | 4.2 | `api.py`（39 路由，2026-07-19 回填） |
+| 4.4 | 健康探针系统 | P1 | 2 天 | :heavy_check_mark: 已完成 | 4.3 | `probe_atom/probe_atoms` + `probe_atoms.py` CLI（2026-07-19 回填） |
+| 4.5 | 依赖图解析 | P1 | 2 天 | :heavy_check_mark: 已完成 | 4.2 | `resolve_dependencies()`（2026-07-19 回填） |
 | 4.6 | 修复分类误判 | P1 | 1 天 | :heavy_check_mark: 已完成 | 无 | 更新后的分类 |
 
 ---
@@ -102,7 +103,7 @@
 
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
-| 5.1 | function embedding 生成 | P0 | 3 天 | :white_circle: 未开始 | 4.3 | embedding 表 |
+| 5.1 | function embedding 生成 | P0 | 3 天 | :heavy_check_mark: 已完成 | 4.3 | `embeddings.py` + `function_embeddings` 表（迁移 004，2026-07-19 回填） |
 | 5.2 | 语义搜索 API | P0 | 2 天 | :heavy_check_mark: 已完成 | 5.1 | `/search` 端点 |
 | 5.3 | 原子组合推荐 | P1 | 3 天 | :heavy_check_mark: 已完成 | 5.2 | 组合算法 |
 | 5.4 | Widget MCP 集成搜索 | P1 | 2 天 | :heavy_check_mark: 已完成 | 5.2 | UI 搜索入口 |
@@ -114,9 +115,9 @@
 | 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
 |------|------|--------|----------|------|------|--------|
 | 6.1 | API Key 认证 | P0 | 2 天 | :heavy_check_mark: 已完成 | 4.3 | `auth.py` |
-| 6.2 | RBAC 权限模型 | P1 | 3 天 | :white_circle: 未开始 | 6.1 | 权限系统 |
-| 6.3 | 原子签名验证 | P1 | 3 天 | :white_circle: 未开始 | 4.2 | 签名模块 |
-| 6.4 | 审计日志哈希链 | P2 | 2 天 | :white_circle: 未开始 | 现有审计表 | 防篡改审计 |
+| 6.2 | RBAC 权限模型 | P1 | 3 天 | :heavy_check_mark: 已完成 | 6.1 | `auth.py` 四角色（admin/registry/viewer/probe）+ 路由依赖注入（2026-07-19 回填） |
+| 6.3 | 原子签名验证 | P1 | 3 天 | :heavy_check_mark: 已完成 | 4.2 | content_hash/identity_hash 自动签名 + 注册查重（迁移 005，2026-07-19 回填） |
+| 6.4 | 审计日志哈希链 | P2 | 2 天 | :heavy_check_mark: 已完成 | 现有审计表 | `chain_hash` 哈希链 + `/audit/verify`（迁移 008，2026-07-19 回填） |
 
 ---
 
@@ -128,6 +129,16 @@
 | 7.2 | 工作流 DAG 定义 | P1 | 3 天 | :heavy_check_mark: 已完成 | 4.5 | `workflow.py` |
 | 7.3 | 工作流执行引擎 | P1 | 4 天 | :heavy_check_mark: 已完成 | 7.2 | `engine.py` |
 | 7.4 | 联邦注册中心 | P2 | 5 天 | :heavy_check_mark: 已完成 | 6.3 | `federation.py` |
+
+---
+
+## 第八阶段：人机体验层（2026-07-19 新增回填）
+
+| 序号 | 任务 | 优先级 | 预计工期 | 状态 | 依赖 | 交付物 |
+|------|------|--------|----------|------|------|--------|
+| 8.1 | Graph SDK 钩子层 + 模板接口 | P1 | 3 天 | :heavy_check_mark: 已完成 | 图谱引擎 | `graph/templates/GraphTemplate.kt` + `graph/engine/TemplateHooks.kt` |
+| 8.2 | Obsidian 星系模板 + 参数面板 + 粒子系统 | P1 | 3 天 | :heavy_check_mark: 已完成 | 8.1 | `ObsidianTemplate.kt`（494 行）+ `ParameterPanel.kt`（617 行）+ `ParticleSystem.kt`（375 行） |
+| 8.3 | App 接线（注册模板 / 挂载面板 / 安装粒子） | P0 | 0.5 天 | :white_circle: 未开始 | 8.2 | MainActivity 可达的模板系统——**缺这 5% 则 8.1/8.2 为用户不可达的死代码** |
 
 ---
 

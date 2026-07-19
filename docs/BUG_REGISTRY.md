@@ -3,37 +3,39 @@
 > **所有者**: QA / Audit（2026-07-18 起由 Audit 维护）
 > **性质**: 风险视图与裁决备案。**执行级状态以 `qa/tests/docs/templates/BUG-TRACKING-TEMPLATE.csv` 为唯一事实来源**（ground truth 原则）。
 > 原始备案: Audit #1 (689ad4e) + Audit #2 (689ad4e..1a61a86)
+> **同步记录**: 2026-07-19 与 `qa/tests/docs/templates/BUG-TRACKING-TEMPLATE.csv` 全量对齐——CSV 实测 **26 Fixed + 2 Fixed(partial) + 11 Open**；修正了本文档此前的计数偏差（29 Fixed/10 Open）与 **BUG-030 归属错误**（CSV 中为 Open，本文档曾误列入已关闭索引）。
 
 ---
 
-## 当前状态总览（2026-07-19 Audit "M1-M7 就绪"验证刷新）
+## 当前状态总览（2026-07-19 与 CSV 事实来源对齐刷新）
 
 | 级别 | 总数 | Fixed | Open | 说明 |
 |------|------|-------|------|------|
-| P0 | 3 | 3 | 0 | — |
+| P0 | 2 | 2 | 0 | — |
 | P1 | 12 | 9 | 3 | BUG-025（第三轮 12.5/14，条件性）、BUG-028（POST 已加，Arch 裁决待）、**BUG-034（CI 连 6 红）** |
-| P2 | 17 | 14 | 3 | BUG-031（Arch）、BUG-035（verify 脚本缺陷+声明失实）、BUG-037（AC-13 审计缺失） |
-| P3 | 7 | 3 | 4 | BUG-029 转 Fixed(partial)、BUG-033 已 Fixed；BUG-032/036/038/039 Open |
-| **合计** | **39** | **29** | **10** | 另 BUG-011/029 为 Fixed (partial) |
+| P2 | 15 | 11 | 4 | BUG-030（PROJECT_PLAN M5 回填）、BUG-031（Arch）、BUG-035（verify 脚本缺陷+声明失实）、BUG-037（AC-13 审计缺失）；含 BUG-029 为 Fixed(partial) |
+| P3 | 10 | 6 | 4 | BUG-032/036/038/039 Open；BUG-033 已 Fixed；含 BUG-011 为 Fixed(partial) |
+| **合计** | **39** | **28** | **11** | Fixed 含 2 条 Fixed (partial)（BUG-011/029）；纯 Fixed 26 条 |
 
-## Open 缺陷清单（权威）
+## Open 缺陷清单（权威，与 CSV 一致共 11 条）
 
 | BUG | 级别 | 描述 | 放行路径 | 指派 |
 |-----|------|------|----------|------|
 | BUG-025 | P1 | API 鉴权（fbe2b78 已落地） | **第三轮 12.5/14**：关闭只差 BUG-036（一行 compare_digest）+ BUG-037（修复或正式挂起） | Eng（收尾） |
 | BUG-028 | P1 | M5 GET/POST 契约违例 | POST /search 已新增缓解；BM25 等设计要素 + Arch 契约裁决仍待 | **Arch** |
 | BUG-034 | P1 | CI 引用已删除路径 → main 连 6 红，质量门禁失效 | 修正工作流安装行 + base-atoms 依赖纳入；恢复绿灯 | **Eng（紧急）** |
-| BUG-031 | P2 | 契约 1.9 与实现五处脱节 | 契约文本修订 | **Arch** |
+| BUG-030 | P2 | M5 完成状态与 PROJECT_PLAN 跟踪不符（5.1 未勾选、里程碑行未更新） | 5.1 按实际状态勾选，M5 里程碑行同步（本次文档还债已回填，待 QA 复核关闭） | Eng |
+| BUG-031 | P2 | 契约 1.9 与实现五处脱节 | 契约文本修订（INTERFACE_CONTRACTS v2.0 已按实现重写，待 QA 复核关闭） | **Arch** |
 | BUG-035 | P2 | verify-all.sh 三缺陷 + 验证声明两处失实 | 修脚本、覆盖 4 测试目录、声明以可复跑输出为准 | Eng |
 | BUG-037 | P2 | 401/403 无审计记录（AC-13） | 写审计或正式挂起记录 | Eng |
-| BUG-032 | P3 | PROJECT_PLAN M4 行未回填 | 交付即勾选 | Eng |
+| BUG-032 | P3 | PROJECT_PLAN M4 行未回填 | 交付即勾选（本次文档还债已回填，待 QA 复核关闭） | Eng |
 | BUG-036 | P3 | auth.py:91 env token == 比较 | secrets.compare_digest 一行 | Eng |
-| BUG-038 | P3 | /health 豁免未记录 | 契约文档注明或绑 viewer | Arch |
+| BUG-038 | P3 | /health 豁免未记录 | 契约文档注明或绑 viewer（INTERFACE_CONTRACTS v2.0 §3.1 已注明，待 QA 复核关闭） | Arch |
 | BUG-039 | P3 | M7 引擎两条加固建议 | 建议级 | Eng |
 
 ## 已关闭缺陷索引
 
-BUG-001~019、021~024、026、027、029、030 共 28 条已 Fixed（BUG-011 为 partial，BUG-020 为最低要求）。
+BUG-001~010、012~024、026、027、029、033 共 **28 条已关闭**（其中 **26 条 Fixed**，BUG-011、BUG-029 为 Fixed (partial)；BUG-020 为最低要求 + CIDR 已随 M6.5b 落地）。
 逐条修复证据、验证人、验证日期见 `qa/tests/docs/templates/BUG-TRACKING-TEMPLATE.csv`。
 
 ## 严重度分级说明（分歧备案）

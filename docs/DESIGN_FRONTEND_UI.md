@@ -34,6 +34,13 @@
   paper          #FAFAFA    页面背景
 ```
 
+> 色板口径注记（以代码现实为准）: 实现侧 `res/values/colors.xml` 已自成
+> "Warm Paper" 色板，与上表仅 clay #B85C38 一致，其余均已漂移——
+> sage #7A8B6F（文档 #6B8E6B）、rust #B4453C（#C23B22）、amber #C98A2D（#D4A017）、
+> paper #F7F4EE（#FAFAFA）、ink #2E2A26（#2C2C2C）、muted #8C8378（#8C8C8C）、
+> faint #B4AB9E（#C0C0C0）、hairline #E9E2D6（#E0E0E0）、clay_deep #A04E2A（#8B3A1E）。
+> 在裁定前，开发以 colors.xml 为准；上表保留为设计意图参照。
+
 ### 字体
 
 ```

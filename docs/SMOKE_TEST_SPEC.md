@@ -1,5 +1,10 @@
 # Yuanzi 原子 Smoke Test 规范
 
+> 🚫 **SUPERSEDED — 本规范已失效（2026-07-19 标注）**
+> 现行有效规范为 **[atom-smoke-test-spec.md](atom-smoke-test-spec.md)**（v1.0，两层结构：离线内核冒烟 + 真实服务端点冒烟，`tests/test_kernel.py` + `tests/test_health.py` 强约定）。
+> 失效原因：本规范锚定 `atoms/` 目录示例原子与 `tests/test_core.py` + `handler() → {status, data/message}` 约定，而 `atoms/` 已从 git 删除（a73558a "remove legacy atoms/"），无任何代码按本规范执行；CI 中引用其路径的两行正是 BUG-034 红灯根因。
+> 本文档仅作历史存档保留，请勿再引用。
+
 > 版本 1.0 | M3 任务 3.5 | 适用于所有注册原子
 
 ---

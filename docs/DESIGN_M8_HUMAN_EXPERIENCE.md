@@ -3,6 +3,12 @@
 > **架构**: 地基 (Graph SDK 钩子系统) + 模板层 (审美注入)
 > **原则**: 地基零审美, 模板全审美。Graph SDK 可单独复用, M8 模板是"穿在 SDK 外面的衣服"。
 
+> ⚠️ **实现状态横幅（2026-07-19）**：`🔌 代码已落地待接线 / 部分生效`。钩子哲学已被代码忠实实现（`graph/templates/GraphTemplate.kt` 与接口一致），Obsidian 模板（494 行，恒星/光晕/邻居调制）已完成，但**三件套（ObsidianTemplate / ParameterPanel / DefaultParticleSystem）全仓零实例化，App 内用户不可达**。以代码为准的偏差点：
+> 1. 本文档 §二 列出的 `onLayoutTick(forces)` 钩子在接口与代码中均不存在（`GraphTemplate.kt:24-65`）——力导向注入力无法实现。
+> 2. 帧率指示器、缩放指示器、声音（§3.6）在 `graph/` 与 `widgetmcp_src` 中无任何实现痕迹。
+> 3. 模板"JSON 配置文件"形态未实现：代码模板是硬编码 Kotlin 类，无 JSON 加载路径。
+> 4. 待接线项：MainActivity 注册 ObsidianTemplate、挂载 ParameterPanel、安装粒子系统（详见 DESIGN_M8_IMPLEMENTATION 文首横幅）。
+
 ---
 
 ## 一、分层

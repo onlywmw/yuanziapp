@@ -1,9 +1,16 @@
 # M4 注册中心服务化 — 架构设计文档
 
-> **状态**: `📐 design-ready`
+> **状态**: `✅ 已实现`（代码领先文档，以代码为准）— 状态刷新于 2026-07-19
 > **作者**: Arch
 > **日期**: 2026-07-18
 > **依赖**: M4.1 Schema 迁移系统 ✅
+
+> ⚠️ **实现状态横幅（2026-07-19）**：后端已实现且测试全绿，但契约形状与本文档存在系统性漂移，阅读时以 `mcp-yuanzi-bridge/api.py` / `registry.py` 为准（详见 docs/INTERFACE_CONTRACTS.md v2.0）。主要偏差点：
+> 1. 路由**无 `/api/v1` 前缀**，全部挂根路径（`api.py:112-126`）。
+> 2. **分页/排序未实现**：`GET /atoms` 仅支持 status/category/search，无 page/size/sort/order，返回裸 List 而非 `{total,page,items}` 信封。
+> 3. `GET /health` 只返回 `{"status":"ok"}`，缺 db_connected/atom_count/schema_version/uptime。
+> 4. 模块结构不符：无 `api/` 包，单文件 `api.py`（465 行）内联全部 39 个路由；迁移为 SQL 而非 Python（`migrations/003_atom_versions.sql`）；`start_yuanzi_termux.sh` 不存在。
+> 5. 超出文档已实现：版本详情/回滚/依赖解析路由、Chaquopy 入口 `start_server(port=8081)`。
 
 ---
 

@@ -3,6 +3,11 @@
 > **架构**: Graph SDK 钩子层 → 模板注册 → Obsidian 星系首版
 > **原则**: SDK 零审美 · 模板可替换 · 钩子是最小接口
 
+> ⚠️ **实现状态横幅（2026-07-19）**：`🔌 代码已落地待接线 / 部分生效`。接口、TemplateParams、ColorScheme、PRESETS 数值、SharedPreferences 键与本文档逐字对齐（`GraphTemplate.kt`、`ParameterPanel.kt:54-88,339-366`），单件质量高；但**缺最后 5% 接线，"Day 1 验收：模板可替换"在 App 内无法验证**。以代码为准的偏差点：
+> 1. **致命集成缺口**：`ObsidianTemplate`（494 行完整实现）全仓库无实例化，`GraphView` 只注册 `DefaultTemplate`（`GraphView.kt:109`）；`ParameterPanel`（617 行）除自身文件外无任何引用，MainActivity 仅 `GraphView(this)`（`MainActivity.kt:78`）；粒子安装入口（`GraphView.kt:168`）悬空。
+> 2. 文件布局不符：`graph/engine/` 下**没有** GraphEngine/Renderer/Interaction/Animation.kt，只有 `TemplateHooks.kt`（142 行）+ `ParticleSystem.kt`（375 行）；实际被改造的"引擎"是 `ui/GraphView.kt`（604 行），模板注册/切换/钩子分发都写在它里面（`GraphView.kt:143-222`）。
+> 3. 本文档 `GraphTemplate` 接口无 `onLayoutTick`，与 HUMAN_EXPERIENCE §二 的 13 钩子清单不一致（代码跟随后者）。
+
 ---
 
 ## 一、钩子接口定义
