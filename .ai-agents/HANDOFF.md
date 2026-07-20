@@ -79,13 +79,15 @@ Docs: 43 份
 
 ## 唤醒指令
 
-```
-Arch: 读 DESIGN_ATOM_FOUNDATION_V2.md 和 DESIGN_ATOM_GRAVITY.md, 继续夯实引擎层
-Eng:  git log -5, 看最新 CI 日志, 修复 BUG-034
-Audit: gh issue list --state open, 审查最新提交
-Fixer: gh run list --workflow ci.yml, 分析 CI 失败原因
-Hub:  gh issue list + git log -5, 更新看板状态
-```
+| 角色 | 唤醒指令 |
+|------|----------|
+| Arch | `读 HANDOFF + ARCHITECTURE_OVERVIEW + DESIGN_ATOM_FOUNDATION_V2, 继续夯实未完成的结构` |
+| Eng | `读 HANDOFF + DESIGN_ATOM_FOUNDATION_V2, 看最新 CI 日志, 按优先级实施` |
+| Audit | `读 HANDOFF + 查 GitHub Issues, 审查最新提交是否符合设计文档` |
+| Fixer | `读 HANDOFF + 查 CI 日志, 分析失败原因并修复` |
+| Hub | `读 HANDOFF + 查 Issues + git log, 更新看板状态, 分配任务` |
+
+通用: `读 README + ARCHITECTURE_OVERVIEW + HANDOFF，继续`
 
 ---
 
