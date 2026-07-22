@@ -25,17 +25,23 @@
 （CREATE TABLE IF NOT EXISTS，与迁移机制同款幂等语义），待后续统一收口时
 可原样平移为 014_nebula.sql。
 
-api.py 本轮不接线：对外只暴露模块级函数（collect_fields / compute_resonance /
-resonance_map / cluster_from_resonances / learn_from_feedback / run_nebula_step）
-与 NebulaEngine 类，待后续任务挂端点。
+api.py 接线口径：本轮补 get_nebula_engine() 单例（默认注入
+safety_net.get_safety_net()），端点由接线任务经该单例挂接。
+安全网接线（DESIGN_ENGINE_SAFETY_NET.md）：step() 每个循环经
+safety_net.inspect_loop 报心跳 + 巡检（汇报本轮是否有输出，驱动沉默兜底
+计数）；安全模式激活时 step 退化为轻量空转——仍报心跳，但跳过
+共振/聚类/输出/学习（第二节第 6 条：不共振、不学习、不推送），返回含
+"safe_mode": True 的最小报告。safety_net 为 None 时行为与未接线完全一致。
 """
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import threading
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from registry.core import list_atoms
@@ -195,6 +201,19 @@ def _merged_weights(
     for atom_id, learned in load_learned_weights(conn).items():
         merged.setdefault(atom_id, {}).update(learned)
     return merged
+
+
+def _flatten_weights(weights_by_atom: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    """把 {atom_id: {"a|b": w}} 拍平成安全网巡检用的扁平权重表。
+
+    键加原子前缀（"atom:a|b"）避免不同原子的同名维度对互相覆盖；
+    安全网只关心取值是否全体越界（weights_degraded，第二节第 5 条）。
+    """
+    flat: Dict[str, float] = {}
+    for atom_id, pairs in weights_by_atom.items():
+        for key, value in pairs.items():
+            flat[f"{atom_id}:{key}"] = value
+    return flat
 
 
 # ---------------------------------------------------------------------------
@@ -543,7 +562,10 @@ class NebulaEngine:
     - threshold 可注入（§五 聚类阈值）；
     - conn_factory 可注入：文件库后台线程经它新开连接（notarize 线程惯例），
       缺省时自动从 PRAGMA database_list 推导；内存库退化为复用当前连接；
-    - state 为 §八 状态机的简化版：idle / noticing / learning。
+    - safety_net 可注入（DESIGN_ENGINE_SAFETY_NET）：每个循环报心跳 + 巡检，
+      安全模式激活时 step 退化为轻量空转；None 时与未接线完全一致；
+    - state 为 §八 状态机的简化版：idle / noticing / learning；
+    - loop_count 累计已跑循环数（含安全模式空转轮），供状态端点暴露。
     """
 
     def __init__(
@@ -553,12 +575,15 @@ class NebulaEngine:
         interval: float = LOOP_INTERVAL_SECONDS,
         threshold: float = CLUSTER_THRESHOLD,
         conn_factory: Optional[Callable[[], sqlite3.Connection]] = None,
+        safety_net: Optional[Any] = None,
     ) -> None:
         self._conn = conn
         self.interval = float(interval)
         self.threshold = float(threshold)
         self._conn_factory = conn_factory
+        self._safety_net = safety_net
         self.state = "idle"
+        self.loop_count = 0
         self._previous_clusters: set = set()
         self._pending_feedback: List[Tuple[List[str], str]] = []
         self._stop = threading.Event()
@@ -578,9 +603,35 @@ class NebulaEngine:
 
     # 四、输出（§六：不是每次都要说话）+ 五、学习（§七：消费排队的反馈）
     def step(self, conn: Optional[sqlite3.Connection] = None) -> Dict[str, Any]:
-        """跑一次完整主循环（采集 → 共振 → 聚类 → 输出 → 学习）。"""
+        """跑一次完整主循环（采集 → 共振 → 聚类 → 输出 → 学习）。
+
+        安全网接线（DESIGN_ENGINE_SAFETY_NET）：安全模式激活时退化为轻量
+        空转——仍报心跳，但跳过共振/聚类/输出/学习（第二节第 6 条），返回
+        含 "safe_mode": True 的最小报告；正常模式在循环末尾经
+        safety_net.inspect_loop 报心跳 + 巡检（内含心跳，第三节）。
+        """
         c = conn or self._conn
         started = time.perf_counter()
+        self.loop_count += 1
+        net = self._safety_net
+
+        if net is not None and net.in_safe_mode():
+            # 安全模式：不共振、不学习、不推送新东西（第二节第 6 条）。
+            # 只报心跳表明引擎活着；不碰数据库，保持轻量空转。
+            net.heartbeat()
+            self.state = "idle"
+            self.last_step = {
+                "safe_mode": True,
+                "collected": 0,
+                "pairs": 0,
+                "resonances": [],
+                "clusters": [],
+                "outputs": [],
+                "learned": {"updated": 0, "patterns": 0},
+                "state": self.state,
+                "elapsed_ms": (time.perf_counter() - started) * 1000.0,
+            }
+            return self.last_step
 
         atoms, fields = self.collect(c)  # 1. 采集
         weights = _merged_weights(c, atoms)
@@ -615,6 +666,23 @@ class NebulaEngine:
 
         if self.state != "learning":
             self.state = "noticing" if outputs else "idle"
+
+        # 安全网巡检（第三节：每个循环结束做一次检查，内含心跳刷新）。
+        # had_output 驱动沉默兜底计数；无集群时 cluster_members 传 None——
+        # 集群自然消散是沉默而非混沌，避免与快照比较出误报。
+        if net is not None:
+            try:
+                net.inspect_loop(
+                    had_output=bool(outputs),
+                    cluster_members=(
+                        [m for cluster in clusters for m in cluster["members"]]
+                        if clusters
+                        else None
+                    ),
+                    weights=_flatten_weights(weights) or None,
+                )
+            except Exception:  # noqa: BLE001 - 安全网故障绝不拖垮引擎
+                pass
 
         self.last_step = {
             "collected": len(fields),
@@ -696,3 +764,63 @@ def run_nebula_step(
 ) -> Dict[str, Any]:
     """一次性跑一轮主循环（无状态，模块级便捷入口，待 api.py 接线）。"""
     return NebulaEngine(conn, threshold=threshold).step()
+
+
+# ---------------------------------------------------------------------------
+# 单例访问器（对齐 yuanzi_chain.chain.get_chain 惯例：模块级惰性构造，
+# 双重检查锁线程安全，reset_* 供测试重置）
+# ---------------------------------------------------------------------------
+
+_engine: Optional[NebulaEngine] = None
+_engine_lock = threading.Lock()
+
+
+def _default_registry_conn() -> sqlite3.Connection:
+    """缺省连接：与 api.py 同款口径（REGISTRY_DB 环境变量优先，其次模块旁
+    的 registry.db）；check_same_thread=False 供后台线程复用。"""
+    db_path = os.environ.get(
+        "REGISTRY_DB", str(Path(__file__).with_name("registry.db"))
+    )
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _load_safety_net_singleton() -> Optional[Any]:
+    """惰性导入 safety_net 单例；模块缺失/不可导入时退回 None，
+    引擎行为与未接线完全一致（同 api.py _load_notarize 的兜底惯例）。"""
+    try:
+        from safety_net import get_safety_net
+
+        return get_safety_net()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def get_nebula_engine(conn: Optional[sqlite3.Connection] = None) -> NebulaEngine:
+    """进程级星云引擎单例，默认注入 safety_net.get_safety_net()。
+
+    conn 缺省时按 api.py 惯例打开默认注册库；单例已存在时忽略入参
+    （标准单例语义——调用方需经 reset_nebula_engine 换连接）。
+    """
+    global _engine
+    if _engine is None:
+        with _engine_lock:
+            if _engine is None:
+                _engine = NebulaEngine(
+                    conn if conn is not None else _default_registry_conn(),
+                    safety_net=_load_safety_net_singleton(),
+                )
+    return _engine
+
+
+def reset_nebula_engine() -> None:
+    """重置单例（测试用；先停后台线程再释放，避免孤儿线程踩旧连接）。"""
+    global _engine
+    with _engine_lock:
+        engine, _engine = _engine, None
+    if engine is not None:
+        try:
+            engine.stop()
+        except Exception:  # noqa: BLE001
+            pass

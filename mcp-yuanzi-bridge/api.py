@@ -114,6 +114,12 @@ class TokenBody(BaseModel):
     expires_at: Optional[str] = None
 
 
+class SafetyExitBody(BaseModel):
+    # 手动退出安全模式（DESIGN_ENGINE_SAFETY_NET 第二节第 6 条）：
+    # reset=False 保留数据，reset=True 完全重置（清空快照与学习计数）
+    reset: bool = False
+
+
 def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
     app = FastAPI(title="Yuanzi Registry API", version="0.1.0")
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
@@ -216,6 +222,70 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
             return connectors
         except Exception:  # noqa: BLE001
             return None
+
+    def _load_safety_net():
+        """惰性导入 safety_net 模块（同 _load_notarize 的模式）。
+
+        安全网模块未落盘时返回 None，由路由报 501，不影响其余接口。
+        """
+        try:
+            import safety_net
+
+            return safety_net
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _load_nebula():
+        """惰性导入 nebula 模块（同 _load_notarize 的模式）。
+
+        星云引擎模块未落盘时返回 None，由路由报 501，不影响其余接口。
+        """
+        try:
+            import nebula
+
+            return nebula
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _get_safety_net():
+        """取安全网单例（契约：safety_net.get_safety_net()）。
+
+        模块缺失或单例访问器未提供时返回 None，由路由报 501。
+        """
+        safety_net = _load_safety_net()
+        getter = getattr(safety_net, "get_safety_net", None) if safety_net else None
+        if not callable(getter):
+            return None
+        return getter()
+
+    def _get_nebula_engine():
+        """取星云引擎单例（契约：nebula.get_nebula_engine(conn)）。
+
+        模块缺失或单例访问器未提供时返回 None，由路由报 501。
+        """
+        nebula = _load_nebula()
+        getter = getattr(nebula, "get_nebula_engine", None) if nebula else None
+        if not callable(getter):
+            return None
+        return getter(conn)
+
+    def _nebula_safe_mode(engine: Any) -> bool:
+        """安全模式判定：优先引擎注入的安全网，回落安全网单例，都没有则 False。"""
+        for attr in ("safety_net", "_safety_net"):
+            in_safe = getattr(getattr(engine, attr, None), "in_safe_mode", None)
+            if callable(in_safe):
+                try:
+                    return bool(in_safe())
+                except Exception:  # noqa: BLE001
+                    return False
+        net = _get_safety_net()
+        in_safe = getattr(net, "in_safe_mode", None)
+        if callable(in_safe):
+            try:
+                return bool(in_safe())
+            except Exception:  # noqa: BLE001
+                return False
+        return False
 
     @app.get("/atoms/{atom_id}/verify", dependencies=[viewer])
     def verify_atom_notarization(atom_id: str) -> Dict[str, Any]:
@@ -548,6 +618,60 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
     @app.get("/audit", dependencies=[viewer])
     def audit(atom_id: Optional[str] = Query(None)) -> List[Dict[str, Any]]:
         return get_audit_log(conn, atom_id=atom_id)
+
+    # ---------------- 安全网（DESIGN_ENGINE_SAFETY_NET） ----------------
+
+    @app.get("/safety-net/status", dependencies=[viewer])
+    def safety_net_status() -> Dict[str, Any]:
+        """安全网当前状态快照（viewer 可读），status() 原样字典。"""
+        net = _get_safety_net()
+        if net is None:
+            raise HTTPException(status_code=501, detail="safety_net module unavailable")
+        return net.status()
+
+    @app.get("/safety-net/events", dependencies=[viewer])
+    def safety_net_events(limit: int = 50) -> Dict[str, Any]:
+        """安全网事件日志（最新在前，viewer 可读）。"""
+        net = _get_safety_net()
+        if net is None:
+            raise HTTPException(status_code=501, detail="safety_net module unavailable")
+        return {"events": net.events(limit=limit)}
+
+    @app.post("/safety-net/exit", dependencies=[admin])
+    def safety_net_exit(body: Optional[SafetyExitBody] = None) -> Dict[str, Any]:
+        """手动退出安全模式（admin；reset 默认 False 保留数据）。"""
+        net = _get_safety_net()
+        if net is None:
+            raise HTTPException(status_code=501, detail="safety_net module unavailable")
+        return net.exit_safe_mode(reset=body.reset if body else False)
+
+    # ---------------- 星云引擎（DESIGN_NEBULA_ENGINE） ----------------
+
+    @app.get("/nebula/status", dependencies=[viewer])
+    def nebula_status() -> Dict[str, Any]:
+        """星云引擎状态（viewer 可读）：循环计数 / 安全模式 / 当前集群。"""
+        engine = _get_nebula_engine()
+        if engine is None:
+            raise HTTPException(status_code=501, detail="nebula module unavailable")
+        loop_count = getattr(engine, "loop_count", None)
+        if not isinstance(loop_count, int) or isinstance(loop_count, bool):
+            loop_count = 0  # 引擎尚未暴露循环计数时按 0 报
+        last_step = getattr(engine, "last_step", None) or {}
+        clusters = last_step.get("clusters") or []
+        return {
+            "loop_count": loop_count,
+            "safe_mode": _nebula_safe_mode(engine),
+            "clusters": clusters,
+        }
+
+    @app.post("/nebula/step", dependencies=[admin])
+    def nebula_step() -> Dict[str, Any]:
+        """手动跑一次主循环（admin）。安全模式下引擎退化为轻量空转，
+        返回 dict 含 safe_mode=True（见 nebula.NebulaEngine.step）。"""
+        engine = _get_nebula_engine()
+        if engine is None:
+            raise HTTPException(status_code=501, detail="nebula module unavailable")
+        return engine.step()
 
     return app
 

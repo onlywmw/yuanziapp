@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import logging
 import sqlite3
+import threading
 import time
 import urllib.request
 import uuid
@@ -40,6 +42,57 @@ STATUS_TIMEOUT = "TIMEOUT"
 STATUS_CANCELLED = "CANCELLED"
 
 _http_post: Optional[Callable] = None  # 测试可注入
+
+logger = logging.getLogger(__name__)
+
+# 在飞节点登记（DESIGN_ENGINE_SAFETY_NET.md §二.4 卡死恢复）：
+# 节点进入执行时登记、结束（无论成败）时注销；安全网经 abort_node() 把在飞
+# 节点标记为中止，执行循环随后按 skip 策略跳过（status=CANCELLED），不阻塞
+# 后续节点。锁保护：abort_node 通常由安全网监控线程调用，与执行线程并发。
+_in_flight_lock = threading.Lock()
+_in_flight_nodes: Dict[str, Dict[str, Any]] = {}
+
+
+def _register_in_flight(run_id: str, node_id: str, atom_id: str) -> None:
+    with _in_flight_lock:
+        _in_flight_nodes[node_id] = {
+            "run_id": run_id,
+            "atom_id": atom_id,
+            "started_at": _now_iso(),
+            "aborted": False,
+        }
+
+
+def _unregister_in_flight(node_id: str) -> None:
+    with _in_flight_lock:
+        _in_flight_nodes.pop(node_id, None)
+
+
+def _is_aborted(node_id: str) -> bool:
+    with _in_flight_lock:
+        rec = _in_flight_nodes.get(node_id)
+        return bool(rec and rec.get("aborted"))
+
+
+def abort_node(node_id: str) -> bool:
+    """中止在飞节点（DESIGN_ENGINE_SAFETY_NET.md §二.4 卡死修复接缝）。
+
+    节点在飞 → 标记中止并返回 True（执行循环随后按 skip 策略跳过该节点）；
+    节点不存在、已结束或已中止 → 返回 False。任何内部异常捕获后返回 False，
+    绝不抛出（安全网兜底接缝，不能拖垮调用方）。
+    """
+    try:
+        with _in_flight_lock:
+            rec = _in_flight_nodes.get(node_id)
+            if rec is None or rec.get("aborted"):
+                return False
+            rec["aborted"] = True
+            rec["aborted_at"] = _now_iso()
+        logger.info("node %s aborted by safety_net", node_id)
+        return True
+    except Exception:  # noqa: BLE001 - 安全网接缝绝不抛出
+        logger.exception("abort_node failed for %s", node_id)
+        return False
 
 
 def _now_iso() -> str:
@@ -225,24 +278,44 @@ def run_workflow(
         atom_id = node.get("atom_id", "")
         payload = _gather_payload(node_id, channels, outputs)
 
-        attempts = 0
-        result: Optional[Dict[str, Any]] = None
-        error = ""
-        while attempts <= max_retries:
-            attempts += 1
-            try:
-                result = _execute_node(atom_id, payload, http_post)
-                if result.get("status") == "success":
-                    break
-                error = result.get("message", "handler returned error")
-                result = None
-            except Exception as exc:  # noqa: BLE001 - 节点异常进入重试策略
-                error = str(exc)
-                result = None
-            if attempts <= max_retries and retry_delay > 0:
-                time.sleep(retry_delay * attempts)
+        # 在飞登记：安全网可经 abort_node() 中止本节点（§二.4 卡死恢复）
+        _register_in_flight(run_id, node_id, atom_id)
+        try:
+            attempts = 0
+            result: Optional[Dict[str, Any]] = None
+            error = ""
+            while attempts <= max_retries and not _is_aborted(node_id):
+                attempts += 1
+                try:
+                    result = _execute_node(atom_id, payload, http_post)
+                    if result.get("status") == "success":
+                        break
+                    error = result.get("message", "handler returned error")
+                    result = None
+                except Exception as exc:  # noqa: BLE001 - 节点异常进入重试策略
+                    error = str(exc)
+                    result = None
+                if attempts <= max_retries and retry_delay > 0:
+                    time.sleep(retry_delay * attempts)
 
-        duration_ms = round((time.monotonic() - started) * 1000, 1)
+            duration_ms = round((time.monotonic() - started) * 1000, 1)
+            if _is_aborted(node_id):
+                # skip 策略（§二.4）：标记 CANCELLED/skipped，不阻塞后续节点
+                node_runs.append(
+                    {
+                        "node": node_id,
+                        "atom_id": atom_id,
+                        "status": STATUS_CANCELLED,
+                        "duration_ms": duration_ms,
+                        "attempts": attempts,
+                        "skipped": True,
+                        "error": "aborted by safety_net",
+                    }
+                )
+                continue
+        finally:
+            _unregister_in_flight(node_id)
+
         if result is not None:
             data = result.get("data", {})
             outputs[node_id] = data if isinstance(data, dict) else {"value": data}
