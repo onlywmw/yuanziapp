@@ -183,6 +183,50 @@
         "maturity": {
           "type": "string",
           "enum": ["experimental", "alpha", "beta", "stable", "deprecated"]
+        },
+        "style": {
+          "type": "array",
+          "description": "风格标签（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），最多 3 个，超上限或值不在枚举内拒绝注册",
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "enum": ["极简", "可靠", "专业", "优雅", "强大", "轻量", "创意", "温馨", "硬核", "极客", "玩趣", "实验"]
+          }
+        },
+        "audience": {
+          "type": "array",
+          "description": "目标受众（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），最多 3 个，超上限或值不在枚举内拒绝注册",
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "enum": ["后端开发", "前端开发", "数据工程", "设计师", "作家", "学生", "所有人", "极客", "运维", "研究员", "创作者"]
+          }
+        },
+        "mood": {
+          "type": "string",
+          "description": "使用基调（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），单选",
+          "enum": ["专注", "平静", "精力充沛", "轻松愉快", "严肃认真", "受启发"]
+        },
+        "quality": {
+          "type": "string",
+          "description": "品质等级（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），单选；handcrafted 触发 Audit 审核警告，experimental 与 use_case 生产环境冲突警告",
+          "enum": ["experimental", "functional", "polished", "battle-tested", "handcrafted"],
+          "default": "functional"
+        },
+        "use_case": {
+          "type": "array",
+          "description": "使用场景（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），最多 3 个，超上限或值不在枚举内拒绝注册",
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "enum": ["日常工作", "生产环境", "学习", "原型开发", "创意项目", "紧急救火"]
+          }
+        },
+        "narrative": {
+          "type": "string",
+          "description": "作者手写叙事（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），10-200 字；与 description 完全一致或含占位词（test/测试/123/todo）触发警告",
+          "minLength": 10,
+          "maxLength": 200
         }
       }
     },

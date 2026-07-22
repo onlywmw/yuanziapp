@@ -52,6 +52,38 @@ BASE_ATOM_SIDE_EFFECTS: Dict[str, str] = {
     "system.ai": SIDE_EFFECT_IMPURE,
 }
 
+# I/O 类型枚举（DESIGN_ATOM_FOUNDATION_V2 §2，类型名称统一小写）：
+# json=结构化小数据（默认）/stream=流式不进内存/file_ref=对象存储 URL。
+# schema 的 purpose.functions[].input_schema/output_schema 已带同款枚举
+# （P0-A 同步维护），此处常量供 submit 兜底硬校验；缺失视为 json 不报错。
+IO_TYPE_VALUES = ("json", "stream", "file_ref")
+DEFAULT_IO_TYPE = "json"
+
+# 分类扩展字段枚举（DESIGN_ATOM_FOUNDATION_V2 §3，全部可选）：
+# 与 atom-registry-schema.json 的 classification 保持一致；style/audience/
+# use_case 超上限或值不在枚举内拒绝注册，此处常量同样供兜底硬校验。
+STYLE_VALUES = (
+    "极简", "可靠", "专业", "优雅", "强大", "轻量",
+    "创意", "温馨", "硬核", "极客", "玩趣", "实验",
+)
+AUDIENCE_VALUES = (
+    "后端开发", "前端开发", "数据工程", "设计师", "作家", "学生",
+    "所有人", "极客", "运维", "研究员", "创作者",
+)
+USE_CASE_VALUES = (
+    "日常工作", "生产环境", "学习", "原型开发", "创意项目", "紧急救火",
+)
+QUALITY_VALUES = (
+    "experimental", "functional", "polished", "battle-tested", "handcrafted",
+)
+DEFAULT_QUALITY = "functional"
+# style/audience/use_case 数组上限（§3：最多 3 个）
+CLASSIFICATION_LIST_LIMIT = 3
+# use_case 中表示生产环境的取值（experimental 冲突警告用）
+USE_CASE_PRODUCTION = "生产环境"
+# narrative 占位词（§3：test/测试/123/todo，大小写不敏感）
+NARRATIVE_PLACEHOLDER_WORDS = ("test", "测试", "123", "todo")
+
 # 模块级缓存编译后的校验器；False 为负缓存（加载失败，退化为不校验）
 _META_VALIDATOR: Any = None
 
@@ -121,7 +153,96 @@ def validate_atom_meta(atom: Dict[str, Any]) -> List[str]:
         errors.append(
             f"side_effect: {side_effect!r} is not one of {list(SIDE_EFFECT_VALUES)}"
         )
+    # I/O 类型枚举硬校验（DESIGN_ATOM_FOUNDATION_V2 §2）：type 存在时必须是
+    # json/stream/file_ref 严格小写三值之一，非法值拒绝注册；缺失视为 json
+    # 不报错。schema 已带同款枚举，此处兜底双保险（校验器降级时仍能拦截）。
+    purpose = atom.get("purpose")
+    if isinstance(purpose, dict):
+        functions = purpose.get("functions")
+        if isinstance(functions, list):
+            for index, func in enumerate(functions):
+                if not isinstance(func, dict):
+                    continue
+                for io_field in ("input_schema", "output_schema"):
+                    io_schema = func.get(io_field)
+                    if not isinstance(io_schema, dict):
+                        continue
+                    io_type = io_schema.get("type")
+                    if io_type is not None and io_type not in IO_TYPE_VALUES:
+                        errors.append(
+                            f"purpose.functions.{index}.{io_field}.type: "
+                            f"{io_type!r} is not one of {list(IO_TYPE_VALUES)}"
+                        )
+    # 分类扩展字段硬校验（DESIGN_ATOM_FOUNDATION_V2 §3）：style/audience/
+    # use_case 超上限（3 个）或值不在枚举内 → 拒绝注册。
+    # schema 已带同款 maxItems/enum，此处兜底双保险。
+    classification = atom.get("classification")
+    if isinstance(classification, dict):
+        for list_field, values in (
+            ("style", STYLE_VALUES),
+            ("audience", AUDIENCE_VALUES),
+            ("use_case", USE_CASE_VALUES),
+        ):
+            items = classification.get(list_field)
+            if not isinstance(items, list):
+                continue
+            if len(items) > CLASSIFICATION_LIST_LIMIT:
+                errors.append(
+                    f"classification.{list_field}: {items!r} has more than "
+                    f"{CLASSIFICATION_LIST_LIMIT} items"
+                )
+            for item in items:
+                if item not in values:
+                    errors.append(
+                        f"classification.{list_field}: "
+                        f"{item!r} is not one of {list(values)}"
+                    )
     return errors
+
+
+def classification_warnings(atom: Dict[str, Any]) -> List[str]:
+    """分类扩展字段警告规则（DESIGN_ATOM_FOUNDATION_V2 §3，不阻塞注册）。
+
+    - narrative 与 description 完全一致 → 警告；
+    - narrative 含占位词（test/测试/123/todo，大小写不敏感）→ 警告；
+    - quality=handcrafted → 警告（提示需 Audit 审核）；
+    - quality=experimental 且 use_case 含生产环境 → 冲突警告。
+
+    返回人类可读警告列表，空列表表示无警告；submit_atom 随返回值透出并写入审计。
+    """
+    warnings: List[str] = []
+    classification = atom.get("classification")
+    if not isinstance(classification, dict):
+        return warnings
+    narrative = classification.get("narrative")
+    if isinstance(narrative, str) and narrative:
+        if narrative == atom.get("description"):
+            warnings.append(
+                "classification.narrative: 与 description 完全一致，"
+                "叙事应补充而非复述简介"
+            )
+        lowered = narrative.lower()
+        hits = [w for w in NARRATIVE_PLACEHOLDER_WORDS if w.lower() in lowered]
+        if hits:
+            warnings.append(
+                f"classification.narrative: 含占位词 {hits}，请手写真实叙事"
+            )
+    quality = classification.get("quality")
+    if quality == "handcrafted":
+        warnings.append(
+            "classification.quality: 'handcrafted' 需 Audit 审核确认"
+        )
+    use_case = classification.get("use_case")
+    if (
+        quality == "experimental"
+        and isinstance(use_case, list)
+        and USE_CASE_PRODUCTION in use_case
+    ):
+        warnings.append(
+            "classification.quality: 'experimental' 与 use_case "
+            f"'{USE_CASE_PRODUCTION}' 冲突，请调整品质等级或使用场景"
+        )
+    return warnings
 
 
 def resolve_side_effect(atom: Dict[str, Any]) -> str:
@@ -381,6 +502,12 @@ def submit_atom(
 
     result = _insert_or_update(conn, atom, signature, actor)
     _archive_version(conn, atom, signature)
+    # 分类扩展字段警告（DESIGN_ATOM_FOUNDATION_V2 §3）：不阻塞注册，
+    # 随返回 dict 的 "warnings" 键透出（无警告为空列表），并写入审计 detail。
+    warnings = classification_warnings(atom)
+    audit_detail = f"signature={signature}"
+    if warnings:
+        audit_detail += "; warnings: " + " | ".join(warnings)
     _audit(
         conn,
         atom_id,
@@ -388,9 +515,10 @@ def submit_atom(
         old_status,
         "submitted",
         actor,
-        f"signature={signature}",
+        audit_detail,
     )
     result["success"] = True
+    result["warnings"] = warnings
     return result
 
 

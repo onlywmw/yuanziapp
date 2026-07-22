@@ -53,8 +53,30 @@
             "properties": {
               "name": { "type": "string" },
               "description": { "type": "string" },
-              "input_schema": { "type": "object" },
-              "output_schema": { "type": "object" }
+              "input_schema": {
+                "type": "object",
+                "description": "输入定义。type 为 I/O 类型枚举：json=结构化小数据（默认）/stream=流式不进内存/file_ref=对象存储URL；缺省视为 json",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["json", "stream", "file_ref"],
+                    "default": "json",
+                    "description": "I/O 类型，严格小写三值；stream 不参与内存加载，file_ref 指向临时对象存储"
+                  }
+                }
+              },
+              "output_schema": {
+                "type": "object",
+                "description": "输出定义。type 为 I/O 类型枚举：json=结构化小数据（默认）/stream=流式不进内存/file_ref=对象存储URL；缺省视为 json",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["json", "stream", "file_ref"],
+                    "default": "json",
+                    "description": "I/O 类型，严格小写三值；stream 不参与内存加载，file_ref 指向临时对象存储"
+                  }
+                }
+              }
             }
           }
         },
@@ -161,6 +183,50 @@
         "maturity": {
           "type": "string",
           "enum": ["experimental", "alpha", "beta", "stable", "deprecated"]
+        },
+        "style": {
+          "type": "array",
+          "description": "风格标签（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），最多 3 个，超上限或值不在枚举内拒绝注册",
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "enum": ["极简", "可靠", "专业", "优雅", "强大", "轻量", "创意", "温馨", "硬核", "极客", "玩趣", "实验"]
+          }
+        },
+        "audience": {
+          "type": "array",
+          "description": "目标受众（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），最多 3 个，超上限或值不在枚举内拒绝注册",
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "enum": ["后端开发", "前端开发", "数据工程", "设计师", "作家", "学生", "所有人", "极客", "运维", "研究员", "创作者"]
+          }
+        },
+        "mood": {
+          "type": "string",
+          "description": "使用基调（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），单选",
+          "enum": ["专注", "平静", "精力充沛", "轻松愉快", "严肃认真", "受启发"]
+        },
+        "quality": {
+          "type": "string",
+          "description": "品质等级（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），单选；handcrafted 触发 Audit 审核警告，experimental 与 use_case 生产环境冲突警告",
+          "enum": ["experimental", "functional", "polished", "battle-tested", "handcrafted"],
+          "default": "functional"
+        },
+        "use_case": {
+          "type": "array",
+          "description": "使用场景（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），最多 3 个，超上限或值不在枚举内拒绝注册",
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "enum": ["日常工作", "生产环境", "学习", "原型开发", "创意项目", "紧急救火"]
+          }
+        },
+        "narrative": {
+          "type": "string",
+          "description": "作者手写叙事（DESIGN_ATOM_FOUNDATION_V2 §3 分类扩展字段，可选），10-200 字；与 description 完全一致或含占位词（test/测试/123/todo）触发警告",
+          "minLength": 10,
+          "maxLength": 200
         }
       }
     },
@@ -245,6 +311,12 @@
         "algorithm": { "type": "string" },
         "source": { "type": "string" }
       }
+    },
+    "side_effect": {
+      "type": "string",
+      "enum": ["pure", "impure"],
+      "default": "impure",
+      "description": "副作用标签（v2.1 新增，顶层字段）：pure=无副作用无状态，可安全并行/重试/缓存；impure=有副作用或依赖外部（默认值，未声明时由注册侧归一化归入）"
     },
     "compatibility": {
       "type": "object",
