@@ -274,6 +274,34 @@
       "default": "impure",
       "description": "副作用标签（v2.1 新增，顶层字段）：pure=无副作用无状态，可安全并行/重试/缓存；impure=有副作用或依赖外部（默认值，未声明时由注册侧归一化归入）"
     },
+    "compatibility": {
+      "type": "object",
+      "description": "平台兼容性声明（顶层可选字段，连接原子使用）：声明连接器适用的操作系统、版本、厂商与硬件能力，用于安装时自动匹配连接器；普通原子无需声明",
+      "properties": {
+        "os": {
+          "type": "string",
+          "enum": ["android", "ios", "huawei", "windows", "linux"],
+          "description": "目标操作系统，严格小写"
+        },
+        "os_version": {
+          "type": "string",
+          "description": "操作系统版本约束串，例如 >=11、<16，按数字段比较"
+        },
+        "manufacturer": {
+          "type": "string",
+          "description": "设备厂商，* = 不限厂商，例如 samsung、xiaomi"
+        },
+        "hardware": {
+          "type": "array",
+          "description": "所需硬件能力列表，例如 gps、bluetooth、camera",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "implements": {
+      "type": "string",
+      "description": "接口标准声明（顶层可选字段，连接原子使用）：值为接口标准原子的 atom_id（如 schema.location-v1），声明本原子输出覆盖该标准定义的全部字段且类型一致，审核时校验"
+    },
     "version": {
       "type": "string",
       "description": "原子版本，遵循 semver",

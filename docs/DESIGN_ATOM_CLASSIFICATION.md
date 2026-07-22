@@ -13,6 +13,8 @@
 
 注册原子:
   可注册, 可发现, 可安装, 可删除, 有作者
+  └── 连接器 (connector.*): 平台通路, 有作者, 可安装/删除
+      详见 DESIGN_CONNECTOR_ATOM.md
 ```
 
 ## 二、六类原子
@@ -24,6 +26,15 @@
 决策 (rule)        情境→动作         rule-engine
 执行 (actuator)    世界输出          music-player, notification, vibrate
 连接 (connector)   平台通路          location-android, music-spotify
+```
+
+```
+连接原子 Schema:
+  不新增 architecture.type — 由 atom_id 前缀 connector. 标识
+  顶层可选字段:
+    compatibility  {os, os_version, manufacturer, hardware}
+    implements     接口标准 atom_id, 如 schema.location-v1
+  详见 DESIGN_CONNECTOR_ATOM.md
 ```
 
 ## 三、特殊原子

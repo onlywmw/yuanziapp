@@ -1,0 +1,96 @@
+{
+  "atom_id": "schema.location-v1",
+  "name": "位置接口标准 v1",
+  "version": "1.0.0",
+  "description": "接口标准：所有 location 连接器必须实现。定义「获取位置」功能的统一输出契约。",
+  "alias": [
+    "location-schema",
+    "connector-io-location"
+  ],
+  "purpose": {
+    "summary": "定义 location 连接器的统一输出契约（接口标准原子，无执行体）",
+    "detail": "所有 connector.location-* 原子必须通过 implements=\"schema.location-v1\" 声明实现本标准，并保证输出覆盖本契约的全部字段且类型一致。",
+    "functions": [
+      {
+        "name": "get_location",
+        "description": "获取设备当前位置。所有 location 连接器必须返回本契约定义的输出结构。",
+        "input_schema": {
+          "type": "json"
+        },
+        "output_schema": {
+          "type": "json",
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "description": "纬度（度）"
+            },
+            "longitude": {
+              "type": "number",
+              "description": "经度（度）"
+            },
+            "accuracy": {
+              "type": "number",
+              "description": "定位精度（米）"
+            },
+            "timestamp": {
+              "type": "string",
+              "description": "ISO 8601 时间戳"
+            }
+          },
+          "required": [
+            "latitude",
+            "longitude",
+            "accuracy",
+            "timestamp"
+          ]
+        }
+      }
+    ],
+    "input": "连接器自定义输入（如精度），接口标准不作约束",
+    "output": "{latitude:number, longitude:number, accuracy:number, timestamp:string}"
+  },
+  "architecture": {
+    "type": "schema",
+    "runtime": "n/a",
+    "interface": "connector-io-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "dependencies": []
+  },
+  "ownership": {
+    "author": "yuanzi-core",
+    "maintainer": "Yuanzi Registry",
+    "team": "Yuanzi",
+    "organization": "Yuanzi Atom Ecosystem",
+    "license": "MIT / project license"
+  },
+  "classification": {
+    "category": "interface-standard",
+    "domain": "schema",
+    "tags": [
+      "connector",
+      "interface-standard",
+      "location"
+    ],
+    "maturity": "stable"
+  },
+  "lifecycle": {
+    "status": "registered",
+    "created_at": "2026-07-19T15:23:21Z",
+    "registered_at": "2026-07-19T15:23:21Z"
+  },
+  "side_effect": "pure",
+  "io": {
+    "output": {
+      "latitude": "number",
+      "longitude": "number",
+      "accuracy": "number",
+      "timestamp": "string"
+    }
+  },
+  "signature": {
+    "hash": "f9c60783d3f388b84fd6c86dc4a15d0473828c7bf5b1a416534aa388fdb6d029",
+    "algorithm": "sha256",
+    "source": "registry.hashing.compute_signature"
+  }
+}

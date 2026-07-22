@@ -1,0 +1,82 @@
+{
+  "atom_id": "connector.camera-android",
+  "name": "Android 相机连接器",
+  "version": "1.0.0",
+  "description": "封装 Android CameraX 相机能力的连接原子，输出遵循 schema.camera-v1 接口标准",
+  "purpose": {
+    "summary": "借用 Android 设备已有的相机拍摄照片，返回统一的图像数据结构",
+    "detail": "连接原子：不自己造相机，封装 Android 平台已有的 CameraX 能力。所有 camera 连接器（无论 Android / iOS / 华为）都实现同一输出契约 {image_base64, width, height, timestamp}，上层工作流不关心底层平台。",
+    "functions": [
+      {
+        "name": "capture",
+        "description": "拍摄一张静态照片，返回 base64 编码图像及尺寸、时间戳",
+        "input_schema": { "type": "json" },
+        "output_schema": { "type": "json" }
+      }
+    ],
+    "input": "{} 或 {\"lens\": \"back\"|\"front\"}（均可选）",
+    "output": "{\"status\": \"success\", \"data\": {\"image_base64\": \"...\", \"width\": 1, \"height\": 1, \"timestamp\": \"ISO8601 字符串\"}}",
+    "examples": [
+      {
+        "title": "拍摄一张照片（mock 模式）",
+        "input": {},
+        "output": {
+          "status": "success",
+          "data": {
+            "image_base64": "iVBORw0KGgo...",
+            "width": 1,
+            "height": 1,
+            "timestamp": "2026-01-01T00:00:00+00:00"
+          }
+        }
+      }
+    ]
+  },
+  "architecture": {
+    "type": "function",
+    "runtime": "python3.10",
+    "interface": "std-atom-http-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "hosting": "chaquopy"
+  },
+  "ownership": {
+    "author": "yuanzi",
+    "license": "MIT"
+  },
+  "classification": {
+    "category": "connector",
+    "domain": "camera",
+    "tags": ["connector", "camera", "android", "hardware"],
+    "maturity": "experimental"
+  },
+  "compatibility": {
+    "os": "android",
+    "manufacturer": "*",
+    "hardware": ["camera"]
+  },
+  "implements": "schema.camera-v1",
+  "io": {
+    "output": {
+      "image_base64": "string",
+      "width": "number",
+      "height": "number",
+      "timestamp": "string"
+    }
+  },
+  "compliance": {
+    "security_level": "public",
+    "data_sensitivity": "high",
+    "permissions_required": ["android.permission.CAMERA"],
+    "network_access": "none"
+  },
+  "lifecycle": {
+    "status": "submitted"
+  },
+  "signature": {
+    "hash": "c97e5b8a242ab428b303e0d9d5735e044482c1de36f5f9861588cc7748e1c359",
+    "algorithm": "sha256",
+    "source": "manual"
+  },
+  "side_effect": "impure"
+}

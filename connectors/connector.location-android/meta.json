@@ -1,0 +1,106 @@
+{
+  "atom_id": "connector.location-android",
+  "name": "Android Location Connector",
+  "version": "1.0.0",
+  "description": "封装 Android LocationManager，获取设备当前位置，实现 schema.location-v1 接口标准",
+  "purpose": {
+    "summary": "借用 Android 平台定位能力，以统一接口输出当前位置",
+    "detail": "连接原子：不自己实现定位算法，而是封装 Android 系统已有的 LocationManager（Chaquopy Java 桥接），以 getLastLocation 读取最近缓存定位（不可用时降级遍历其他 provider），输出遵循 schema.location-v1 接口标准，上层与工作流不关心底层通路。非 Android 环境返回 unsupported_platform；设 YUANZI_CONNECTOR_MOCK=1 返回符合 I/O 标准的 mock 数据，便于开发与测试。",
+    "functions": [
+      {
+        "name": "get_location",
+        "description": "获取设备当前位置（纬度、经度、精度与时间戳）",
+        "input_schema": {
+          "type": "json",
+          "fields": {
+            "provider": "string (optional, gps|network|passive，默认 gps)"
+          }
+        },
+        "output_schema": {
+          "type": "json",
+          "fields": {
+            "latitude": "number (纬度，度)",
+            "longitude": "number (经度，度)",
+            "accuracy": "number (定位精度，米)",
+            "timestamp": "string (ISO 8601 时间戳)"
+          }
+        }
+      }
+    ],
+    "input": "{\"provider\": \"gps\"}（可选）",
+    "output": "{\"latitude\": 39.9847, \"longitude\": 116.3065, \"accuracy\": 18.0, \"timestamp\": \"2026-07-19T10:24:36+08:00\"}",
+    "examples": [
+      {
+        "title": "获取当前位置",
+        "input": {},
+        "output": {
+          "status": "success",
+          "data": {
+            "latitude": 39.9847,
+            "longitude": 116.3065,
+            "accuracy": 18.0,
+            "timestamp": "2026-07-19T10:24:36+08:00"
+          }
+        }
+      }
+    ]
+  },
+  "architecture": {
+    "type": "external",
+    "runtime": "python3.10",
+    "interface": "std-atom-http-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "dependencies": ["android.location.LocationManager (Chaquopy 桥接)"],
+    "hosting": "process",
+    "ports": [9022]
+  },
+  "ownership": {
+    "author": "yuanzi",
+    "license": "MIT"
+  },
+  "classification": {
+    "category": "connector",
+    "domain": "location",
+    "tags": ["connector", "location", "android", "hardware"],
+    "maturity": "experimental"
+  },
+  "lifecycle": {
+    "status": "submitted"
+  },
+  "compliance": {
+    "security_level": "internal",
+    "data_sensitivity": "high",
+    "permissions_required": [
+      "ACCESS_FINE_LOCATION",
+      "ACCESS_COARSE_LOCATION"
+    ],
+    "network_access": "none",
+    "audit_required": false
+  },
+  "quality": {
+    "test_status": "passed",
+    "documentation_level": "good"
+  },
+  "side_effect": "impure",
+  "compatibility": {
+    "os": "android",
+    "os_version": ">=11",
+    "manufacturer": "*",
+    "hardware": ["gps"]
+  },
+  "implements": "schema.location-v1",
+  "io": {
+    "output": {
+      "latitude": "number",
+      "longitude": "number",
+      "accuracy": "number",
+      "timestamp": "string"
+    }
+  },
+  "signature": {
+    "hash": "PLACEHOLDER",
+    "algorithm": "sha256",
+    "source": "auto-computed"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "atom_id": "connector.storage-android",
+  "name": "Android Storage Connector",
+  "version": "1.0.0",
+  "description": "封装 Android SAF / MediaStore，枚举设备存储中的文件，实现 schema.storage-v1 接口标准",
+  "purpose": {
+    "summary": "借用 Android 平台存储访问能力，以统一接口输出文件列表",
+    "detail": "连接原子：不自己实现存储协议，而是封装 Android 系统已有的 Storage Access Framework（DocumentsContract）与 MediaStore（Chaquopy Java 桥接），枚举文件名、可重新打开的引用（content URI）与字节数，输出遵循 schema.storage-v1 接口标准，上层与工作流不关心底层通路。非 Android 环境返回 unsupported_platform；设 YUANZI_CONNECTOR_MOCK=1 返回符合 I/O 标准的 mock 数据，便于开发与测试。",
+    "functions": [
+      {
+        "name": "list_files",
+        "description": "枚举设备存储中的文件，返回文件名、可重新打开的引用（path）与大小",
+        "input_schema": {
+          "type": "json",
+          "fields": {
+            "tree_uri": "string (optional, SAF 授权后的目录树 URI；缺省时降级查询 MediaStore 公共集合)",
+            "limit": "integer (optional, 默认 100, 上限 10000)"
+          }
+        },
+        "output_schema": {
+          "type": "json",
+          "fields": {
+            "files": "array<{name:string, path:string, size:number}>"
+          }
+        }
+      }
+    ],
+    "input": "{\"tree_uri\": \"content://...\", \"limit\": 100}（均可选）",
+    "output": "{\"files\": [{\"name\": \"IMG_20240618_093012.jpg\", \"path\": \"content://com.android.providers.media.documents/document/image%3A1000000341\", \"size\": 3485218}]}",
+    "examples": [
+      {
+        "title": "枚举存储中的文件",
+        "input": {},
+        "output": {
+          "status": "success",
+          "data": {
+            "files": [
+              {"name": "IMG_20240618_093012.jpg", "path": "content://com.android.providers.media.documents/document/image%3A1000000341", "size": 3485218}
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "architecture": {
+    "type": "external",
+    "runtime": "python3.10",
+    "interface": "std-atom-http-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "dependencies": ["android.provider.DocumentsContract / MediaStore (Chaquopy 桥接)"],
+    "hosting": "process",
+    "ports": [9031]
+  },
+  "ownership": {
+    "author": "yuanzi",
+    "license": "MIT"
+  },
+  "classification": {
+    "category": "connector",
+    "domain": "storage",
+    "tags": ["connector", "storage", "android", "filesystem"],
+    "maturity": "experimental"
+  },
+  "lifecycle": {
+    "status": "submitted"
+  },
+  "compliance": {
+    "security_level": "internal",
+    "data_sensitivity": "high",
+    "permissions_required": [
+      "READ_EXTERNAL_STORAGE (Android 12L 及以下)",
+      "READ_MEDIA_IMAGES / READ_MEDIA_VIDEO / READ_MEDIA_AUDIO (Android 13+)",
+      "SAF 目录授权（ACTION_OPEN_DOCUMENT_TREE，无需权限）"
+    ],
+    "network_access": "none",
+    "audit_required": false
+  },
+  "quality": {
+    "test_status": "passed",
+    "documentation_level": "good"
+  },
+  "side_effect": "impure",
+  "compatibility": {
+    "os": "android",
+    "manufacturer": "*",
+    "hardware": []
+  },
+  "implements": "schema.storage-v1",
+  "io": {
+    "output": {
+      "files": "array"
+    }
+  },
+  "signature": {
+    "hash": "PLACEHOLDER",
+    "algorithm": "sha256",
+    "source": "auto-computed"
+  }
+}

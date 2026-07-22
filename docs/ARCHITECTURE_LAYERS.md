@@ -59,7 +59,7 @@
 ```
 基础层:
   DESIGN_ATOM_FOUNDATION_V2.md     ← 原子怎么做
-  DESIGN_ATOM_V2_CLASSIFICATION.md  ← 原子怎么分类
+  DESIGN_ATOM_CLASSIFICATION.md     ← 原子怎么分类
   DESIGN_CHANNEL_SPEC.md            ← 通道怎么连
   DESIGN_CHANNEL_V2.md              ← 通道怎么升级
   DESIGN_WORKFLOW_RESILIENCE.md     ← 工作流怎么容错 (待合并)

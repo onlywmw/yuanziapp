@@ -1,0 +1,99 @@
+{
+  "atom_id": "connector.bluetooth-android",
+  "name": "Android Bluetooth Connector",
+  "version": "1.0.0",
+  "description": "封装 Android BluetoothAdapter，枚举已配对/已连接蓝牙设备，实现 schema.bluetooth-v1 接口标准",
+  "purpose": {
+    "summary": "借用 Android 平台蓝牙能力，以统一接口输出设备列表",
+    "detail": "连接原子：不自己实现蓝牙协议栈，而是封装 Android 系统已有的 BluetoothAdapter（Chaquopy Java 桥接），枚举已配对设备及其连接态，输出遵循 schema.bluetooth-v1 接口标准，上层与工作流不关心底层通路。非 Android 环境返回 unsupported_platform；设 YUANZI_CONNECTOR_MOCK=1 返回符合 I/O 标准的 mock 数据，便于开发与测试。",
+    "functions": [
+      {
+        "name": "list_devices",
+        "description": "枚举蓝牙设备（以已配对设备为主），返回名称、MAC 地址与连接态",
+        "input_schema": {
+          "type": "json",
+          "fields": {
+            "connected_only": "boolean (optional, 为 true 时只返回已连接设备)"
+          }
+        },
+        "output_schema": {
+          "type": "json",
+          "fields": {
+            "devices": "array<{name:string, id:string, connected:boolean}>"
+          }
+        }
+      }
+    ],
+    "input": "{\"connected_only\": false}（可选）",
+    "output": "{\"devices\": [{\"name\": \"Sony WH-1000XM5\", \"id\": \"00:1A:7D:DA:71:13\", \"connected\": true}]}",
+    "examples": [
+      {
+        "title": "枚举全部蓝牙设备",
+        "input": {},
+        "output": {
+          "status": "success",
+          "data": {
+            "devices": [
+              {"name": "Sony WH-1000XM5", "id": "00:1A:7D:DA:71:13", "connected": true}
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "architecture": {
+    "type": "external",
+    "runtime": "python3.10",
+    "interface": "std-atom-http-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "dependencies": ["android.bluetooth.BluetoothAdapter (Chaquopy 桥接)"],
+    "hosting": "process",
+    "ports": [9021]
+  },
+  "ownership": {
+    "author": "yuanzi",
+    "license": "MIT"
+  },
+  "classification": {
+    "category": "connector",
+    "domain": "bluetooth",
+    "tags": ["connector", "bluetooth", "android", "hardware"],
+    "maturity": "experimental"
+  },
+  "lifecycle": {
+    "status": "submitted"
+  },
+  "compliance": {
+    "security_level": "internal",
+    "data_sensitivity": "medium",
+    "permissions_required": [
+      "BLUETOOTH",
+      "BLUETOOTH_ADMIN",
+      "BLUETOOTH_CONNECT (Android 12+)"
+    ],
+    "network_access": "none",
+    "audit_required": false
+  },
+  "quality": {
+    "test_status": "passed",
+    "documentation_level": "good"
+  },
+  "side_effect": "impure",
+  "compatibility": {
+    "os": "android",
+    "manufacturer": "*",
+    "hardware": ["bluetooth"]
+  },
+  "implements": "schema.bluetooth-v1",
+  "io": {
+    "output": {
+      "devices": "array"
+    }
+  },
+  "signature": {
+    "hash": "PLACEHOLDER",
+    "algorithm": "sha256",
+    "source": "auto-computed"
+  }
+}

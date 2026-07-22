@@ -1,0 +1,100 @@
+{
+  "atom_id": "schema.bluetooth-v1",
+  "name": "蓝牙接口标准 v1",
+  "version": "1.0.0",
+  "description": "接口标准：所有 bluetooth 连接器必须实现。定义「列出蓝牙设备」功能的统一输出契约。",
+  "alias": [
+    "bluetooth-schema",
+    "connector-io-bluetooth"
+  ],
+  "purpose": {
+    "summary": "定义 bluetooth 连接器的统一输出契约（接口标准原子，无执行体）",
+    "detail": "所有 connector.bluetooth-* 原子必须通过 implements=\"schema.bluetooth-v1\" 声明实现本标准，并保证输出覆盖本契约的全部字段且类型一致。devices 数组元素约定为 {name:string, id:string, connected:boolean}。",
+    "functions": [
+      {
+        "name": "list_devices",
+        "description": "列出已配对/可发现的蓝牙设备。所有 bluetooth 连接器必须返回本契约定义的输出结构。",
+        "input_schema": {
+          "type": "json"
+        },
+        "output_schema": {
+          "type": "json",
+          "properties": {
+            "devices": {
+              "type": "array",
+              "description": "蓝牙设备列表",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "设备名称"
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "设备标识（MAC 或平台 ID）"
+                  },
+                  "connected": {
+                    "type": "boolean",
+                    "description": "当前是否已连接"
+                  }
+                },
+                "required": [
+                  "name",
+                  "id",
+                  "connected"
+                ]
+              }
+            }
+          },
+          "required": [
+            "devices"
+          ]
+        }
+      }
+    ],
+    "input": "连接器自定义输入（如扫描超时），接口标准不作约束",
+    "output": "{devices:[{name:string, id:string, connected:boolean}]}"
+  },
+  "architecture": {
+    "type": "schema",
+    "runtime": "n/a",
+    "interface": "connector-io-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "dependencies": []
+  },
+  "ownership": {
+    "author": "yuanzi-core",
+    "maintainer": "Yuanzi Registry",
+    "team": "Yuanzi",
+    "organization": "Yuanzi Atom Ecosystem",
+    "license": "MIT / project license"
+  },
+  "classification": {
+    "category": "interface-standard",
+    "domain": "schema",
+    "tags": [
+      "connector",
+      "interface-standard",
+      "bluetooth"
+    ],
+    "maturity": "stable"
+  },
+  "lifecycle": {
+    "status": "registered",
+    "created_at": "2026-07-19T15:23:21Z",
+    "registered_at": "2026-07-19T15:23:21Z"
+  },
+  "side_effect": "pure",
+  "io": {
+    "output": {
+      "devices": "array"
+    }
+  },
+  "signature": {
+    "hash": "1c2317e094d3f3f07fc477d82898cc28ecb452f4939d2a617e2dd46753b10d43",
+    "algorithm": "sha256",
+    "source": "registry.hashing.compute_signature"
+  }
+}

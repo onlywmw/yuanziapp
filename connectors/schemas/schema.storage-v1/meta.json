@@ -1,0 +1,100 @@
+{
+  "atom_id": "schema.storage-v1",
+  "name": "存储接口标准 v1",
+  "version": "1.0.0",
+  "description": "接口标准：所有 storage 连接器必须实现。定义「列出文件」功能的统一输出契约。",
+  "alias": [
+    "storage-schema",
+    "connector-io-storage"
+  ],
+  "purpose": {
+    "summary": "定义 storage 连接器的统一输出契约（接口标准原子，无执行体）",
+    "detail": "所有 connector.storage-* 原子必须通过 implements=\"schema.storage-v1\" 声明实现本标准，并保证输出覆盖本契约的全部字段且类型一致。files 数组元素约定为 {name:string, path:string, size:number}。",
+    "functions": [
+      {
+        "name": "list_files",
+        "description": "列出设备存储中的文件。所有 storage 连接器必须返回本契约定义的输出结构。",
+        "input_schema": {
+          "type": "json"
+        },
+        "output_schema": {
+          "type": "json",
+          "properties": {
+            "files": {
+              "type": "array",
+              "description": "文件列表",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "文件名"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "文件路径"
+                  },
+                  "size": {
+                    "type": "number",
+                    "description": "文件大小（字节）"
+                  }
+                },
+                "required": [
+                  "name",
+                  "path",
+                  "size"
+                ]
+              }
+            }
+          },
+          "required": [
+            "files"
+          ]
+        }
+      }
+    ],
+    "input": "连接器自定义输入（如目录），接口标准不作约束",
+    "output": "{files:[{name:string, path:string, size:number}]}"
+  },
+  "architecture": {
+    "type": "schema",
+    "runtime": "n/a",
+    "interface": "connector-io-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "dependencies": []
+  },
+  "ownership": {
+    "author": "yuanzi-core",
+    "maintainer": "Yuanzi Registry",
+    "team": "Yuanzi",
+    "organization": "Yuanzi Atom Ecosystem",
+    "license": "MIT / project license"
+  },
+  "classification": {
+    "category": "interface-standard",
+    "domain": "schema",
+    "tags": [
+      "connector",
+      "interface-standard",
+      "storage"
+    ],
+    "maturity": "stable"
+  },
+  "lifecycle": {
+    "status": "registered",
+    "created_at": "2026-07-19T15:23:21Z",
+    "registered_at": "2026-07-19T15:23:21Z"
+  },
+  "side_effect": "pure",
+  "io": {
+    "output": {
+      "files": "array"
+    }
+  },
+  "signature": {
+    "hash": "7955b8be086bf75c281bfb32e3b37a114cdac425a2c69f24d5c1e12fc8503f80",
+    "algorithm": "sha256",
+    "source": "registry.hashing.compute_signature"
+  }
+}

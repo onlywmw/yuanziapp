@@ -369,6 +369,15 @@ def submit_atom(
     atom["side_effect"] = atom.get("side_effect") or DEFAULT_SIDE_EFFECT
     atom.setdefault("classification", {})["side_effect"] = atom["side_effect"]
 
+    # 连接原子（DESIGN_CONNECTOR_ATOM.md）：implements / compatibility / io
+    # 为顶层可选字段，注册表无独立列，与 side_effect 同款处理——镜像进
+    # classification_json 持久化；审核时据此做 implements 校验（review_atom），
+    # 设备匹配时据此做 compatibility 过滤（connectors.match_connector）。
+    # 未声明这些字段的普通原子完全不受影响。
+    for _connector_key in ("implements", "compatibility", "io"):
+        if atom.get(_connector_key) is not None:
+            atom["classification"][_connector_key] = atom[_connector_key]
+
     result = _insert_or_update(conn, atom, signature, actor)
     _archive_version(conn, atom, signature)
     _audit(
@@ -391,6 +400,138 @@ def submit_atom(
 NOTARIZE_CATEGORIES = frozenset({"asset", "artwork", "service"})
 
 
+# ---------------------------------------------------------------------------
+# 连接原子：implements 接口标准校验（DESIGN_CONNECTOR_ATOM.md §四）
+# ---------------------------------------------------------------------------
+#
+# 契约（钉死，不得偏离）：
+# - implements 为顶层可选字符串，值是接口标准原子的 atom_id（如 schema.location-v1）；
+# - 接口标准原子必须存在且 architecture.type == "schema"，
+#   否则拒绝，reason 以 implements_unknown_schema 开头；
+# - 连接器声明的输出必须覆盖标准定义的全部键且类型一致（按 JSON 类型名字符串
+#   比较：number/string/array/object/boolean/integer），
+#   否则拒绝，reason 以 implements_mismatch 开头；
+# - 未声明 implements 的原子零影响。
+
+# output_schema 中属于 I/O 元信息的保留键（atom-registry-schema.json 定义），
+# 提取输出字段时跳过，不当作输出键。
+_OUTPUT_SCHEMA_META_KEYS = frozenset(
+    {"type", "description", "default", "required", "title", "properties"}
+)
+
+
+def _extract_output_fields(output_schema: Any) -> Dict[str, str]:
+    """从 purpose.functions[].output_schema 提取 字段名 -> JSON 类型名。
+
+    兼容两种写法：
+    - JSON Schema 风格：{"type": "object", "properties": {f: {"type": t}}}；
+    - 扁平风格：{f: t}（t 为类型名字符串，保留键除外）。
+    类型名统一转小写后比较。
+    """
+    fields: Dict[str, str] = {}
+    if not isinstance(output_schema, dict):
+        return fields
+    properties = output_schema.get("properties")
+    if isinstance(properties, dict):
+        for key, spec in properties.items():
+            if isinstance(spec, dict) and isinstance(spec.get("type"), str):
+                fields[key] = spec["type"].lower()
+            elif isinstance(spec, str):
+                fields[key] = spec.lower()
+    for key, value in output_schema.items():
+        if key in _OUTPUT_SCHEMA_META_KEYS:
+            continue
+        if isinstance(value, str):
+            fields[key] = value.lower()
+    return fields
+
+
+def _extract_output_contract(atom: Dict[str, Any]) -> Dict[str, str]:
+    """读取原子声明的输出契约（字段名 -> JSON 类型名）。
+
+    取值优先级（以 atom-registry-schema.json 实际支持的字段为准）：
+    purpose.functions[].output_schema 优先；全部为空时回退顶层 io.output
+    （DESIGN_CONNECTOR_ATOM §四的写法，submit 时已镜像进
+    classification.io）。入参 atom 只需含 purpose / classification 两个键。
+    """
+    purpose = atom.get("purpose") or {}
+    functions = purpose.get("functions")
+    if isinstance(functions, list):
+        for func in functions:
+            if isinstance(func, dict):
+                fields = _extract_output_fields(func.get("output_schema"))
+                if fields:
+                    return fields
+    classification = atom.get("classification") or {}
+    io_info = classification.get("io")
+    if isinstance(io_info, dict):
+        output = io_info.get("output")
+        if isinstance(output, dict):
+            return {
+                key: value.lower()
+                for key, value in output.items()
+                if isinstance(value, str)
+            }
+    return {}
+
+
+def _validate_implements(
+    conn: sqlite3.Connection, atom_id: str, atom: Dict[str, Any]
+) -> Optional[str]:
+    """审核挂点：连接器声明 implements 时校验其与接口标准的一致性。
+
+    返回 None 表示通过（或未声明 implements——普通原子零影响）；
+    返回拒绝原因字符串（implements_unknown_schema / implements_mismatch 开头）。
+    只读查询，不写库；任何解析异常按校验失败处理（保守拒绝）。
+    """
+    classification = atom.get("classification") or {}
+    implements = classification.get("implements")
+    if not isinstance(implements, str) or not implements:
+        return None
+
+    row = conn.execute(
+        f"SELECT purpose_json, architecture_json, classification_json "
+        f"FROM {REGISTRY_TABLE} WHERE atom_id = ?",
+        (implements,),
+    ).fetchone()
+    if not row:
+        return f"implements_unknown_schema: schema atom '{implements}' not found"
+
+    architecture = json.loads(row[1]) if row[1] else {}
+    if architecture.get("type") != "schema":
+        return (
+            f"implements_unknown_schema: atom '{implements}' is not an interface "
+            f"standard (architecture.type={architecture.get('type')!r}, "
+            f"expected 'schema')"
+        )
+
+    standard = _extract_output_contract(
+        {
+            "purpose": json.loads(row[0]) if row[0] else {},
+            "classification": json.loads(row[2]) if row[2] else {},
+        }
+    )
+    declared = _extract_output_contract(atom)
+
+    missing = sorted(k for k in standard if k not in declared)
+    mismatched = sorted(
+        f"{k} (expected {standard[k]}, got {declared[k]})"
+        for k in standard
+        if k in declared and declared[k] != standard[k]
+    )
+    if missing or mismatched:
+        parts = []
+        if missing:
+            parts.append("missing output keys: " + ", ".join(missing))
+        if mismatched:
+            parts.append("type mismatch: " + ", ".join(mismatched))
+        return (
+            f"implements_mismatch: connector '{atom_id}' does not satisfy "
+            f"'{implements}' ({'; '.join(parts)})"
+        )
+    return None
+
+
 def review_atom(
     conn: sqlite3.Connection,
     atom_id: str,
@@ -401,7 +542,7 @@ def review_atom(
 ) -> Dict[str, Any]:
     """审核原子，通过后进入 registered 状态，拒绝进入 rejected 状态。"""
     row = conn.execute(
-        f"SELECT lifecycle_json, classification_json FROM {REGISTRY_TABLE} WHERE atom_id = ?",
+        f"SELECT lifecycle_json, classification_json, purpose_json FROM {REGISTRY_TABLE} WHERE atom_id = ?",
         (atom_id,),
     ).fetchone()
     if not row:
@@ -413,6 +554,24 @@ def review_atom(
 
     lifecycle = json.loads(row[0])
     old_status = lifecycle.get("status")
+
+    # 连接原子 implements 校验挂点（DESIGN_CONNECTOR_ATOM.md §四）：
+    # 只拦截"批准"路径——声明了 implements 的连接器与接口标准不一致时
+    # 强制转为拒绝，reason 以 implements_mismatch / implements_unknown_schema
+    # 开头并写入 review_result.comments；未声明 implements 的原子零影响。
+    reject_reason: Optional[str] = None
+    if approved:
+        reject_reason = _validate_implements(
+            conn,
+            atom_id,
+            {
+                "purpose": json.loads(row[2]) if row[2] else {},
+                "classification": json.loads(row[1]) if row[1] else {},
+            },
+        )
+        if reject_reason:
+            approved = False
+            comments = reject_reason
 
     if approved:
         lifecycle["status"] = "registered"
@@ -453,7 +612,14 @@ def review_atom(
         classification = json.loads(row[1]) if row[1] else {}
         if classification.get("category") in NOTARIZE_CATEGORIES:
             _trigger_notarize_on_register(conn, atom_id, reviewer)
-    return {"success": True, "atom_id": atom_id, "status": lifecycle["status"]}
+    result: Dict[str, Any] = {
+        "success": True,
+        "atom_id": atom_id,
+        "status": lifecycle["status"],
+    }
+    if reject_reason:
+        result["reason"] = reject_reason
+    return result
 
 
 # 置 1 时公证同步执行（测试确定性）；默认后台 daemon 线程，注册不阻塞

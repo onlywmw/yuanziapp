@@ -1,0 +1,2 @@
+# 纯标准库实现，无第三方依赖。
+# Android 环境的 Java 互调（from java import jclass）由 Chaquopy 运行时提供，不走 pip。

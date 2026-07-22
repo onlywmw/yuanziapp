@@ -205,6 +205,18 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
         except Exception:  # noqa: BLE001
             return None
 
+    def _load_connectors():
+        """惰性导入 connectors 模块（同 _load_notarize 的模式）。
+
+        连接器匹配模块未落盘时返回 None，由路由报 501，不影响其余接口。
+        """
+        try:
+            import connectors
+
+            return connectors
+        except Exception:  # noqa: BLE001
+            return None
+
     @app.get("/atoms/{atom_id}/verify", dependencies=[viewer])
     def verify_atom_notarization(atom_id: str) -> Dict[str, Any]:
         """链上公证验证（DESIGN_BLOCKCHAIN_NOTARY §六，viewer 可读）。"""
@@ -413,6 +425,36 @@ def create_app(db_path: str | Path = DEFAULT_DB) -> FastAPI:
         if tab not in ("hot", "top", "new"):
             raise HTTPException(status_code=400, detail="tab must be hot|top|new")
         return marketplace_board(conn, tab=tab, limit=limit)
+
+    @app.get("/connectors/match", dependencies=[viewer])
+    def connectors_match(
+        function: str,
+        os: Optional[str] = None,
+        os_version: Optional[str] = None,
+        manufacturer: Optional[str] = None,
+        hardware: Optional[str] = None,
+        limit: int = 5,
+    ) -> Dict[str, Any]:
+        """连接器自动匹配（DESIGN_CONNECTOR_ATOM §三「自动匹配」，viewer 可读）。
+
+        function 必填（缺失由 FastAPI 返回 422）；os/os_version/manufacturer/
+        hardware(逗号分隔) 可选，缺省字段由 connectors.detect_device() 补齐。
+        """
+        connectors = _load_connectors()
+        if connectors is None:
+            raise HTTPException(status_code=501, detail="connectors module unavailable")
+        device = connectors.detect_device()
+        # 查询参数优先，未提供的设备字段保留 detect_device() 的探测值
+        if os is not None:
+            device["os"] = os
+        if os_version is not None:
+            device["os_version"] = os_version
+        if manufacturer is not None:
+            device["manufacturer"] = manufacturer
+        if hardware is not None:
+            device["hardware"] = [h.strip() for h in hardware.split(",") if h.strip()]
+        candidates = connectors.match_connector(conn, function, device, limit=limit)
+        return {"device": device, "function": function, "candidates": candidates}
 
     @app.post("/workflows", status_code=201, dependencies=[registry_role])
     def create_workflow(definition: Dict[str, Any]) -> Dict[str, Any]:

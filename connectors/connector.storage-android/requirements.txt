@@ -1,0 +1,3 @@
+# 无第三方 pip 依赖：仅使用 Python 标准库。
+# Android 侧 Java 桥接（from java import jclass）由 Chaquopy 运行时注入，
+# 桌面/CI 环境 import 失败属预期，core.py 已容错，不影响安装与导入。

@@ -1,0 +1,96 @@
+{
+  "atom_id": "schema.camera-v1",
+  "name": "相机接口标准 v1",
+  "version": "1.0.0",
+  "description": "接口标准：所有 camera 连接器必须实现。定义「拍摄照片」功能的统一输出契约。",
+  "alias": [
+    "camera-schema",
+    "connector-io-camera"
+  ],
+  "purpose": {
+    "summary": "定义 camera 连接器的统一输出契约（接口标准原子，无执行体）",
+    "detail": "所有 connector.camera-* 原子必须通过 implements=\"schema.camera-v1\" 声明实现本标准，并保证输出覆盖本契约的全部字段且类型一致。",
+    "functions": [
+      {
+        "name": "capture_photo",
+        "description": "拍摄一张照片。所有 camera 连接器必须返回本契约定义的输出结构。",
+        "input_schema": {
+          "type": "json"
+        },
+        "output_schema": {
+          "type": "json",
+          "properties": {
+            "image_base64": {
+              "type": "string",
+              "description": "图像数据的 base64 编码"
+            },
+            "width": {
+              "type": "number",
+              "description": "图像宽度（像素）"
+            },
+            "height": {
+              "type": "number",
+              "description": "图像高度（像素）"
+            },
+            "timestamp": {
+              "type": "string",
+              "description": "ISO 8601 时间戳"
+            }
+          },
+          "required": [
+            "image_base64",
+            "width",
+            "height",
+            "timestamp"
+          ]
+        }
+      }
+    ],
+    "input": "连接器自定义输入（如分辨率），接口标准不作约束",
+    "output": "{image_base64:string, width:number, height:number, timestamp:string}"
+  },
+  "architecture": {
+    "type": "schema",
+    "runtime": "n/a",
+    "interface": "connector-io-v1",
+    "state": "stateless",
+    "execution": "sync",
+    "dependencies": []
+  },
+  "ownership": {
+    "author": "yuanzi-core",
+    "maintainer": "Yuanzi Registry",
+    "team": "Yuanzi",
+    "organization": "Yuanzi Atom Ecosystem",
+    "license": "MIT / project license"
+  },
+  "classification": {
+    "category": "interface-standard",
+    "domain": "schema",
+    "tags": [
+      "connector",
+      "interface-standard",
+      "camera"
+    ],
+    "maturity": "stable"
+  },
+  "lifecycle": {
+    "status": "registered",
+    "created_at": "2026-07-19T15:23:21Z",
+    "registered_at": "2026-07-19T15:23:21Z"
+  },
+  "side_effect": "pure",
+  "io": {
+    "output": {
+      "image_base64": "string",
+      "width": "number",
+      "height": "number",
+      "timestamp": "string"
+    }
+  },
+  "signature": {
+    "hash": "e17519bc944c3f5b14f6dcbf240eea02984e54ad84e35e3bd382f5f65bf2fcfa",
+    "algorithm": "sha256",
+    "source": "registry.hashing.compute_signature"
+  }
+}
