@@ -369,12 +369,13 @@ def submit_atom(
     atom["side_effect"] = atom.get("side_effect") or DEFAULT_SIDE_EFFECT
     atom.setdefault("classification", {})["side_effect"] = atom["side_effect"]
 
-    # 连接原子（DESIGN_CONNECTOR_ATOM.md）：implements / compatibility / io
-    # 为顶层可选字段，注册表无独立列，与 side_effect 同款处理——镜像进
-    # classification_json 持久化；审核时据此做 implements 校验（review_atom），
-    # 设备匹配时据此做 compatibility 过滤（connectors.match_connector）。
+    # 连接原子（DESIGN_CONNECTOR_ATOM.md §四）：implements / compatibility / io /
+    # schema_version / preferred 为顶层可选字段，注册表无独立列，与 side_effect
+    # 同款处理——镜像进 classification_json 持久化；审核时据此做 implements 校验
+    # （review_atom），设备匹配时据此做 compatibility 过滤与 schema_version /
+    # preferred 排序（connectors.match_connector）。
     # 未声明这些字段的普通原子完全不受影响。
-    for _connector_key in ("implements", "compatibility", "io"):
+    for _connector_key in ("implements", "compatibility", "io", "schema_version", "preferred"):
         if atom.get(_connector_key) is not None:
             atom["classification"][_connector_key] = atom[_connector_key]
 

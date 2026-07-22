@@ -302,6 +302,14 @@
       "type": "string",
       "description": "接口标准声明（顶层可选字段，连接原子使用）：值为接口标准原子的 atom_id（如 schema.location-v1），声明本原子输出覆盖该标准定义的全部字段且类型一致，审核时校验"
     },
+    "schema_version": {
+      "type": "string",
+      "description": "接口标准版本声明（顶层可选字段，连接原子使用）：连接器声明实现的接口标准版本，遵循 semver；同一功能存在多个 schema 版本时自动匹配按数字段最新优先，旧版本标记 deprecated"
+    },
+    "preferred": {
+      "type": "boolean",
+      "description": "平台/运营优选标记（顶层可选字段）：true 的连接器在自动匹配排序的兜底层优先于 false/未声明"
+    },
     "version": {
       "type": "string",
       "description": "原子版本，遵循 semver",

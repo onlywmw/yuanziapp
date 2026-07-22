@@ -86,6 +86,7 @@
     "hardware": ["bluetooth"]
   },
   "implements": "schema.bluetooth-v1",
+  "schema_version": "1.0.0",
   "io": {
     "output": {
       "devices": "array"

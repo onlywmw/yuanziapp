@@ -5,9 +5,12 @@
 - connectors.version_satisfies：>=,>,<=,<,== 与裸版本号，数字段补零，
   空约束恒真，非法输入恒假；
 - connectors.match_connector：四条硬过滤（os / os_version / manufacturer /
-  hardware）+ 生命周期口径（只 registered/running 参与）+ 排序
-  （manufacturer 精确 > "*" → 评分高优先）+ limit + 空结果；
-  另覆盖 compatibility 经 submit_atom 顶层字段镜像进 classification 一例；
+  hardware）+ 生命周期口径（只 registered/running 参与）+ 排序层级
+  （0. manufacturer 精确 > "*" → 1. schema_version 新优先（数字段比较，
+  缺失视为最低）→ 2. 使用人数（恒 0 兜底）→ 3. 评分高优先 →
+  4. preferred=true 优先 → 5. atom_id 字典序兜底）+ limit + 空结果；
+  另覆盖 compatibility / schema_version 经 submit_atom 顶层字段镜像进
+  classification 并驱动匹配/排序；返回项含 schema_version 与 preferred 两键；
 - GET /connectors/match：200 形状 {device, function, candidates}、
   缺 function 422、查询参数覆盖环境变量探测值；
 - implements 审核校验（review_atom 批准路径）：标准不存在 / 目标非 schema
@@ -57,6 +60,8 @@ def _connector_atom(
     domain=None,
     arch_type="external",
     output_schema=None,
+    schema_version=None,
+    preferred=None,
 ):
     """最小合法连接器/接口标准原子；function 名按 atom_id 派生，避免签名去重冲突。"""
     atom = {
@@ -87,6 +92,10 @@ def _connector_atom(
         atom["implements"] = implements
     if io is not None:
         atom["io"] = io
+    if schema_version is not None:
+        atom["schema_version"] = schema_version
+    if preferred is not None:
+        atom["preferred"] = preferred
     return atom
 
 
@@ -279,58 +288,195 @@ def test_match_connector_hard_filters(conn):
     ]
 
 
-def test_match_connector_ranks_exact_manufacturer_before_any_then_score(conn):
-    """排序：manufacturer 精确优先于 "*"（精确低分仍靠前），同档评分高优先。"""
+def test_match_connector_sorting_contract(conn):
+    """排序层级钉死（DESIGN_CONNECTOR_ATOM.md §四「自动匹配优先级」）：
+    0. manufacturer 精确 > "*"（保留层，设备厂商通路优先，精确低版本低分仍靠前）；
+    1. schema_version 新优先：数字段比较（"1.10.0" > "1.9.0"），缺失视为最低；
+    2. 使用人数多优先（数据模型无字段，恒 0 兜底，不可测决胜）；
+    3. 社区评分高优先（仅在同版本时决胜）；
+    4. preferred=true 优先（仅在同版本同分时决胜）；
+    5. atom_id 字典序兜底。
+    """
+    # tier0：manufacturer 精确匹配，即使版本最旧、评分最低也排第一
     _register(
         conn,
         _connector_atom(
-            "connector.location-sam-hi",
+            "connector.location-sam",
             compat={"os": "android", "manufacturer": "samsung"},
-        ),
-        score=6.0,
-    )
-    _register(
-        conn,
-        _connector_atom(
-            "connector.location-sam-lo",
-            compat={"os": "android", "manufacturer": "samsung"},
+            schema_version="1.0.0",
         ),
         score=1.0,
     )
+    # tier1：通配档内 schema_version 压评分——"1.10.0" 评分 5 排在
+    # "1.9.0" 评分 9 之前（同时覆盖数字段比较：字典序下 "1.10.0" < "1.9.0"）
     _register(
         conn,
         _connector_atom(
-            "connector.location-generic-hi",
+            "connector.location-v110",
             compat={"os": "android", "manufacturer": "*"},
+            schema_version="1.10.0",
         ),
-        score=9.5,
+        score=5.0,
     )
     _register(
         conn,
         _connector_atom(
-            "connector.location-generic-lo",
+            "connector.location-v19",
+            compat={"os": "android", "manufacturer": "*"},
+            schema_version="1.9.0",
+        ),
+        score=9.0,
+    )
+    # 缺失 schema_version 视为最低（空版本），评分 10 也排最后
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-nover",
             compat={"os": "android", "manufacturer": "*"},
         ),
-        score=2.0,
+        score=10.0,
     )
 
     results = connectors.match_connector(conn, "location", DEVICE)
     assert [c["atom_id"] for c in results] == [
-        "connector.location-sam-hi",  # 精确档内评分高优先
-        "connector.location-sam-lo",
-        "connector.location-generic-hi",  # 通配档内评分高优先
-        "connector.location-generic-lo",
+        "connector.location-sam",  # tier0：厂商精确通路优先
+        "connector.location-v110",  # tier1：版本新压评分
+        "connector.location-v19",
+        "connector.location-nover",  # 缺失版本视为最低
     ]
     assert [c["manufacturer_match"] for c in results] == [
         "exact",
-        "exact",
+        "any",
         "any",
         "any",
     ]
-    assert [c["score"] for c in results] == [6.0, 1.0, 9.5, 2.0]
-    # 返回项形状钉死：排序专用键（_usage）不外泄
+    assert [c["score"] for c in results] == [1.0, 5.0, 9.0, 10.0]
+    # 返回项新增 schema_version（字符串或 None）与 preferred（布尔）两键
+    assert [c["schema_version"] for c in results] == [
+        "1.0.0",
+        "1.10.0",
+        "1.9.0",
+        None,
+    ]
+    assert [c["preferred"] for c in results] == [False, False, False, False]
+    # 返回项形状钉死：既有四键保留，新增两键，排序专用键（_usage）不外泄
     for item in results:
-        assert set(item) == {"atom_id", "manufacturer_match", "score", "compatibility"}
+        assert set(item) == {
+            "atom_id",
+            "manufacturer_match",
+            "score",
+            "compatibility",
+            "schema_version",
+            "preferred",
+        }
+
+
+def test_match_connector_schema_version_compares_numeric_segments(conn):
+    """"1.10.0" > "1.9.0"：按数字段比较，防字典序陷阱。
+
+    字典序下 "1.10.0" < "1.9.0"（'1' < '9'）；此处让 1.9.0 一方 atom_id
+    字典序更小，若实现误用字符串比较或漏掉版本层，顺序都会翻。
+    """
+    compat = {"os": "android", "manufacturer": "*"}
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-a", compat=compat, schema_version="1.9.0"
+        ),
+        score=8.0,
+    )
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-b", compat=compat, schema_version="1.10.0"
+        ),
+        score=8.0,
+    )
+    results = connectors.match_connector(conn, "location", DEVICE)
+    assert [c["atom_id"] for c in results] == [
+        "connector.location-b",
+        "connector.location-a",
+    ]
+
+
+def test_match_connector_preferred_breaks_tie_at_same_version_and_score(conn):
+    """preferred=true 在同版本同分时决胜（tier4）；缺失与 false 同为不优先档，
+    档内按 atom_id 字典序兜底。"""
+    compat = {"os": "android", "manufacturer": "*"}
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-a-nopref", compat=compat, schema_version="1.2.0"
+        ),
+        score=8.0,
+    )
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-b-plain",
+            compat=compat,
+            schema_version="1.2.0",
+            preferred=False,
+        ),
+        score=8.0,
+    )
+    # atom_id 字典序最大，靠 preferred=true 压过前面两个
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-z-pref",
+            compat=compat,
+            schema_version="1.2.0",
+            preferred=True,
+        ),
+        score=8.0,
+    )
+
+    results = connectors.match_connector(conn, "location", DEVICE)
+    assert [c["atom_id"] for c in results] == [
+        "connector.location-z-pref",
+        "connector.location-a-nopref",
+        "connector.location-b-plain",
+    ]
+    assert [c["preferred"] for c in results] == [True, False, False]
+
+
+def test_match_connector_preferred_adds_no_boost_beyond_tier4(conn):
+    """preferred 不加分：版本更旧或评分更低时，preferred=true 照样排后。"""
+    compat = {"os": "android", "manufacturer": "*"}
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-pref",
+            compat=compat,
+            schema_version="1.0.0",
+            preferred=True,
+        ),
+        score=5.0,
+    )
+    # 同版本、评分更高、无 preferred：评分层（tier3）先于 preferred 层（tier4）
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-hi-score", compat=compat, schema_version="1.0.0"
+        ),
+        score=6.0,
+    )
+    # 版本更新、评分更低、无 preferred：版本层（tier1）最优先
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-v2", compat=compat, schema_version="2.0.0"
+        ),
+        score=1.0,
+    )
+
+    results = connectors.match_connector(conn, "location", DEVICE)
+    assert [c["atom_id"] for c in results] == [
+        "connector.location-v2",
+        "connector.location-hi-score",
+        "connector.location-pref",
+    ]
 
 
 def test_match_connector_limit_truncates_results(conn):
@@ -392,6 +538,42 @@ def test_submit_mirrors_top_level_compatibility_into_classification(conn):
     assert results[0]["manufacturer_match"] == "exact"
 
 
+def test_submit_mirrors_top_level_schema_version_into_classification(conn):
+    """顶层 schema_version 经 submit_atom 镜像进 classification_json，并驱动排序
+    （与 implements/compatibility 同款镜像惯例）。"""
+    compat = {"os": "android", "manufacturer": "*"}
+    atom = _connector_atom(
+        "connector.location-v2", compat=compat, schema_version="2.0.0"
+    )
+    result = submit_atom(conn, atom, actor="test")
+    assert result["success"], result
+
+    row = conn.execute(
+        "SELECT classification_json FROM atom_registry WHERE atom_id = ?",
+        ("connector.location-v2",),
+    ).fetchone()
+    classification = json.loads(row[0])
+    assert classification["schema_version"] == "2.0.0"
+
+    # 镜像值即排序依据：v2 评分 0 也排在旧版本高分候选之前
+    res = review_atom(conn, "connector.location-v2", approved=True)
+    assert res["status"] == "registered"
+    _register(
+        conn,
+        _connector_atom(
+            "connector.location-v1", compat=compat, schema_version="1.0.0"
+        ),
+        score=9.0,
+    )
+    results = connectors.match_connector(conn, "location", DEVICE)
+    assert [c["atom_id"] for c in results] == [
+        "connector.location-v2",
+        "connector.location-v1",
+    ]
+    assert results[0]["schema_version"] == "2.0.0"
+    assert results[1]["schema_version"] == "1.0.0"
+
+
 # ---------------------------------------------------------------------------
 # 3. GET /connectors/match：形状 / 422 / 查询参数覆盖探测值
 # ---------------------------------------------------------------------------
@@ -425,12 +607,15 @@ def _register_via_api(client, atom, score=None):
 
 
 def test_match_endpoint_returns_device_function_candidates(client):
-    """200 形状钉死：{device, function, candidates}；viewer 可读。"""
+    """200 形状钉死：{device, function, candidates}；viewer 可读；
+    候选含新增 schema_version 与 preferred 两键。"""
     _register_via_api(
         client,
         _connector_atom(
             "connector.location-ok",
             compat={"os": "android", "manufacturer": "samsung", "hardware": ["gps"]},
+            schema_version="1.2.0",
+            preferred=True,
         ),
         score=7.5,
     )
@@ -452,7 +637,16 @@ def test_match_endpoint_returns_device_function_candidates(client):
     assert len(body["candidates"]) == 1
     candidate = body["candidates"][0]
     assert candidate["atom_id"] == "connector.location-ok"
-    assert set(candidate) == {"atom_id", "manufacturer_match", "score", "compatibility"}
+    assert set(candidate) == {
+        "atom_id",
+        "manufacturer_match",
+        "score",
+        "compatibility",
+        "schema_version",
+        "preferred",
+    }
+    assert candidate["schema_version"] == "1.2.0"
+    assert candidate["preferred"] is True
 
 
 def test_match_endpoint_missing_function_returns_422(client):

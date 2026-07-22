@@ -1,4 +1,5 @@
-"""连接原子自动匹配模块（设计来源：docs/DESIGN_CONNECTOR_ATOM.md §三「自动匹配」）。
+"""连接原子自动匹配模块（设计来源：docs/DESIGN_CONNECTOR_ATOM.md §三「自动匹配」
+与 §四「Schema/版本管理/自动匹配优先级」）。
 
 连接原子 = 标准原子 + compatibility 字段 + implements 接口标准声明。本模块只负责
 "为本设备找到最合适的连接器"这一段：
@@ -8,7 +9,8 @@
       2. match_connector() 在注册中心搜候选连接器
       3. 按 compatibility 硬过滤（os 相等、os_version 满足约束、
          manufacturer 精确或 "*"、hardware 为子集）
-      4. 排序：manufacturer 精确 > "*" → 评分高 → 使用人数多
+      4. 排序：manufacturer 精确 > "*" → schema_version 最新 → 用户历史使用多
+         → 社区评分高 → preferred 标记 → atom_id 字典序
       5. 返回前 limit 个候选，排第一的就是要自动安装的
 
 零新基础设施：候选直接从现有 atom_registry 表查询，复用 registry/core.py
@@ -32,7 +34,9 @@ compatibility 的落库位置：atom_registry 表只有
 purpose/architecture/ownership/classification/compliance/quality/runtime/
 lifecycle 这些 JSON 列（见 registry/core.py _insert_or_update），顶层
 compatibility 随注册归一化镜像进 classification_json（与 side_effect 同款
-镜像惯例）；读取时优先取 classification.compatibility。
+镜像惯例）；读取时优先取 classification.compatibility。schema_version 与
+preferred 同为顶层可选字段，submit 时同款镜像进 classification_json，
+本模块从 classification 镜像读取（与 implements / compatibility 一致）。
 """
 
 from __future__ import annotations
@@ -151,6 +155,30 @@ def version_satisfies(version: str, constraint: str) -> bool:
     return left == right
 
 
+# schema_version 排序键定宽补齐段数（semver 常规 3 段，富余补到 8 段；
+# 超过 8 段的版本号截断比较，实际不会出现）
+_VERSION_KEY_PAD = 8
+
+
+def _version_key(version: Any) -> tuple:
+    """schema_version 降序排序键（契约 §四「自动匹配优先级」第 1 条：最新优先）。
+
+    复用 _version_tuple 的数字段解析思路（"1.10.0" > "1.9.0"，按数字段而非
+    字符串比较）：
+    - 已声明且可解析：返回 (0, 各数字段取负并定宽补齐)，配合 match_connector
+      整体升序排序键实现"最新优先"；
+    - 缺失 / 空 / 无法解析：返回 (1, 全 0)，视为最低（空版本），排在所有
+      已声明版本之后。
+    """
+    if version is None or not str(version).strip():
+        return (1,) + (0,) * _VERSION_KEY_PAD
+    parsed = _version_tuple(str(version))
+    if not parsed:
+        return (1,) + (0,) * _VERSION_KEY_PAD
+    padded = parsed[:_VERSION_KEY_PAD] + (0,) * max(0, _VERSION_KEY_PAD - len(parsed))
+    return (0,) + tuple(-segment for segment in padded)
+
+
 # ---------------------------------------------------------------------------
 # 候选匹配（契约 4）
 # ---------------------------------------------------------------------------
@@ -165,6 +193,19 @@ def _extract_compatibility(classification: Dict[str, Any]) -> Dict[str, Any]:
     """从 classification 镜像中取 compatibility 字段（dict 以外一律视为无）。"""
     compat = classification.get("compatibility")
     return compat if isinstance(compat, dict) else {}
+
+
+def _schema_version(classification: Dict[str, Any]) -> Optional[str]:
+    """从 classification 镜像中取 schema_version（非空字符串以外一律视为未声明）。"""
+    version = classification.get("schema_version")
+    if isinstance(version, str) and version.strip():
+        return version.strip()
+    return None
+
+
+def _preferred(classification: Dict[str, Any]) -> bool:
+    """从 classification 镜像中取 preferred 标记（严格 true 才算，false/缺失同义）。"""
+    return classification.get("preferred") is True
 
 
 def _review_score(lifecycle: Dict[str, Any]) -> float:
@@ -205,11 +246,16 @@ def match_connector(
       - compatibility.manufacturer 为精确值或 "*"；
       - compatibility.hardware ⊆ device.hardware。
 
-    排序：manufacturer 精确匹配优先于 "*" → 评分高优先 → 使用人数多优先
-    → atom_id 字典序（确定性兜底）。
+    排序（§四「自动匹配优先级」，厂商精确层保留为最上层）：
+      0. manufacturer 精确匹配优先于 "*"（设备厂商通路优先是连接原子核心语义）；
+      1. schema_version 最新优先（按数字段比较，缺失视为最低）；
+      2. 用户历史使用多优先（当前恒 0，见 _usage_count 注释）；
+      3. 社区评分高优先（lifecycle.review_result.score，缺省 0）；
+      4. preferred=true 优先于 false/缺失；
+      5. atom_id 字典序（确定性兜底）。
 
     返回 [{"atom_id", "manufacturer_match": "exact"|"any", "score",
-    "compatibility"}]，最多 limit 条。
+    "compatibility", "schema_version", "preferred"}]，最多 limit 条。
     """
     device = device or {}
     dev_os = (device.get("os") or "").strip().lower() or None
@@ -295,6 +341,8 @@ def match_connector(
                 "manufacturer_match": manufacturer_match,
                 "score": _review_score(lifecycle),
                 "compatibility": compat,
+                "schema_version": _schema_version(classification),
+                "preferred": _preferred(classification),
                 # 排序专用键，不进返回值
                 "_usage": _usage_count(classification, lifecycle),
             }
@@ -302,10 +350,12 @@ def match_connector(
 
     candidates.sort(
         key=lambda c: (
-            0 if c["manufacturer_match"] == "exact" else 1,  # 精确 > "*"
-            -c["score"],  # 评分高优先
-            -c["_usage"],  # 使用人数多优先（当前恒 0，见 _usage_count 注释）
-            c["atom_id"],  # 确定性兜底
+            0 if c["manufacturer_match"] == "exact" else 1,  # tier0 厂商精确 > "*"
+            _version_key(c["schema_version"]),  # tier1 schema_version 最新优先（缺失最低）
+            -c["_usage"],  # tier2 用户历史使用多优先（当前恒 0，见 _usage_count 注释）
+            -c["score"],  # tier3 社区评分高优先
+            0 if c["preferred"] else 1,  # tier4 preferred=true 优先
+            c["atom_id"],  # tier5 确定性兜底
         )
     )
 
